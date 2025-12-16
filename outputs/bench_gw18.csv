@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-6,William Saliba,Arsenal,1,2,6.0,4.835378027417251,0,1,0,1,BHA (H)
-661,Hugo Ekitiké,Liverpool,12,4,8.4,4.295093000017529,0,1,0,2,WOL (H)
-284,Eddie Nketiah,Crystal Palace,8,4,5.4,4.284020289686238,0,1,0,3,TOT (H)
-287,Jordan Pickford,Everton,9,1,5.5,3.7528066003264344,0,1,0,4,BUR (A)
+64,Ollie Watkins,Aston Villa,2,4,8.5,4.631811525059035,0,1,0,1,CHE (A)
+476,Dan Burn,Newcastle,15,2,5.2,4.520183029453308,0,1,0,2,MUN (A)
+284,Eddie Nketiah,Crystal Palace,8,4,5.4,4.344882500992119,0,1,0,3,TOT (H)
+565,Guglielmo Vicario,Spurs,18,1,4.9,3.3360879934198264,0,1,0,4,CRY (A)

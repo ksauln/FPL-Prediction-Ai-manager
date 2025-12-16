@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-261,Chris Richards,Crystal Palace,8,2,4.6,4.7109872565111,0,1,0,1,LEE (A)
-284,Eddie Nketiah,Crystal Palace,8,4,5.4,4.174399324626431,0,1,0,2,LEE (A)
-691,Dominic Calvert-Lewin,Leeds,11,4,5.5,4.139962410369387,0,1,0,3,CRY (H)
-470,Martin Dúbravka,Burnley,3,1,4.0,3.393820525590843,0,1,0,4,BOU (A)
+661,Hugo Ekitiké,Liverpool,12,4,8.6,4.475682523843911,0,1,0,1,TOT (A)
+7,Riccardo Calafiori,Arsenal,1,2,5.7,4.439214380107191,0,1,0,2,EVE (A)
+215,Zian Flemming,Burnley,3,4,5.3,3.686758846648491,0,1,0,3,BOU (A)
+67,Đorđe Petrović,Bournemouth,4,1,4.5,4.57516414027676,0,1,0,4,BUR (H)

@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
+341,Karl Darlow,Leeds,11,1,3.9,4.381931902732915,1,0,0,NEW (A)
+106,Nathan Collins,Brentford,5,2,4.9,6.477213126232847,1,0,0,SUN (H)
+291,James Tarkowski,Everton,9,2,5.5,4.561850293070056,1,0,0,WOL (H)
+257,Maxence Lacroix,Crystal Palace,8,2,5.2,4.561187120159901,1,0,0,AVL (H)
+107,Keane Lewis-Potter,Brentford,5,2,4.8,4.557480920053938,1,0,0,SUN (H)
+351,Wilfried Gnonto,Leeds,11,3,5.2,8.148362947856098,1,0,1,NEW (A)
+16,Bukayo Saka,Arsenal,1,3,10.3,5.608837190801626,1,0,0,LIV (H)
+727,Samuel Chukwueze,Fulham,10,3,5.3,4.934825103391366,1,0,0,CHE (H)
+236,Pedro Lomba Neto,Chelsea,7,3,7.3,4.7781811556546145,1,0,0,FUL (A)
+84,Marcus Tavernier,Bournemouth,4,3,5.5,4.4820051030006525,1,0,0,TOT (H)
+661,Hugo Ekitiké,Liverpool,12,4,8.6,4.552064167877142,1,0,0,ARS (A)
