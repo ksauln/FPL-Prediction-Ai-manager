@@ -1,0 +1,5 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.2,4.116491093484328,0,1,0,1,BRE (H)
+295,Michael Keane,Everton,9,2,4.8,4.004003872559705,0,1,0,2,AVL (A)
+691,Dominic Calvert-Lewin,Leeds,11,4,5.8,3.8875711009268343,0,1,0,3,FUL (H)
+101,Caoimhín Kelleher,Brentford,5,1,4.5,3.467571845194793,0,1,0,4,CHE (A)

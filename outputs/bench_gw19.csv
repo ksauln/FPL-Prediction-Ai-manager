@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-284,Eddie Nketiah,Crystal Palace,8,4,5.4,4.651301226665488,0,1,0,1,FUL (H)
-228,Malo Gusto,Chelsea,7,2,4.9,4.617073818501516,0,1,0,2,BOU (H)
-526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.8,4.473163376121868,0,1,0,3,EVE (H)
-366,Alisson Becker,Liverpool,12,1,5.4,4.469365698702391,0,1,0,4,LEE (H)
+661,Hugo Ekitiké,Liverpool,12,4,9.1,5.499028455398449,0,1,0,1,LEE (H)
+443,Luke Shaw,Man Utd,14,2,4.5,5.138709223868551,0,1,0,2,WOL (H)
+407,Matheus Nunes,Man City,13,2,5.4,4.961490834388323,0,1,0,3,SUN (A)
+182,James Trafford,Man City,13,1,4.6,5.174165946604867,0,1,0,4,SUN (A)

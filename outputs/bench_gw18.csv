@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-64,Ollie Watkins,Aston Villa,2,4,8.5,4.631811525059035,0,1,0,1,CHE (A)
-476,Dan Burn,Newcastle,15,2,5.2,4.520183029453308,0,1,0,2,MUN (A)
-284,Eddie Nketiah,Crystal Palace,8,4,5.4,4.344882500992119,0,1,0,3,TOT (H)
-565,Guglielmo Vicario,Spurs,18,1,4.9,3.3360879934198264,0,1,0,4,CRY (A)
+284,Eddie Nketiah,Crystal Palace,8,4,5.4,4.750659491846937,0,1,0,1,TOT (H)
+6,William Saliba,Arsenal,1,2,5.9,4.708959555582484,0,1,0,2,BHA (H)
+714,Nick Woltemade,Newcastle,15,4,7.4,4.583125060025385,0,1,0,3,MUN (A)
+736,Gianluigi Donnarumma,Man City,13,1,5.7,4.2128794980847735,0,1,0,4,NFO (A)

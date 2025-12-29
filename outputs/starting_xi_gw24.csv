@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
+470,Martin Dúbravka,Burnley,3,1,4.0,4.805549178459518,1,0,0,SUN (A)
+321,Jorge Cuenca Barreno,Fulham,10,2,4.3,7.541911538512078,1,0,1,MUN (A)
+106,Nathan Collins,Brentford,5,2,4.9,5.833103721985203,1,0,0,AVL (A)
+6,William Saliba,Arsenal,1,2,5.9,4.956441977921365,1,0,0,LEE (A)
+437,Lisandro Martínez,Man Utd,14,2,4.8,4.822254743180634,1,0,0,FUL (H)
+328,Ryan Sessegnon,Fulham,10,3,5.4,7.206295423825511,1,0,0,MUN (A)
+58,Boubacar Kamara,Aston Villa,2,3,4.9,5.162095484120518,1,0,0,BRE (H)
+303,James Garner,Everton,9,3,5.0,4.97763296679172,1,0,0,BHA (A)
+427,Tijjani Reijnders,Man City,13,3,5.2,4.837616203501972,1,0,0,TOT (A)
+430,Erling Haaland,Man City,13,4,15.1,4.92901267312344,1,0,0,TOT (A)
+252,Marc Guiu Paz,Chelsea,7,4,4.3,4.914007294529464,1,0,0,WHU (H)
