@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-113,Sepp van den Berg,Brentford,5,2,4.5,4.524889234396149,0,1,0,1,EVE (A)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.7,4.455696123743348,0,1,0,2,NEW (A)
-403,Joško Gvardiol,Man City,13,2,6.0,4.28566789388468,0,1,0,3,CHE (H)
-565,Guglielmo Vicario,Spurs,18,1,4.8,3.535321195536936,0,1,0,4,SUN (H)
+291,James Tarkowski,Everton,9,2,5.7,4.27268482721775,0,1,0,1,BRE (H)
+691,Dominic Calvert-Lewin,Leeds,11,4,6.0,4.079385462664301,0,1,0,2,MUN (H)
+661,Hugo Ekitiké,Liverpool,12,4,8.9,3.717153866863831,0,1,0,3,FUL (A)
+715,John Victor Maciel Furtado,Nott'm Forest,16,1,4.0,3.96536489799377,0,1,0,4,AVL (A)

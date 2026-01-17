@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
+101,Caoimhín Kelleher,Brentford,5,1,4.5,4.420894282266773,1,0,0,ARS (H)
+447,Ayden Heaven,Man Utd,14,2,3.9,6.747614382868277,1,0,0,WHU (A)
+12,Oleksandr Zinchenko,Nott'm Forest,16,2,4.9,5.684556344176395,1,0,0,WOL (H)
+508,Neco Williams,Nott'm Forest,16,2,4.7,4.959076545626025,1,0,0,WOL (H)
+5,Gabriel dos Santos Magalhães,Arsenal,1,2,6.7,4.911817994538176,1,0,0,BRE (A)
+328,Ryan Sessegnon,Fulham,10,3,5.4,7.885874752407152,1,0,1,MCI (A)
+19,Gabriel Martinelli Silva,Arsenal,1,3,6.8,7.704500770116709,1,0,0,BRE (A)
+200,Jaidon Anthony,Burnley,3,3,5.1,6.514497331685409,1,0,0,CRY (A)
+350,Brenden Aaronson,Leeds,11,3,5.4,5.527013080973959,1,0,0,CHE (A)
+303,James Garner,Everton,9,3,5.1,5.424558194634671,1,0,0,BOU (H)
+311,Norberto Bercique Gomes Betuncal,Everton,9,4,5.0,5.512947048169861,1,0,0,BOU (H)

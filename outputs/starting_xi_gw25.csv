@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
+470,Martin Dúbravka,Burnley,3,1,4.0,6.050085161777654,1,0,0,WHU (H)
+447,Ayden Heaven,Man Utd,14,2,3.9,7.534939811068623,1,0,1,TOT (H)
+437,Lisandro Martínez,Man Utd,14,2,4.8,6.842213775870556,1,0,0,TOT (H)
+106,Nathan Collins,Brentford,5,2,5.0,5.964399997044966,1,0,0,NEW (A)
+5,Gabriel dos Santos Magalhães,Arsenal,1,2,6.7,4.736185788488397,1,0,0,SUN (H)
+200,Jaidon Anthony,Burnley,3,3,5.1,7.20538969435328,1,0,0,WHU (H)
+328,Ryan Sessegnon,Fulham,10,3,5.4,6.971290798965654,1,0,0,EVE (H)
+329,Harry Wilson,Fulham,10,3,5.9,6.444016213451621,1,0,0,EVE (H)
+303,James Garner,Everton,9,3,5.1,6.156830444572273,1,0,0,FUL (A)
+236,Pedro Lomba Neto,Chelsea,7,3,7.1,5.944926766452537,1,0,0,WOL (A)
+597,Richarlison de Andrade,Spurs,18,4,6.4,4.807766159134927,1,0,0,MUN (A)
