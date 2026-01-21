@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-106,Nathan Collins,Brentford,5,2,5.0,4.657301174619928,0,1,0,1,CHE (A)
-691,Dominic Calvert-Lewin,Leeds,11,4,6.0,3.905118960570279,0,1,0,2,FUL (H)
-64,Ollie Watkins,Aston Villa,2,4,8.8,3.8184847800806803,0,1,0,3,EVE (H)
-32,Emiliano Martínez Romero,Aston Villa,2,1,5.0,4.008911465210612,0,1,0,4,EVE (H)
+295,Michael Keane,Everton,9,2,4.7,4.294147766203867,0,1,0,1,AVL (A)
+283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,4.060431107351541,0,1,0,2,SUN (A)
+691,Dominic Calvert-Lewin,Leeds,11,4,6.0,3.787367580293248,0,1,0,3,FUL (H)
+287,Jordan Pickford,Everton,9,1,5.6,3.565695216661201,0,1,0,4,AVL (A)

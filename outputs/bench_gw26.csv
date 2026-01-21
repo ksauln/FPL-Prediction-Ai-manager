@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-362,Joël Piroe,Leeds,11,4,4.9,4.8708496097425735,0,1,0,1,CHE (A)
-252,Marc Guiu Paz,Chelsea,7,4,4.2,4.761882275124391,0,1,0,2,LEE (H)
-6,William Saliba,Arsenal,1,2,5.9,4.533330546652023,0,1,0,3,BRE (A)
-366,Alisson Becker,Liverpool,12,1,5.4,3.6920516182813086,0,1,0,4,SUN (A)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.1,4.786382009187024,0,1,0,1,LEE (H)
+317,Joachim Andersen,Fulham,10,2,4.6,4.592334078818921,0,1,0,2,MCI (A)
+362,Joël Piroe,Leeds,11,4,4.9,4.3243216758660825,0,1,0,3,CHE (A)
+366,Alisson Becker,Liverpool,12,1,5.4,3.603818371338249,0,1,0,4,SUN (A)

@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-569,Cristian Romero,Spurs,18,2,5.0,4.257651212517666,0,1,0,1,MUN (A)
-311,Norberto Bercique Gomes Betuncal,Everton,9,4,5.0,4.188629300876937,0,1,0,2,FUL (A)
-310,Thierno Barry,Everton,9,4,5.7,4.103548318862226,0,1,0,3,FUL (A)
-101,Caoimhín Kelleher,Brentford,5,1,4.5,4.117207495636007,0,1,0,4,NEW (A)
+12,Oleksandr Zinchenko,Nott'm Forest,16,2,4.9,4.309361908054936,0,1,0,1,LEE (A)
+597,Richarlison de Andrade,Spurs,18,4,6.4,4.123088013170076,0,1,0,2,MUN (A)
+310,Thierno Barry,Everton,9,4,5.7,3.830858224213639,0,1,0,3,FUL (A)
+101,Caoimhín Kelleher,Brentford,5,1,4.6,4.212127394035502,0,1,0,4,NEW (A)
