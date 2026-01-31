@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-200,Jaidon Anthony,Burnley,3,3,5.1,4.419642677180975,0,1,0,1,CRY (A)
-516,Callum Hudson-Odoi,Nott'm Forest,16,3,5.7,4.390191645937856,0,1,0,2,WOL (H)
-295,Michael Keane,Everton,9,2,4.7,4.20403158513361,0,1,0,3,BOU (H)
-753,John Ruddy,Newcastle,15,1,4.0,3.8499117942829546,0,1,0,4,TOT (A)
+82,Antoine Semenyo,Man City,13,3,7.8,4.822248394469856,0,1,0,1,FUL (H)
+508,Neco Williams,Nott'm Forest,16,2,4.7,4.634644924494587,0,1,0,2,WOL (H)
+295,Michael Keane,Everton,9,2,4.7,4.341661609856316,0,1,0,3,BOU (H)
+341,Karl Darlow,Leeds,11,1,3.9,3.677915166073257,0,1,0,4,CHE (A)

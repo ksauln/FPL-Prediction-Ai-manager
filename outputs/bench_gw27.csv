@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-106,Nathan Collins,Brentford,5,2,5.0,4.035756325397382,0,1,0,1,BHA (H)
-751,Yusuf Akhamrich,Spurs,18,3,4.5,4.009516263850477,0,1,0,2,ARS (H)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,3.925427061646343,0,1,0,3,WOL (H)
-314,Bernd Leno,Fulham,10,1,4.9,4.159304098109232,0,1,0,4,SUN (A)
+200,Jaidon Anthony,Burnley,3,3,5.0,4.231061444379614,0,1,0,1,CHE (A)
+230,Wesley Fofana,Chelsea,7,2,4.4,4.164551308041675,0,1,0,2,BUR (H)
+283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,4.138442820654931,0,1,0,3,WOL (H)
+314,Bernd Leno,Fulham,10,1,4.9,4.120748687270005,0,1,0,4,SUN (A)
