@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-516,Callum Hudson-Odoi,Nott'm Forest,16,3,5.7,4.342813299675591,0,1,0,1,BHA (A)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,4.20645907618087,0,1,0,2,MUN (A)
-750,James Rowswell,Spurs,18,2,4.0,3.9082099799777157,0,1,0,3,FUL (A)
-182,James Trafford,Man City,13,1,4.5,3.906053819027866,0,1,0,4,LEE (A)
+233,Josh Acheampong,Chelsea,7,2,3.8,3.974430651958912,0,1,0,1,ARS (A)
+750,James Rowswell,Spurs,18,2,4.0,3.9010159061021703,0,1,0,2,FUL (A)
+749,Mateus Mané,Wolves,20,4,4.6,3.830013574733143,0,1,0,3,AVL (H)
+182,James Trafford,Man City,13,1,4.5,3.3361032814576386,0,1,0,4,LEE (A)

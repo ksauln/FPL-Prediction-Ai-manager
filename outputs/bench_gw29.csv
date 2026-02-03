@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-252,Marc Guiu Paz,Chelsea,7,4,4.2,4.2513046874613,0,1,0,1,AVL (A)
-10,Myles Lewis-Skelly,Arsenal,1,2,5.1,4.137188468481475,0,1,0,2,BHA (A)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.2,3.979093169736759,0,1,0,3,AVL (A)
-182,James Trafford,Man City,13,1,4.5,3.938032560037021,0,1,0,4,NFO (H)
+233,Josh Acheampong,Chelsea,7,2,3.8,4.258201979258674,0,1,0,1,AVL (A)
+144,Diego Coppola,Brighton,6,2,4.2,4.176781294722561,0,1,0,2,ARS (H)
+526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.8,4.016385898307133,0,1,0,3,MCI (A)
+341,Karl Darlow,Leeds,11,1,3.9,3.6204176597060465,0,1,0,4,SUN (H)
