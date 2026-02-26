@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-376,Joe Gomez,Liverpool,12,2,4.9,4.161135466504711,0,1,0,1,TOT (H)
-217,Lyle Foster,Burnley,3,4,4.9,4.002827341690333,0,1,0,2,BOU (H)
-310,Thierno Barry,Everton,9,4,5.7,3.7977246099200306,0,1,0,3,ARS (A)
-470,Martin Dúbravka,Burnley,3,1,4.0,4.257874449650854,0,1,0,4,BOU (H)
+256,Daniel Muñoz Mejía,Crystal Palace,8,2,5.9,4.4715848117620265,0,1,0,1,LEE (H)
+365,Lukas Nmecha,Leeds,11,4,5.0,4.118959854818817,0,1,0,2,CRY (A)
+215,Zian Flemming,Burnley,3,4,5.3,3.7831539396360636,0,1,0,3,BOU (H)
+470,Martin Dúbravka,Burnley,3,1,4.0,4.625758680202952,0,1,0,4,BOU (H)

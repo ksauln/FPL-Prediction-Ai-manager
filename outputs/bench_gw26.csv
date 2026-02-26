@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-26,Martín Zubimendi Ibáñez,Arsenal,1,3,5.2,4.696576664146939,0,1,0,1,BRE (A)
-447,Ayden Heaven,Man Utd,14,2,3.8,4.533073852714511,0,1,0,2,WHU (A)
-295,Michael Keane,Everton,9,2,4.7,4.079569018141287,0,1,0,3,BOU (H)
-101,Caoimhín Kelleher,Brentford,5,1,4.6,3.4589581877948414,0,1,0,4,ARS (H)
+817,Adam Armstrong,Wolves,20,4,5.4,4.411566574927542,0,1,0,1,NFO (A) / ARS (H)
+411,Nico O'Reilly,Man City,13,2,5.0,4.1912487113618,0,1,0,2,FUL (H)
+233,Josh Acheampong,Chelsea,7,2,3.7,4.175119267731547,0,1,0,3,LEE (H)
+753,John Ruddy,Newcastle,15,1,4.0,3.9151030654430756,0,1,0,4,TOT (A)
