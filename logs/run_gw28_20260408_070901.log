@@ -1,0 +1,14 @@
+2026-04-08 07:09:01,795 [INFO] fplmodel - Logging initialised. Writing to /Users/kyle/Documents/FPL-Prediction/logs/run_20260408_070901.log
+2026-04-08 07:09:01,795 [INFO] fplmodel - Starting pipeline run (force_refetch=True)
+2026-04-08 07:09:01,795 [INFO] fplmodel - Fetching bootstrap static data...
+2026-04-08 07:09:02,165 [INFO] fplmodel - Fetching bootstrap static data completed in 0.37s
+2026-04-08 07:09:02,165 [INFO] fplmodel - Fetching fixtures data...
+2026-04-08 07:09:02,502 [INFO] fplmodel - Fetching fixtures data completed in 0.34s
+2026-04-08 07:09:02,502 [INFO] fplmodel - Normalising bootstrap data...
+2026-04-08 07:09:02,513 [INFO] fplmodel - Normalising bootstrap data completed in 0.01s
+2026-04-08 07:09:02,513 [INFO] fplmodel - Loaded normalised frames: 825 elements, 20 teams, 38 events
+2026-04-08 07:09:02,514 [INFO] fplmodel - Gameweek override applied -> next_gw=28 | last_finished_gw=27
+2026-04-08 07:09:02,514 [INFO] fplmodel - Next gameweek: 28 | Last finished gameweek: 27
+2026-04-08 07:09:02,514 [INFO] fplmodel - Renaming log file to highlight gameweek 28
+2026-04-08 07:09:02,514 [INFO] fplmodel - Log file renamed to /Users/kyle/Documents/FPL-Prediction/logs/run_gw28_20260408_070901.log
+2026-04-08 07:09:02,514 [INFO] fplmodel - Fetching player histories for 825 players (force_refetch=True)...

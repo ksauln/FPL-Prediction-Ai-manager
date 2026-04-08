@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-152,Joël Veltman,Brighton,6,2,4.3,4.3597628489848725,0,1,0,1,TOT (A)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.7,4.022733267914013,0,1,0,2,MUN (H)
-365,Lukas Nmecha,Leeds,11,4,5.0,3.771343309688229,0,1,0,3,WOL (H)
-753,John Ruddy,Newcastle,15,1,4.0,3.362365763369094,0,1,0,4,BOU (H)
+74,Adrien Truffert,Bournemouth,4,2,4.7,8.349635974297025,0,1,0,1,NEW (A) / LEE (H)
+200,Jaidon Anthony,Burnley,3,3,5.0,6.384147831762443,0,1,0,2,NFO (A) / MCI (H)
+660,Anton Stach,Leeds,11,3,4.8,6.379378984477177,0,1,0,3,WOL (H) / BOU (A)
+67,Đorđe Petrović,Bournemouth,4,1,4.6,6.9196487680499255,0,1,0,4,NEW (A) / LEE (H)

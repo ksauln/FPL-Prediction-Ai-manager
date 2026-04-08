@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
+341,Karl Darlow,Leeds,11,1,3.9,5.371942925619711,1,0,0,BUR (H)
+6,William Saliba,Arsenal,1,2,6.1,8.31255421947905,1,0,1,FUL (H)
+409,John Stones,Man City,13,2,5.4,5.438990831386849,1,0,0,EVE (A)
+106,Nathan Collins,Brentford,5,2,4.9,5.274687945215629,1,0,0,WHU (H)
+148,Ferdi Kadıoğlu,Brighton,6,2,4.4,5.228752402776531,1,0,0,NEW (A)
+88,Lewis Cook,Bournemouth,4,3,4.9,7.214590119235447,1,0,0,CRY (H)
+20,Leandro Trossard,Arsenal,1,3,6.5,5.414879479170006,1,0,0,FUL (H)
+417,Rayan Cherki,Man City,13,3,6.3,5.210573027244185,1,0,0,EVE (A)
+200,Jaidon Anthony,Burnley,3,3,5.0,5.127970533484237,1,0,0,LEE (A)
+19,Gabriel Martinelli Silva,Arsenal,1,3,6.8,4.938662087029344,1,0,0,FUL (H)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.8,4.107965454563502,1,0,0,NFO (H)

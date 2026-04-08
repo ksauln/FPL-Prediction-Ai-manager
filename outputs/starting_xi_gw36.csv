@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
+182,James Trafford,Man City,13,1,4.5,6.716129304918764,1,0,0,BRE (H)
+110,Michael Kayode,Brentford,5,2,4.5,8.115381507564749,1,0,1,MCI (A)
+295,Michael Keane,Everton,9,2,4.6,5.9906187231126165,1,0,0,CRY (A)
+106,Nathan Collins,Brentford,5,2,4.9,5.80307134344146,1,0,0,MCI (A)
+372,Andrew Robertson,Liverpool,12,2,5.7,5.36624421772053,1,0,0,CHE (H)
+508,Neco Williams,Nott'm Forest,16,2,4.7,5.33265951619222,1,0,0,NEW (H)
+388,Curtis Jones,Liverpool,12,3,5.4,5.141012269096216,1,0,0,CHE (H)
+450,Matheus Santos Carneiro da Cunha,Man Utd,14,3,8.0,4.990945322563072,1,0,0,SUN (A)
+267,Ismaïla Sarr,Crystal Palace,8,3,6.3,4.726302741866744,1,0,0,EVE (H)
+135,Yoane Wissa,Newcastle,15,4,7.3,4.345237351320639,1,0,0,NFO (A)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.8,3.992459527152387,1,0,0,LIV (A)

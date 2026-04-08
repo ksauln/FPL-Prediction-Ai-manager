@@ -1,12 +1,12 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
-32,Emiliano Martínez Romero,Aston Villa,2,1,5.1,5.113082268860843,1,0,0,WHU (H)
-6,William Saliba,Arsenal,1,2,6.1,6.345362013576888,1,0,1,
-573,Djed Spence,Spurs,18,2,4.2,6.1950522044145275,1,0,0,NFO (H)
-373,Virgil van Dijk,Liverpool,12,2,6.0,5.183297175703186,1,0,0,BHA (A)
-317,Joachim Andersen,Fulham,10,2,4.5,4.4478122294818805,1,0,0,BUR (H)
-350,Brenden Aaronson,Leeds,11,3,5.4,4.947047860258938,1,0,0,BRE (H)
-356,Ilia Gruev,Leeds,11,3,4.7,4.704859553249432,1,0,0,BRE (H)
-423,Nico González Iglesias,Man City,13,3,5.9,4.638782751107711,1,0,0,
-755,Shea Lacey,Man Utd,14,3,4.5,4.389592203415962,1,0,0,BOU (A)
-20,Leandro Trossard,Arsenal,1,3,6.8,4.099950633391556,1,0,0,
-365,Lukas Nmecha,Leeds,11,4,5.0,4.002149985339206,1,0,0,BRE (H)
+182,James Trafford,Man City,13,1,4.5,5.331297252161302,1,0,1,
+5,Gabriel dos Santos Magalhães,Arsenal,1,2,7.2,5.271133449998649,1,0,0,
+6,William Saliba,Arsenal,1,2,6.1,4.9316433205445565,1,0,0,
+373,Virgil van Dijk,Liverpool,12,2,6.3,4.882880304896875,1,0,0,BHA (A)
+113,Sepp van den Berg,Brentford,5,2,4.6,4.561429485543096,1,0,0,LEE (A)
+120,Kevin Schade,Brentford,5,3,7.0,4.853575665424928,1,0,0,LEE (A)
+356,Ilia Gruev,Leeds,11,3,4.7,4.516970465395058,1,0,0,BRE (H)
+82,Antoine Semenyo,Man City,13,3,8.2,4.44467529341679,1,0,0,
+350,Brenden Aaronson,Leeds,11,3,5.4,4.413770818523035,1,0,0,BRE (H)
+303,James Garner,Everton,9,3,5.3,4.121440314060985,1,0,0,CHE (H)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.8,5.236543052608649,1,0,0,EVE (A)

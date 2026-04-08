@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-815,Axel Disasi,West Ham,19,2,4.5,4.5386931134783115,0,1,0,1,LIV (A)
-365,Lukas Nmecha,Leeds,11,4,5.0,3.961292724280508,0,1,0,2,MCI (H)
-691,Dominic Calvert-Lewin,Leeds,11,4,5.8,3.4582933754454537,0,1,0,3,MCI (H)
-139,Bart Verbruggen,Brighton,6,1,4.5,3.586515412577276,0,1,0,4,NFO (H)
+373,Virgil van Dijk,Liverpool,12,2,6.3,4.476555197324306,0,1,0,1,WHU (H)
+178,Danny Welbeck,Brighton,6,4,6.2,3.640876078837902,0,1,0,2,NFO (H)
+251,Nicolas Jackson,Chelsea,7,4,6.5,3.5309537741628985,0,1,0,3,ARS (A)
+736,Gianluigi Donnarumma,Man City,13,1,5.6,3.3894104751673177,0,1,0,4,LEE (A)
