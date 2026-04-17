@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-447,Ayden Heaven,Man Utd,14,2,3.7,4.806142405155946,0,1,0,1,BRE (H)
-98,Enes Ünal,Bournemouth,4,4,5.4,3.7843682116459085,0,1,0,2,
-217,Lyle Foster,Burnley,3,4,4.9,3.582826701090168,0,1,0,3,
-101,Caoimhín Kelleher,Brentford,5,1,4.8,3.590589175508298,0,1,0,4,MUN (A)
+447,Ayden Heaven,Man Utd,14,2,3.7,5.209878298897712,0,1,0,1,BRE (H)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.7,4.2375370735235816,0,1,0,2,
+311,Norberto Bercique Gomes Betuncal,Everton,9,4,5.0,3.905000555138933,0,1,0,3,WHU (A)
+101,Caoimhín Kelleher,Brentford,5,1,4.8,3.707753083920157,0,1,0,4,MUN (A)

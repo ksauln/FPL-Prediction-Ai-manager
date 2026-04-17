@@ -1,0 +1,5 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
+373,Virgil van Dijk,Liverpool,12,2,6.3,4.044918999025418,0,1,0,1,BRE (H)
+283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,4.03952670953978,0,1,0,2,ARS (H)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.7,3.8187381372977955,0,1,0,3,SUN (A)
+736,Gianluigi Donnarumma,Man City,13,1,5.6,3.4346589434236554,0,1,0,4,AVL (H)

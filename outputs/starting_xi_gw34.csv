@@ -1,12 +1,12 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,next_fixture
-736,Gianluigi Donnarumma,Man City,13,1,5.6,3.650155116260801,1,0,0,
-373,Virgil van Dijk,Liverpool,12,2,6.3,8.79655444959581,1,0,1,CRY (H)
-8,Jurriën Timber,Arsenal,1,2,6.3,5.817225502055381,1,0,0,NEW (H)
-508,Neco Williams,Nott'm Forest,16,2,4.7,5.771384138768271,1,0,0,SUN (A)
-342,Jayden Bogle,Leeds,11,2,4.4,4.99213646635328,1,0,0,
-356,Ilia Gruev,Leeds,11,3,4.7,6.647751079517457,1,0,0,
-329,Harry Wilson,Fulham,10,3,6.1,5.73060895432241,1,0,0,AVL (H)
-417,Rayan Cherki,Man City,13,3,6.3,5.657291023521914,1,0,0,
-326,Adama Traoré Diarra,West Ham,19,3,5.1,5.467908046007384,1,0,0,EVE (H)
-207,Hannibal Mejbri,Burnley,3,3,4.7,4.986571339227867,1,0,0,
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.8,5.04218013844644,1,0,0,
+736,Gianluigi Donnarumma,Man City,13,1,5.6,3.935095896443538,1,0,0,
+508,Neco Williams,Nott'm Forest,16,2,4.7,6.541968835202313,1,0,0,SUN (A)
+373,Virgil van Dijk,Liverpool,12,2,6.3,6.339161506814884,1,0,0,CRY (H)
+8,Jurriën Timber,Arsenal,1,2,6.2,5.654780305666003,1,0,0,NEW (H)
+342,Jayden Bogle,Leeds,11,2,4.4,5.4380158597034445,1,0,0,
+356,Ilia Gruev,Leeds,11,3,4.7,7.111836579459225,1,0,1,
+329,Harry Wilson,Fulham,10,3,6.1,5.500319716982316,1,0,0,AVL (H)
+302,Idrissa Gana Gueye,Everton,9,3,5.4,4.9757034136657525,1,0,0,WHU (A)
+417,Rayan Cherki,Man City,13,3,6.3,4.953603383185066,1,0,0,
+200,Jaidon Anthony,Burnley,3,3,5.0,4.945444915510219,1,0,0,
+283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,4.387054572633606,1,0,0,LIV (A)
