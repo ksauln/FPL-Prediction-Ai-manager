@@ -109,6 +109,7 @@ SESSION_USER_TEAM_KEY = "user_team_df"
 SESSION_CAPTAIN_OVERRIDE_KEY = "user_team_captain_override"
 SESSION_FPL_TEAM_CACHE = "fpl_team_cache"
 SESSION_SHARED_FPL_ID = "shared_fpl_id"
+FPL_BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 
 
 def _apply_app_style() -> None:
@@ -176,6 +177,33 @@ def _load_latest_predictions() -> Tuple[int, Path, pd.DataFrame]:
     return latest_gw, predictions_path, df
 
 
+def _select_prediction_gameweek(
+    available_gameweeks: List[int],
+    events_df: Optional[pd.DataFrame],
+) -> int:
+    if not available_gameweeks:
+        raise FileNotFoundError(
+            "No prediction files found in the outputs directory. Run the pipeline first."
+        )
+
+    candidate_gws = sorted(available_gameweeks)
+    if events_df is not None and not events_df.empty:
+        try:
+            next_gw, last_finished = get_current_and_last_finished_gw(events_df)
+        except (KeyError, TypeError, ValueError):
+            next_gw, last_finished = None, None
+
+        if next_gw in candidate_gws:
+            return int(next_gw)
+
+        if last_finished is not None:
+            future_gws = [gw for gw in candidate_gws if gw > int(last_finished)]
+            if future_gws:
+                return future_gws[0]
+
+    return candidate_gws[-1]
+
+
 def _load_next_predictions() -> Tuple[int, Path, pd.DataFrame]:
     files = _discover_prediction_files()
     if not files:
@@ -183,16 +211,11 @@ def _load_next_predictions() -> Tuple[int, Path, pd.DataFrame]:
             "No prediction files found in the outputs directory. Run the pipeline first."
         )
 
-    last_finished = _last_finished_gameweek()
-    candidate_gws = sorted(files)
-    next_gw = None
-    if last_finished is not None:
-        for gw in candidate_gws:
-            if gw > last_finished:
-                next_gw = gw
-                break
-    if next_gw is None:
-        next_gw = candidate_gws[0]
+    try:
+        events_df = _load_bootstrap_events()
+    except (FileNotFoundError, ValueError):
+        events_df = None
+    next_gw = _select_prediction_gameweek(sorted(files), events_df)
 
     predictions_path = files[next_gw]
     df = _load_predictions(predictions_path)
@@ -257,11 +280,11 @@ def _load_predictions_for_horizon(
         )
 
     available_gws = sorted(files)
-    last_finished = _last_finished_gameweek()
-    if last_finished is not None:
-        start_gw = next((gw for gw in available_gws if gw > last_finished), available_gws[0])
-    else:
-        start_gw = available_gws[0]
+    try:
+        events_df = _load_bootstrap_events()
+    except (FileNotFoundError, ValueError):
+        events_df = None
+    start_gw = _select_prediction_gameweek(available_gws, events_df)
 
     target_gws = [start_gw + offset for offset in range(horizon)]
     predictions_by_gw: Dict[int, pd.DataFrame] = {}
@@ -320,9 +343,22 @@ def _load_bootstrap_data() -> Dict[str, object]:
         return json.load(handle)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=300)
+def _load_live_bootstrap_data() -> Dict[str, object]:
+    response = requests.get(FPL_BOOTSTRAP_URL, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("events"):
+        raise ValueError("Live bootstrap response did not include events.")
+    return data
+
+
+@st.cache_data(show_spinner=False, ttl=300)
 def _load_bootstrap_events() -> pd.DataFrame:
-    data = _load_bootstrap_data()
+    try:
+        data = _load_live_bootstrap_data()
+    except (requests.RequestException, ValueError):
+        data = _load_bootstrap_data()
     events = data.get("events", [])
     if not events:
         raise ValueError("No events data found in bootstrap-static.json.")
