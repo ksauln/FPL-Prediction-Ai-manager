@@ -38,3 +38,10 @@ models/*.pkl
 # IDE metadata
 .vscode/
 .idea/
+
+# Local Codex workspace files
+codex_local_changes/
+.agents/
+.codex/
+AGENTS.md
+CODING_STANDARDS.md

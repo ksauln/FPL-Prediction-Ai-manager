@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 import numpy as np
 import pandas as pd
+import re
 from typing import Dict, Any, Tuple, Sequence, Iterable
 
 from .config import ROLLING_WINDOWS, MIN_MATCHES_FOR_FEATURES
@@ -13,6 +14,58 @@ SET_PIECE_ORDER_MAP = {
     "direct_freekicks_order": "direct_fk",
     "penalties_order": "penalty",
 }
+
+_TEMP_SEASON_SORT_COL = "__season_sort__"
+_TEMP_KICKOFF_SORT_COL = "__kickoff_sort__"
+
+
+def _season_start_year(label: Any) -> int | None:
+    if label is None or (isinstance(label, float) and np.isnan(label)):
+        return None
+    if isinstance(label, (int, np.integer)):
+        return int(label)
+    match = re.search(r"(\d{4})", str(label))
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def _add_history_sort_keys(df: pd.DataFrame) -> pd.DataFrame:
+    """Add temporary chronological sort keys that work across multi-season history."""
+    out = df.copy()
+    if "season_name" in out.columns:
+        season_sort = out["season_name"].map(_season_start_year)
+        if season_sort.notna().any():
+            fallback = float(season_sort.max(skipna=True)) + 1.0
+            out[_TEMP_SEASON_SORT_COL] = season_sort.fillna(fallback)
+        else:
+            out[_TEMP_SEASON_SORT_COL] = 0.0
+    else:
+        out[_TEMP_SEASON_SORT_COL] = 0.0
+
+    if "kickoff_time" in out.columns:
+        out[_TEMP_KICKOFF_SORT_COL] = pd.to_datetime(out["kickoff_time"], errors="coerce")
+    else:
+        out[_TEMP_KICKOFF_SORT_COL] = pd.NaT
+    return out
+
+
+def _history_sort_columns(df: pd.DataFrame, leading_cols: Sequence[str]) -> list[str]:
+    cols = [col for col in leading_cols if col in df.columns]
+    for col in (_TEMP_SEASON_SORT_COL, "round", _TEMP_KICKOFF_SORT_COL, "fixture"):
+        if col in df.columns and col not in cols:
+            cols.append(col)
+    return cols
+
+
+def _current_season_mask(df: pd.DataFrame) -> pd.Series:
+    if "season_name" not in df.columns:
+        return pd.Series(True, index=df.index)
+    season_sort = df["season_name"].map(_season_start_year)
+    if not season_sort.notna().any():
+        return pd.Series(True, index=df.index)
+    current_start = season_sort.max(skipna=True)
+    return season_sort == current_start
 
 
 def _prepare_player_static_features(elements_df: pd.DataFrame) -> pd.DataFrame:
@@ -128,7 +181,6 @@ def _add_team_context_features(hist: pd.DataFrame, windows: Iterable[int]) -> pd
         default=0,
     )
 
-    team_group = hist.groupby("team", group_keys=False)
     team_stats = [
         "team_goals_for",
         "team_goals_against",
@@ -138,29 +190,57 @@ def _add_team_context_features(hist: pd.DataFrame, windows: Iterable[int]) -> pd
         "team_match_points",
     ]
 
+    match_keys = ["fixture", "team"]
+    if "season_name" in hist.columns:
+        match_keys.insert(0, "season_name")
+
+    team_match_cols = list(dict.fromkeys(match_keys + ["round", "kickoff_time"] + team_stats))
+    team_match_cols = [col for col in team_match_cols if col in hist.columns]
+    team_matches = hist[team_match_cols].drop_duplicates(subset=match_keys).copy()
+    team_matches = _add_history_sort_keys(team_matches)
+    team_matches = team_matches.sort_values(
+        _history_sort_columns(team_matches, ["team"]),
+        kind="mergesort",
+    )
+    group_cols = ["team"]
+    if "season_name" in team_matches.columns:
+        group_cols.append("season_name")
+    team_group = team_matches.groupby(group_cols, group_keys=False)
+
     for w in windows:
         for stat in team_stats:
             ma_col = f"{stat}_ma{w}"
-            hist[ma_col] = _rolling_mean(team_group[stat], w)
+            team_matches[ma_col] = _rolling_mean(team_group[stat], w)
 
     team_feature_cols = [f"{stat}_ma{w}" for stat in team_stats for w in windows]
-    team_feature_cols = [c for c in team_feature_cols if c in hist.columns]
+    team_feature_cols = [c for c in team_feature_cols if c in team_matches.columns]
     if team_feature_cols:
-        team_frame = hist[["fixture", "team"] + team_feature_cols].drop_duplicates(subset=["fixture", "team"])
+        team_frame = team_matches[match_keys + team_feature_cols]
+        hist = hist.merge(team_frame, on=match_keys, how="left")
         rename_map = {
             col: col.replace("team_", "opp_team_", 1) if col.startswith("team_") else f"opp_{col}"
             for col in team_feature_cols
         }
         opponent_frame = team_frame.rename(columns={"team": "opponent_team", **rename_map})
-        hist = hist.merge(opponent_frame, on=["fixture", "opponent_team"], how="left")
+        opponent_keys = ["fixture", "opponent_team"]
+        if "season_name" in opponent_frame.columns and "season_name" in hist.columns:
+            opponent_keys.insert(0, "season_name")
+        hist = hist.merge(opponent_frame, on=opponent_keys, how="left")
 
     return hist
 
 
 def _rolling_feats(hist: pd.DataFrame, windows=(3, 5)) -> pd.DataFrame:
     """Create rolling means for key stats, grouped by player, ordered by round."""
-    hist = hist.sort_values(["player_id", "round"]).copy()
-    group = hist.groupby("player_id", group_keys=False)
+    hist = _add_history_sort_keys(hist)
+    hist = hist.sort_values(
+        _history_sort_columns(hist, ["player_id"]),
+        kind="mergesort",
+    )
+    group_cols = ["player_id"]
+    if "season_name" in hist.columns:
+        group_cols.append("season_name")
+    group = hist.groupby(group_cols, group_keys=False)
 
     base_stats = [
         "total_points",
@@ -255,11 +335,11 @@ def _rolling_feats(hist: pd.DataFrame, windows=(3, 5)) -> pd.DataFrame:
     if "was_home" in hist.columns:
         hist["was_home"] = hist["was_home"].astype(int)
 
-    hist = _add_team_context_features(hist, windows)
-
     hist["prev_matches"] = group["round"].transform(lambda x: x.rank(method="first") - 1)
     hist["enough_prev"] = hist["prev_matches"] >= MIN_MATCHES_FOR_FEATURES
-    return hist
+
+    hist = _add_team_context_features(hist, windows)
+    return hist.drop(columns=[_TEMP_SEASON_SORT_COL, _TEMP_KICKOFF_SORT_COL], errors="ignore")
 
 def _merge_team_strength(hist: pd.DataFrame, teams_df: pd.DataFrame) -> pd.DataFrame:
     """Add team and opponent base strength and recent form features."""
@@ -469,15 +549,31 @@ def build_training_and_pred_frames(
     manual_feature_cols = [c for c in manual_features if c in base.columns]
     feature_cols = rolling_feature_cols + manual_feature_cols
 
-    # TRAIN: rows with enough history and gw <= last_finished_gw
-    train_rows = base[(base["enough_prev"]) & (base["round"] <= last_finished_gw)].copy()
+    # TRAIN: current season only uses completed GWs; prior completed seasons remain fully available.
+    current_season = _current_season_mask(base)
+    completed_current_rows = (~current_season) | (base["round"] <= last_finished_gw)
+    train_rows = base[(base["enough_prev"]) & completed_current_rows].copy()
     X_train = train_rows[feature_cols].fillna(0.0)
     y_train = train_rows["total_points"].astype(float)
-    metadata_cols = [c for c in ("season_name", "round", "kickoff_time") if c in train_rows.columns]
+    metadata_cols = [c for c in ("season_name", "round", "kickoff_time", "minutes") if c in train_rows.columns]
     train_metadata = train_rows[metadata_cols].copy() if metadata_cols else pd.DataFrame(index=train_rows.index)
 
-    # PRED: need last_finished features to forecast next_gw per player (use most recent row per player <= last_finished_gw)
-    last_rows = base[base["round"] <= last_finished_gw].sort_values(["player_id","round"]).groupby("player_id").tail(1)
+    # PRED: prefer each player's latest current-season row up to the last finished GW,
+    # falling back to their latest historical row if current-season history is absent.
+    base_with_sort = _add_history_sort_keys(base)
+    sort_cols = _history_sort_columns(base_with_sort, ["player_id"])
+    current_rows = base_with_sort[current_season & (base_with_sort["round"] <= last_finished_gw)]
+    last_rows = current_rows.sort_values(sort_cols, kind="mergesort").groupby("player_id").tail(1)
+    if len(last_rows) < elements_with_team["player_id"].nunique():
+        missing_ids = set(elements_with_team["player_id"]) - set(last_rows["player_id"])
+        historical_fallback = (
+            base_with_sort[base_with_sort["player_id"].isin(missing_ids)]
+            .sort_values(sort_cols, kind="mergesort")
+            .groupby("player_id")
+            .tail(1)
+        )
+        last_rows = pd.concat([last_rows, historical_fallback], ignore_index=True, sort=False)
+    last_rows = last_rows.drop(columns=[_TEMP_SEASON_SORT_COL, _TEMP_KICKOFF_SORT_COL], errors="ignore")
     # but we must attach players' meta for identification (name, cost, team, element_type)
     last_rows = last_rows.drop(columns=["team_id", "element_type"], errors="ignore").merge(
         elements_with_team[
@@ -511,10 +607,10 @@ def build_training_and_pred_frames(
             "element_type",
             "season_minutes",
         ]
-    ].copy()
-    X_pred_features = last_rows[feature_cols].fillna(0.0)
+    ].reset_index(drop=True)
+    X_pred_features = last_rows[feature_cols].fillna(0.0).reset_index(drop=True)
     # Return both meta and features separately for convenience
-    X_pred = X_pred.join(X_pred_features.reset_index(drop=True))
+    X_pred = X_pred.join(X_pred_features)
     return X_train, y_train, X_pred, train_metadata
 
 def expand_for_double_gw(pred_df: pd.DataFrame, fixtures_df: pd.DataFrame, next_gw: int) -> pd.DataFrame:
