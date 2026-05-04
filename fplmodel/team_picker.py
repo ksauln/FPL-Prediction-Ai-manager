@@ -111,6 +111,14 @@ def _solve_for_formation(
         "now_cost_millions",
         "expected_points",
     ]
+    optional_columns = [
+        "start_probability",
+        "confidence_score",
+        "confidence_level",
+        "expected_points_lower_80",
+        "expected_points_upper_80",
+    ]
+    base_columns.extend(col for col in optional_columns if col in df.columns)
     selected = df[base_columns].copy()
     selected["starting"] = selected["player_id"].apply(
         lambda pid: int(start_vars[pid].value() or 0)

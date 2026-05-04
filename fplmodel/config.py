@@ -26,6 +26,7 @@ RANDOM_SEED = 42
 
 # Cache: refetch player histories if older than N days
 CACHE_TTL_DAYS = 2
+PLAYER_HISTORY_FETCH_WORKERS = 8
 
 # Historical data
 PLAYER_HISTORY_SEASONS_BACK = 5  # append this many prior seasons to player match history
@@ -34,6 +35,8 @@ EXTERNAL_HISTORY_SEASONS = ["2020-21", "2021-22", "2022-23", "2023-24", "2024-25
 
 # GPU acceleration
 ENABLE_GPU_TRAINING = True  # attempt to use GPU-accelerated models when available
+ENABLE_RANDOM_FOREST_MODELS = False
+ENABLE_MLP_MODELS = False
 
 # Feature engineering
 ROLLING_WINDOWS = [5]
@@ -51,6 +54,7 @@ ENABLE_HYPERPARAM_TUNING = True
 HYPERPARAM_TUNING_MIN_SAMPLES = 300
 HYPERPARAM_TUNING_ITER = 12
 HYPERPARAM_TUNING_CV = 3
+MODEL_SELECTION_MAX_SAMPLES = 60000
 
 # Sample weighting across seasons (newest season weight=1.0, prior seasons decay)
 SEASON_WEIGHT_DECAY = 0.7

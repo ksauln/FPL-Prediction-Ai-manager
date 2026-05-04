@@ -8,6 +8,7 @@ import pandas as pd
 
 from fplmodel.features import _add_team_context_features, build_training_and_pred_frames
 from fplmodel.state import ModelState
+from main import add_prediction_confidence
 
 
 def _elements_df() -> pd.DataFrame:
@@ -142,6 +143,34 @@ class FeatureWorkflowTests(unittest.TestCase):
         fixture_two = out[out["fixture"] == 2].sort_values("player_id")
 
         self.assertEqual(fixture_two["team_goals_for_ma5"].tolist(), [2.0, 2.0])
+
+    def test_prediction_confidence_adds_score_level_and_interval(self) -> None:
+        predictions = pd.DataFrame(
+            {
+                "player_id": [1, 2],
+                "expected_points": [6.0, 3.0],
+                "expected_points__a": [5.8, 1.5],
+                "expected_points__b": [6.2, 4.5],
+                "start_probability__a": [0.9, 0.55],
+                "start_probability__b": [0.92, 0.45],
+                "reliability_weight": [1.0, 0.3],
+                "availability_next_round": [1.0, 0.5],
+            }
+        )
+
+        out = add_prediction_confidence(
+            predictions,
+            per_model_corrected_cols=["expected_points__a", "expected_points__b"],
+            per_model_start_cols=["start_probability__a", "start_probability__b"],
+        )
+
+        self.assertIn("confidence_score", out.columns)
+        self.assertIn("confidence_level", out.columns)
+        self.assertIn("expected_points_lower_80", out.columns)
+        self.assertIn("expected_points_upper_80", out.columns)
+        self.assertGreater(out.loc[0, "confidence_score"], out.loc[1, "confidence_score"])
+        self.assertLessEqual(out.loc[0, "expected_points_lower_80"], out.loc[0, "expected_points"])
+        self.assertGreaterEqual(out.loc[0, "expected_points_upper_80"], out.loc[0, "expected_points"])
 
 
 if __name__ == "__main__":

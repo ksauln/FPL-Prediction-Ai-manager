@@ -555,7 +555,7 @@ def build_training_and_pred_frames(
     train_rows = base[(base["enough_prev"]) & completed_current_rows].copy()
     X_train = train_rows[feature_cols].fillna(0.0)
     y_train = train_rows["total_points"].astype(float)
-    metadata_cols = [c for c in ("season_name", "round", "kickoff_time") if c in train_rows.columns]
+    metadata_cols = [c for c in ("season_name", "round", "kickoff_time", "minutes") if c in train_rows.columns]
     train_metadata = train_rows[metadata_cols].copy() if metadata_cols else pd.DataFrame(index=train_rows.index)
 
     # PRED: prefer each player's latest current-season row up to the last finished GW,

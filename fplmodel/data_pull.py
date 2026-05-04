@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
@@ -15,8 +17,11 @@ from .config import (
     RAW_DIR,
     CACHE_TTL_DAYS,
     PLAYER_HISTORY_SEASONS_BACK,
+    PLAYER_HISTORY_FETCH_WORKERS,
 )
 from .utils import save_json, load_json, unix_now
+
+logger = logging.getLogger(__name__)
 
 def _safe_get_json(url: str) -> Any:
     r = requests.get(url, timeout=30)
@@ -135,12 +140,56 @@ def bulk_fetch_player_histories(
     force: bool = False,
     sleep_s: float = 0.0,
     seasons_back: int = PLAYER_HISTORY_SEASONS_BACK,
+    max_workers: int = PLAYER_HISTORY_FETCH_WORKERS,
 ) -> None:
-    for i, pid in enumerate(player_ids, start=1):
-        try:
-            fetch_player_history(pid, force=force, seasons_back=seasons_back)
-        except Exception as e:
-            # Log but continue
-            print(f"Failed fetch for player {pid}: {e}")
-        if sleep_s:
-            time.sleep(sleep_s)
+    if not player_ids:
+        return
+
+    if sleep_s or max_workers <= 1:
+        failures = 0
+        for i, pid in enumerate(player_ids, start=1):
+            try:
+                fetch_player_history(pid, force=force, seasons_back=seasons_back)
+            except Exception as exc:
+                failures += 1
+                logger.warning("Failed fetch for player %s: %s", pid, exc)
+            if i % 50 == 0 or i == len(player_ids):
+                logger.info(
+                    "Player history fetch progress: %d/%d complete (%d failure%s).",
+                    i,
+                    len(player_ids),
+                    failures,
+                    "" if failures == 1 else "s",
+                )
+            if sleep_s:
+                time.sleep(sleep_s)
+        return
+
+    failures = 0
+    workers = max(1, min(int(max_workers), len(player_ids)))
+    logger.info("Fetching player histories with %d worker thread(s).", workers)
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_pid = {
+            executor.submit(
+                fetch_player_history,
+                pid,
+                force=force,
+                seasons_back=seasons_back,
+            ): pid
+            for pid in player_ids
+        }
+        for i, future in enumerate(as_completed(future_to_pid), start=1):
+            pid = future_to_pid[future]
+            try:
+                future.result()
+            except Exception as exc:
+                failures += 1
+                logger.warning("Failed fetch for player %s: %s", pid, exc)
+            if i % 50 == 0 or i == len(player_ids):
+                logger.info(
+                    "Player history fetch progress: %d/%d complete (%d failure%s).",
+                    i,
+                    len(player_ids),
+                    failures,
+                    "" if failures == 1 else "s",
+                )

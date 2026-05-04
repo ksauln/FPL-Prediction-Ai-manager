@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from functools import lru_cache
+import platform
 import re
 import warnings
 
@@ -41,6 +42,7 @@ from .config import (
     HYPERPARAM_TUNING_MIN_SAMPLES,
     HYPERPARAM_TUNING_ITER,
     HYPERPARAM_TUNING_CV,
+    MODEL_SELECTION_MAX_SAMPLES,
     SEASON_WEIGHT_DECAY,
     SEASON_WEIGHT_MIN,
     REG_PARAM_DISTRIBUTIONS,
@@ -52,6 +54,8 @@ from .config import (
     XGB_REG_PARAM_DISTRIBUTIONS,
     XGB_CLF_PARAM_DISTRIBUTIONS,
     ENABLE_GPU_TRAINING,
+    ENABLE_RANDOM_FOREST_MODELS,
+    ENABLE_MLP_MODELS,
     MIN_MATCHES_FOR_FEATURES,
 )
 from .state import ModelState
@@ -478,16 +482,22 @@ def _tune_and_score(
             return metric_mean, metric_std, best_params
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
-            scores = cross_val_score(
-                pipeline_builder(),
-                X,
-                y,
+            score_kwargs = dict(
+                estimator=pipeline_builder(),
+                X=X,
+                y=y,
                 scoring=scoring,
                 cv=cv_splits,
                 n_jobs=1,
                 error_score=np.nan,
-                fit_params=fit_params,
             )
+            if fit_params:
+                try:
+                    scores = cross_val_score(**score_kwargs, params=fit_params)
+                except TypeError:
+                    scores = cross_val_score(**score_kwargs, fit_params=fit_params)
+            else:
+                scores = cross_val_score(**score_kwargs)
         if scoring.startswith("neg_"):
             scores = -scores
         if not np.isnan(scores).all():
@@ -562,6 +572,8 @@ def _xgboost_gpu_enabled() -> bool:
         return False
     if not _xgboost_available():
         return False
+    if platform.system() == "Darwin":
+        return False
     try:
         import os
         import xgboost  # type: ignore
@@ -596,85 +608,87 @@ def _build_model_candidates() -> list[ModelCandidate]:
         )
     )
 
-    def rf_classifier() -> Pipeline:
-        return _build_pipeline(
-            RandomForestClassifier(
-                n_estimators=400,
-                max_depth=None,
-                min_samples_leaf=3,
-                n_jobs=-1,
-                random_state=RANDOM_SEED,
-                class_weight="balanced_subsample",
+    if ENABLE_RANDOM_FOREST_MODELS:
+        def rf_classifier() -> Pipeline:
+            return _build_pipeline(
+                RandomForestClassifier(
+                    n_estimators=400,
+                    max_depth=None,
+                    min_samples_leaf=3,
+                    n_jobs=-1,
+                    random_state=RANDOM_SEED,
+                    class_weight="balanced_subsample",
+                )
+            )
+
+        def rf_regressor() -> Pipeline:
+            return _build_pipeline(
+                RandomForestRegressor(
+                    n_estimators=400,
+                    max_depth=None,
+                    min_samples_leaf=2,
+                    n_jobs=-1,
+                    random_state=RANDOM_SEED,
+                )
+            )
+
+        candidates.append(
+            ModelCandidate(
+                name="random_forest",
+                display_name="Random Forest",
+                build_classifier=rf_classifier,
+                build_regressor=rf_regressor,
+                clf_param_distributions=RF_CLF_PARAM_DISTRIBUTIONS,
+                reg_param_distributions=RF_REG_PARAM_DISTRIBUTIONS,
             )
         )
 
-    def rf_regressor() -> Pipeline:
-        return _build_pipeline(
-            RandomForestRegressor(
-                n_estimators=400,
-                max_depth=None,
-                min_samples_leaf=2,
-                n_jobs=-1,
-                random_state=RANDOM_SEED,
+    if ENABLE_MLP_MODELS:
+        def mlp_classifier() -> Pipeline:
+            return _build_pipeline(
+                MLPClassifier(
+                    hidden_layer_sizes=(128, 64),
+                    activation="relu",
+                    solver="adam",
+                    alpha=5e-4,
+                    max_iter=400,
+                    early_stopping=True,
+                    n_iter_no_change=15,
+                    random_state=RANDOM_SEED,
+                ),
+                use_scaler=True,
+            )
+
+        def mlp_regressor() -> Pipeline:
+            return _build_pipeline(
+                MLPRegressor(
+                    hidden_layer_sizes=(128, 64),
+                    activation="relu",
+                    solver="adam",
+                    alpha=5e-4,
+                    max_iter=400,
+                    early_stopping=True,
+                    n_iter_no_change=15,
+                    random_state=RANDOM_SEED,
+                ),
+                use_scaler=True,
+            )
+
+        candidates.append(
+            ModelCandidate(
+                name="neural_network",
+                display_name="Neural Network (MLP)",
+                build_classifier=mlp_classifier,
+                build_regressor=mlp_regressor,
+                clf_param_distributions=MLP_CLF_PARAM_DISTRIBUTIONS,
+                reg_param_distributions=MLP_REG_PARAM_DISTRIBUTIONS,
             )
         )
-
-    candidates.append(
-        ModelCandidate(
-            name="random_forest",
-            display_name="Random Forest",
-            build_classifier=rf_classifier,
-            build_regressor=rf_regressor,
-            clf_param_distributions=RF_CLF_PARAM_DISTRIBUTIONS,
-            reg_param_distributions=RF_REG_PARAM_DISTRIBUTIONS,
-        )
-    )
-
-    def mlp_classifier() -> Pipeline:
-        return _build_pipeline(
-            MLPClassifier(
-                hidden_layer_sizes=(128, 64),
-                activation="relu",
-                solver="adam",
-                alpha=5e-4,
-                max_iter=400,
-                early_stopping=True,
-                n_iter_no_change=15,
-                random_state=RANDOM_SEED,
-            ),
-            use_scaler=True,
-        )
-
-    def mlp_regressor() -> Pipeline:
-        return _build_pipeline(
-            MLPRegressor(
-                hidden_layer_sizes=(128, 64),
-                activation="relu",
-                solver="adam",
-                alpha=5e-4,
-                max_iter=400,
-                early_stopping=True,
-                n_iter_no_change=15,
-                random_state=RANDOM_SEED,
-            ),
-            use_scaler=True,
-        )
-
-    candidates.append(
-        ModelCandidate(
-            name="neural_network",
-            display_name="Neural Network (MLP)",
-            build_classifier=mlp_classifier,
-            build_regressor=mlp_regressor,
-            clf_param_distributions=MLP_CLF_PARAM_DISTRIBUTIONS,
-            reg_param_distributions=MLP_REG_PARAM_DISTRIBUTIONS,
-        )
-    )
 
     if _xgboost_available():
         gpu_enabled = _xgboost_gpu_enabled()
         if gpu_enabled:
-            logger.info("GPU detected; configuring XGBoost candidates for gpu_hist training.")
+            logger.info("GPU detected; configuring XGBoost candidates for CUDA training.")
 
         def xgb_classifier() -> Pipeline:
             base_params = dict(
@@ -695,18 +709,10 @@ def _build_model_candidates() -> list[ModelCandidate]:
             if gpu_enabled:
                 base_params.update(
                     {
-                        "tree_method": "gpu_hist",
-                        "predictor": "gpu_predictor",
+                        "device": "cuda",
                     }
                 )
-                params_with_device = dict(base_params)
-                params_with_device["device"] = "cuda"
-                try:
-                    estimator = XGBClassifier(**params_with_device)
-                except TypeError:
-                    estimator = XGBClassifier(**base_params)
-            else:
-                estimator = XGBClassifier(**base_params)
+            estimator = XGBClassifier(**base_params)
             return _build_pipeline(
                 estimator
             )
@@ -729,18 +735,10 @@ def _build_model_candidates() -> list[ModelCandidate]:
             if gpu_enabled:
                 base_params.update(
                     {
-                        "tree_method": "gpu_hist",
-                        "predictor": "gpu_predictor",
+                        "device": "cuda",
                     }
                 )
-                params_with_device = dict(base_params)
-                params_with_device["device"] = "cuda"
-                try:
-                    estimator = XGBRegressor(**params_with_device)
-                except TypeError:
-                    estimator = XGBRegressor(**base_params)
-            else:
-                estimator = XGBRegressor(**base_params)
+            estimator = XGBRegressor(**base_params)
             return _build_pipeline(
                 estimator
             )
@@ -880,6 +878,31 @@ def _evaluate_model_candidates(
     return results
 
 
+def _selection_training_sample(
+    X_train: pd.DataFrame,
+    y_start: np.ndarray,
+    y_points: pd.Series,
+    sample_weight: np.ndarray | None,
+) -> tuple[pd.DataFrame, np.ndarray, pd.Series, np.ndarray | None]:
+    if MODEL_SELECTION_MAX_SAMPLES is None:
+        return X_train, y_start, y_points, sample_weight
+    max_samples = int(MODEL_SELECTION_MAX_SAMPLES)
+    if max_samples <= 0 or len(X_train) <= max_samples:
+        return X_train, y_start, y_points, sample_weight
+
+    start_idx = len(X_train) - max_samples
+    X_sample = X_train.iloc[start_idx:].reset_index(drop=True)
+    y_start_sample = y_start[start_idx:]
+    y_points_sample = y_points.iloc[start_idx:].reset_index(drop=True)
+    sample_weight_sample = sample_weight[start_idx:] if sample_weight is not None else None
+    logger.info(
+        "Model selection using most recent %d/%d training rows; final fits still use all rows.",
+        len(X_sample),
+        len(X_train),
+    )
+    return X_sample, y_start_sample, y_points_sample, sample_weight_sample
+
+
 def train_models(
     X_train: pd.DataFrame,
     y_train: pd.Series,
@@ -895,20 +918,27 @@ def train_models(
     for downstream ensembling.
     """
 
-    def derive_start_target(df: pd.DataFrame) -> np.ndarray:
-        if "minutes_ma3" in df.columns:
-            arr = (df["minutes_ma3"].values >= 60).astype(int)
-            if arr.sum() > 10:
-                return arr
-        if "minutes_lag1" in df.columns:
-            arr = (df["minutes_lag1"].values >= 60).astype(int)
-            if arr.sum() > 10:
-                return arr
-        return (df.get("total_points_ma3", pd.Series(0, index=df.index)).values >= 2).astype(int)
-
     X_train, y_train, metadata_sorted, sample_weight, cv_strategy, season_weights = _prepare_training_temporal_order(
         X_train, y_train, metadata
     )
+
+    def derive_start_target(df: pd.DataFrame, meta: pd.DataFrame) -> np.ndarray:
+        if meta is not None and "minutes" in meta.columns:
+            minutes = pd.to_numeric(meta["minutes"], errors="coerce")
+            arr = (minutes.fillna(0.0).to_numpy() >= 60.0).astype(int)
+            if np.unique(arr).size >= 2:
+                logger.info("Using actual match minutes as classifier target (minutes >= 60).")
+                return arr
+            logger.info("Actual minutes target has one class; falling back to lagged minutes proxy.")
+        if "minutes_ma3" in df.columns:
+            arr = (df["minutes_ma3"].values >= 60).astype(int)
+            if np.unique(arr).size >= 2:
+                return arr
+        if "minutes_lag1" in df.columns:
+            arr = (df["minutes_lag1"].values >= 60).astype(int)
+            if np.unique(arr).size >= 2:
+                return arr
+        return (df.get("total_points_ma3", pd.Series(0, index=df.index)).values >= 2).astype(int)
 
     if season_weights is not None and metadata_sorted is not None and "season_name" in metadata_sorted.columns:
         weight_summary = (
@@ -932,11 +962,22 @@ def train_models(
     else:
         logger.info("Using default CV folds for hyperparameter tuning (time splits unavailable).")
 
-    y_start = derive_start_target(X_train)
+    y_start = derive_start_target(X_train, metadata_sorted)
 
     candidates = _build_model_candidates()
+    selection_X, selection_y_start, selection_y_train, selection_sample_weight = _selection_training_sample(
+        X_train,
+        y_start,
+        y_train,
+        sample_weight,
+    )
     evaluation_results = _evaluate_model_candidates(
-        candidates, X_train, y_start, y_train, sample_weight, cv_strategy
+        candidates,
+        selection_X,
+        selection_y_start,
+        selection_y_train,
+        selection_sample_weight,
+        cv_strategy,
     )
 
     # Default selections fall back to the first candidate (histogram gradient boosting)

@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-86,David Brooks,Bournemouth,4,3,5.0,7.569293163352526,0,1,0,1,NEW (A) / LEE (H)
-146,Lewis Dunk,Brighton,6,2,4.5,7.280985517655103,0,1,0,2,TOT (A) / CHE (H)
-233,Josh Acheampong,Chelsea,7,2,3.7,6.959923253323897,0,1,0,3,MUN (H) / BHA (A)
-470,Martin Dúbravka,Burnley,3,1,4.0,4.799019594565978,0,1,0,4,NFO (A) / MCI (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.7,8.76410726149677,0.9154696834165037,60.6,Medium,6.524,11.004,0,1,0,1,MUN (H) / BHA (A)
+698,Noah Okafor,Leeds,11,3,5.5,8.74033644227453,0.5108386850024667,77.5,High,7.539,9.941,0,1,0,2,WOL (H) / BOU (A)
+77,James Hill,Bournemouth,4,2,4.2,8.678669101475876,0.9154119298340959,70.2,Medium,7.731,9.626,0,1,0,3,NEW (A) / LEE (H)
+341,Karl Darlow,Leeds,11,1,3.9,9.855083124919128,0.9541494864045451,67.8,Medium,8.489,11.221,0,1,0,4,WOL (H) / BOU (A)

@@ -68,6 +68,73 @@ def build_fixture_labels(fixtures_df: pd.DataFrame, teams_df: pd.DataFrame, next
 
     return {team_id: " / ".join(parts) for team_id, parts in fixtures_map.items()}
 
+
+def add_prediction_confidence(
+    predictions: pd.DataFrame,
+    per_model_corrected_cols: list[str],
+    per_model_start_cols: list[str],
+) -> pd.DataFrame:
+    """
+    Add confidence diagnostics for each player prediction.
+
+    Confidence blends ensemble agreement, player-history reliability, availability,
+    and start-probability certainty. Intervals are approximate 80% prediction ranges.
+    """
+    out = predictions.copy()
+    if per_model_start_cols:
+        out["start_probability"] = out[per_model_start_cols].mean(axis=1).clip(lower=0.0, upper=1.0)
+    elif "start_probability" not in out.columns:
+        out["start_probability"] = pd.NA
+
+    if per_model_corrected_cols:
+        model_std = out[per_model_corrected_cols].std(axis=1, ddof=0).fillna(0.0)
+        model_count = len(per_model_corrected_cols)
+    else:
+        model_std = pd.Series(0.0, index=out.index)
+        model_count = 1
+
+    def numeric_col(name: str, default: float) -> pd.Series:
+        values = out[name] if name in out.columns else pd.Series(default, index=out.index)
+        return pd.to_numeric(values, errors="coerce")
+
+    reliability = numeric_col("reliability_weight", 1.0).fillna(1.0).clip(0.0, 1.0)
+    availability = numeric_col("availability_next_round", 1.0)
+    if availability.isna().all():
+        availability = numeric_col("availability_this_round", 1.0)
+    availability = availability.fillna(numeric_col("status_availability", 1.0))
+    availability = availability.fillna(1.0).clip(0.0, 1.0)
+
+    start_probability = pd.to_numeric(out["start_probability"], errors="coerce").fillna(0.5).clip(0.0, 1.0)
+    start_certainty = ((start_probability - 0.5).abs() * 2.0).clip(0.0, 1.0)
+    model_agreement = (1.0 / (1.0 + model_std)).clip(0.0, 1.0)
+
+    confidence = (
+        0.35 * reliability
+        + 0.25 * availability
+        + 0.25 * model_agreement
+        + 0.15 * start_certainty
+    ).clip(0.0, 1.0)
+
+    expected_points = pd.to_numeric(out["expected_points"], errors="coerce").fillna(0.0)
+    single_model_penalty = 0.35 if model_count <= 1 else 0.0
+    interval_sigma = (
+        model_std
+        + (1.0 - confidence) * (0.40 + 0.20 * expected_points.clip(lower=0.0))
+        + single_model_penalty
+    ).clip(lower=0.05)
+    z_80 = 1.2815515655446004
+
+    out["expected_points_std"] = model_std.round(4)
+    out["confidence_score"] = (confidence * 100.0).round(1)
+    out["confidence_level"] = pd.cut(
+        out["confidence_score"],
+        bins=[-0.1, 49.9, 74.9, 100.0],
+        labels=["Low", "Medium", "High"],
+    ).astype(str)
+    out["expected_points_lower_80"] = (expected_points - z_80 * interval_sigma).clip(lower=0.0).round(3)
+    out["expected_points_upper_80"] = (expected_points + z_80 * interval_sigma).round(3)
+    return out
+
 def run_pipeline(
     force_refetch: bool = False,
     override_next_gw: int | None = None,
@@ -233,8 +300,21 @@ def run_pipeline(
             "element_type",
             "reliability_weight",
         ]
+        meta_cols.extend(
+            col
+            for col in (
+                "availability_this_round",
+                "availability_next_round",
+                "status_availability",
+                "status_injury_flag",
+                "injury_risk_flag",
+            )
+            if col in X_pred.columns
+        )
         per_model_raw_cols: list[str] = []
         per_model_corrected_cols: list[str] = []
+        per_model_start_cols: list[str] = []
+        per_model_points_hat_cols: list[str] = []
         ensemble_predictions = None
 
         with log_timed_step(logger, "Generating next gameweek predictions"):
@@ -243,12 +323,18 @@ def run_pipeline(
                 suffix = bundle.name
                 raw_col = f"expected_points_raw__{suffix}"
                 corrected_col = f"expected_points__{suffix}"
+                start_col = f"start_probability__{suffix}"
+                points_hat_col = f"points_hat__{suffix}"
                 if ensemble_predictions is None:
                     ensemble_predictions = preds[meta_cols].copy()
                 ensemble_predictions[raw_col] = preds["expected_points_raw"].values
                 ensemble_predictions[corrected_col] = preds["expected_points"].values
+                ensemble_predictions[start_col] = preds["p_start"].values
+                ensemble_predictions[points_hat_col] = preds["points_hat"].values
                 per_model_raw_cols.append(raw_col)
                 per_model_corrected_cols.append(corrected_col)
+                per_model_start_cols.append(start_col)
+                per_model_points_hat_cols.append(points_hat_col)
 
         if ensemble_predictions is None:
             raise RuntimeError("No candidate predictions were generated for the ensemble.")
@@ -279,6 +365,13 @@ def run_pipeline(
             predictions["expected_points"] = predictions["expected_points"] * predictions["fixture_multiplier"]
             for col in per_model_corrected_cols:
                 predictions[col] = predictions[col] * predictions["fixture_multiplier"]
+            for col in per_model_points_hat_cols:
+                predictions[col] = predictions[col] * predictions["fixture_multiplier"]
+        predictions = add_prediction_confidence(
+            predictions,
+            per_model_corrected_cols=per_model_corrected_cols,
+            per_model_start_cols=per_model_start_cols,
+        )
         logger.info("Applied fixture multipliers; average EP now %.2f", predictions["expected_points"].mean())
 
         top_preds = (
@@ -303,9 +396,24 @@ def run_pipeline(
 
         # 9) Best XI selection
         logger.info("Selecting best XI from %d candidates", len(predictions))
+        picker_cols = [
+            "player_id",
+            "full_name",
+            "team_name",
+            "team_id",
+            "element_type",
+            "now_cost_millions",
+            "expected_points",
+            "start_probability",
+            "confidence_score",
+            "confidence_level",
+            "expected_points_lower_80",
+            "expected_points_upper_80",
+        ]
+        picker_cols = [col for col in picker_cols if col in predictions.columns]
         with log_timed_step(logger, "Optimising best XI selection"):
             team = pick_best_xi(
-                predictions[["player_id", "full_name", "team_name", "team_id", "element_type", "now_cost_millions", "expected_points"]],
+                predictions[picker_cols],
                 formations=FORMATION_OPTIONS,
             )
         logger.info(

@@ -383,21 +383,28 @@ def _enrich_user_team(
     gameweek: Optional[int] = None,
 ) -> pd.DataFrame:
     enriched = user_team.copy()
-    predictions_meta = predictions[
-        [
-            "player_id",
-            "full_name",
-            "team_name",
-            "team_id",
-            "element_type",
-            "now_cost_millions",
-            "expected_points",
-        ]
-    ].drop_duplicates("player_id")
+    prediction_cols = [
+        "player_id",
+        "full_name",
+        "team_name",
+        "team_id",
+        "element_type",
+        "now_cost_millions",
+        "expected_points",
+        "start_probability",
+        "confidence_score",
+        "confidence_level",
+        "expected_points_lower_80",
+        "expected_points_upper_80",
+    ]
+    prediction_cols = [col for col in prediction_cols if col in predictions.columns]
+    predictions_meta = predictions[prediction_cols].drop_duplicates("player_id")
 
     enriched = enriched.merge(predictions_meta, on="player_id", how="left", suffixes=("", "_pred"))
 
-    for col in ["full_name", "team_name", "team_id", "element_type", "now_cost_millions", "expected_points"]:
+    for col in prediction_cols:
+        if col == "player_id":
+            continue
         pred_col = f"{col}_pred"
         has_col = col in enriched.columns
         has_pred = pred_col in enriched.columns
@@ -748,6 +755,10 @@ def _format_team_display(df: pd.DataFrame) -> pd.DataFrame:
         "expected_assists",
         "expected_goals",
         "expected_points",
+        "start_probability",
+        "confidence_score",
+        "expected_points_lower_80",
+        "expected_points_upper_80",
         "bench_order",
     ]
     for col in numeric_cols:
@@ -767,6 +778,11 @@ def _format_team_display(df: pd.DataFrame) -> pd.DataFrame:
         "expected_assists",
         "expected_goals",
         "expected_points",
+        "expected_points_lower_80",
+        "expected_points_upper_80",
+        "confidence_level",
+        "confidence_score",
+        "start_probability",
         "chance_this_round_pct",
         "injury_risk_label",
         "captain",
@@ -784,6 +800,11 @@ def _format_team_display(df: pd.DataFrame) -> pd.DataFrame:
         "expected_assists": "Expected A",
         "expected_goals": "Expected G",
         "expected_points": "Expected Pts",
+        "expected_points_lower_80": "Low 80%",
+        "expected_points_upper_80": "High 80%",
+        "confidence_level": "Confidence",
+        "confidence_score": "Conf %",
+        "start_probability": "Start Prob",
         "chance_this_round_pct": "Chance %",
         "injury_risk_label": "Injury Risk",
         "captain": "Captain",
