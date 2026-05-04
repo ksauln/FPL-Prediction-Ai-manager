@@ -38,10 +38,69 @@ POSITION_SLOTS = (
 
 st.set_page_config(page_title="FPL Optimization Toolkit", layout="wide")
 
-TAB_STYLE = """
+APP_STYLE = """
 <style>
+    :root {
+        --fpl-bg: #f7f8fb;
+        --fpl-panel: #ffffff;
+        --fpl-border: #d9dee8;
+        --fpl-text: #172033;
+        --fpl-muted: #667085;
+        --fpl-accent: #0f766e;
+        --fpl-accent-soft: #d9f4ef;
+        --fpl-warn: #b45309;
+        --fpl-warn-soft: #fef3c7;
+        --fpl-low: #b42318;
+        --fpl-low-soft: #fee4e2;
+    }
+
+    .main .block-container {
+        padding-top: 1.4rem;
+        max-width: 1500px;
+    }
+
+    h1, h2, h3 {
+        color: var(--fpl-text);
+        letter-spacing: 0;
+    }
+
+    h1 {
+        font-size: 2.15rem;
+        margin-bottom: 0.25rem;
+    }
+
+    h2, h3 {
+        margin-top: 1.1rem;
+    }
+
+    div[data-testid="stMetric"] {
+        background: var(--fpl-panel);
+        border: 1px solid var(--fpl-border);
+        border-radius: 8px;
+        padding: 0.8rem 0.9rem;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
     button[data-baseweb="tab"] p {
-        font-size: 1.5rem;
+        font-size: 1.02rem;
+        font-weight: 650;
+        color: var(--fpl-muted);
+    }
+
+    button[data-baseweb="tab"][aria-selected="true"] p {
+        color: var(--fpl-accent);
+    }
+
+    div[data-testid="stDataFrame"] {
+        border: 1px solid var(--fpl-border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .confidence-note {
+        color: var(--fpl-muted);
+        font-size: 0.92rem;
+        margin: 0.1rem 0 0.7rem 0;
     }
 </style>
 """
@@ -50,6 +109,32 @@ SESSION_USER_TEAM_KEY = "user_team_df"
 SESSION_CAPTAIN_OVERRIDE_KEY = "user_team_captain_override"
 SESSION_FPL_TEAM_CACHE = "fpl_team_cache"
 SESSION_SHARED_FPL_ID = "shared_fpl_id"
+
+
+def _apply_app_style() -> None:
+    st.markdown(APP_STYLE, unsafe_allow_html=True)
+
+
+def _format_number(value: object, digits: int = 1) -> str:
+    numeric = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(numeric):
+        return "N/A"
+    return f"{float(numeric):.{digits}f}"
+
+
+def _format_percent(value: object, *, source_is_fraction: bool = True) -> str:
+    numeric = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(numeric):
+        return "N/A"
+    pct = float(numeric) * 100.0 if source_is_fraction else float(numeric)
+    return f"{pct:.0f}%"
+
+
+def _confidence_counts(predictions: pd.DataFrame) -> Dict[str, int]:
+    if "confidence_level" not in predictions.columns:
+        return {}
+    counts = predictions["confidence_level"].fillna("Unknown").astype(str).value_counts()
+    return {label: int(counts.get(label, 0)) for label in ("High", "Medium", "Low")}
 
 
 def _store_shared_fpl_id(fpl_id: int) -> None:
@@ -622,6 +707,75 @@ def _load_user_team(uploaded_file) -> pd.DataFrame:
     return df
 
 
+def _prediction_confidence_frame(predictions: pd.DataFrame, limit: int = 12) -> pd.DataFrame:
+    columns = [
+        "full_name",
+        "team_name",
+        "expected_points",
+        "expected_points_lower_80",
+        "expected_points_upper_80",
+        "confidence_level",
+        "confidence_score",
+        "start_probability",
+    ]
+    existing = [col for col in columns if col in predictions.columns]
+    if not existing:
+        return pd.DataFrame()
+
+    table = predictions.sort_values("expected_points", ascending=False).head(limit)[existing].copy()
+    if {"expected_points_lower_80", "expected_points_upper_80"}.issubset(table.columns):
+        table["80% Range"] = table.apply(
+            lambda row: (
+                f"{_format_number(row['expected_points_lower_80'])} - "
+                f"{_format_number(row['expected_points_upper_80'])}"
+            ),
+            axis=1,
+        )
+        table = table.drop(columns=["expected_points_lower_80", "expected_points_upper_80"])
+    if "expected_points" in table.columns:
+        table["expected_points"] = table["expected_points"].map(lambda value: _format_number(value, 2))
+    if "confidence_score" in table.columns:
+        table["confidence_score"] = table["confidence_score"].map(
+            lambda value: _format_percent(value, source_is_fraction=False)
+        )
+    if "start_probability" in table.columns:
+        table["start_probability"] = table["start_probability"].map(_format_percent)
+
+    rename_map = {
+        "full_name": "Player",
+        "team_name": "Team",
+        "expected_points": "Expected Pts",
+        "confidence_level": "Confidence",
+        "confidence_score": "Conf %",
+        "start_probability": "Start Prob",
+    }
+    return table.rename(columns=rename_map)
+
+
+def _render_confidence_summary(predictions: pd.DataFrame) -> None:
+    confidence_cols = {"confidence_score", "start_probability", "confidence_level"}
+    if not confidence_cols.intersection(predictions.columns):
+        return
+
+    st.markdown(
+        '<div class="confidence-note">Confidence combines model agreement, player availability, start probability, and recent-data reliability. The range is an approximate 80% expected-points interval.</div>',
+        unsafe_allow_html=True,
+    )
+
+    metrics = st.columns(4)
+    if "confidence_score" in predictions.columns:
+        avg_conf = pd.to_numeric(predictions["confidence_score"], errors="coerce").mean()
+        metrics[0].metric("Average confidence", _format_percent(avg_conf, source_is_fraction=False))
+    if "start_probability" in predictions.columns:
+        avg_start = pd.to_numeric(predictions["start_probability"], errors="coerce").mean()
+        metrics[1].metric("Average start probability", _format_percent(avg_start))
+
+    counts = _confidence_counts(predictions)
+    metrics[2].metric("High confidence players", str(counts.get("High", 0)))
+    medium_low = counts.get("Medium", 0) + counts.get("Low", 0)
+    metrics[3].metric("Watchlist volatility", str(medium_low))
+
+
 def _format_player_option(player_id: Optional[int], lookup: Dict[int, Dict[str, object]]) -> str:
     if player_id is None:
         return "Select a player"
@@ -713,35 +867,61 @@ def _build_team_interactively(
         st.error("Exactly four players must be on the bench.")
         return None
 
-    display_df = team_df[
-        [
-            "full_name",
-            "team_name",
-            "element_type",
-            "now_cost_millions",
-            "expected_points",
-            "starting",
-            "bench",
-            "captain",
-        ]
-    ].copy()
-    display_df["position"] = display_df["element_type"].map(POSITION_LABELS)
-    display_df = display_df[
-        [
-            "full_name",
-            "team_name",
-            "position",
-            "now_cost_millions",
-            "expected_points",
-            "starting",
-            "bench",
-            "captain",
-        ]
+    preview_cols = [
+        "full_name",
+        "team_name",
+        "element_type",
+        "now_cost_millions",
+        "expected_points",
+        "confidence_level",
+        "confidence_score",
+        "start_probability",
+        "starting",
+        "bench",
+        "captain",
     ]
+    preview_cols = [col for col in preview_cols if col in team_df.columns]
+    display_df = team_df[preview_cols].copy()
+    display_df["position"] = display_df["element_type"].map(POSITION_LABELS)
+    ordered_preview_cols = [
+        "full_name",
+        "team_name",
+        "position",
+        "now_cost_millions",
+        "expected_points",
+        "confidence_level",
+        "confidence_score",
+        "start_probability",
+        "starting",
+        "bench",
+        "captain",
+    ]
+    display_df = display_df[[col for col in ordered_preview_cols if col in display_df.columns]]
+    if "confidence_score" in display_df.columns:
+        display_df["confidence_score"] = display_df["confidence_score"].map(
+            lambda value: _format_percent(value, source_is_fraction=False)
+        )
+    if "start_probability" in display_df.columns:
+        display_df["start_probability"] = display_df["start_probability"].map(_format_percent)
     display_df[["starting", "bench", "captain"]] = display_df[
         ["starting", "bench", "captain"]
     ].astype(bool)
-    st.dataframe(display_df, width="stretch")
+    display_df = display_df.rename(
+        columns={
+            "full_name": "Name",
+            "team_name": "Team",
+            "position": "Pos",
+            "now_cost_millions": "Cost (£m)",
+            "expected_points": "Expected Pts",
+            "confidence_level": "Confidence",
+            "confidence_score": "Conf %",
+            "start_probability": "Start Prob",
+            "starting": "Starting",
+            "bench": "Bench",
+            "captain": "Captain",
+        }
+    )
+    st.dataframe(display_df, use_container_width=True)
 
     return team_df
 
@@ -812,6 +992,25 @@ def _format_team_display(df: pd.DataFrame) -> pd.DataFrame:
     }
     display = display.rename(columns=rename_map)
 
+    if {"Low 80%", "High 80%"}.issubset(display.columns):
+        display["80% Range"] = display.apply(
+            lambda row: f"{_format_number(row['Low 80%'])} - {_format_number(row['High 80%'])}",
+            axis=1,
+        )
+        display = display.drop(columns=["Low 80%", "High 80%"])
+
+    for col in ("Expected CS", "Expected A", "Expected G", "Expected Pts"):
+        if col in display.columns:
+            display[col] = display[col].map(lambda value: _format_number(value, 2))
+    if "Cost (£m)" in display.columns:
+        display["Cost (£m)"] = display["Cost (£m)"].map(lambda value: _format_number(value, 1))
+    if "Conf %" in display.columns:
+        display["Conf %"] = display["Conf %"].map(lambda value: _format_percent(value, source_is_fraction=False))
+    if "Start Prob" in display.columns:
+        display["Start Prob"] = display["Start Prob"].map(_format_percent)
+    if "Chance %" in display.columns:
+        display["Chance %"] = display["Chance %"].map(lambda value: _format_percent(value, source_is_fraction=False))
+
     if "Captain" in display.columns:
         display["Captain"] = (
             display["Captain"].fillna(0).astype(int).astype(bool)
@@ -834,25 +1033,26 @@ def _display_team(team: Dict[str, object], enriched: Optional[pd.DataFrame] = No
     col3.metric("Total cost", f"£{team['total_cost']:.1f}m")
 
     if enriched is None or enriched.empty:
-        st.subheader("Starting XI")
-        st.dataframe(pd.DataFrame(team["squad"]))
-        if team.get("bench"):
-            st.subheader("Bench")
-            st.dataframe(pd.DataFrame(team["bench"]))
+        squad_tab, bench_tab = st.tabs(["Starting XI", "Bench"])
+        with squad_tab:
+            st.dataframe(pd.DataFrame(team["squad"]), use_container_width=True)
+        with bench_tab:
+            if team.get("bench"):
+                st.dataframe(pd.DataFrame(team["bench"]), use_container_width=True)
         return
 
     starters = enriched[enriched["starting"] == 1].copy()
     bench = enriched[enriched["bench"] == 1].copy()
+    squad_tab, bench_tab = st.tabs(["Starting XI", "Bench"])
 
-    if not starters.empty:
-        st.subheader("Starting XI")
-        st.dataframe(_format_team_display(starters), width="stretch")
-
-    if not bench.empty:
-        if "bench_order" in bench.columns:
-            bench = bench.sort_values("bench_order")
-        st.subheader("Bench")
-        st.dataframe(_format_team_display(bench), width="stretch")
+    with squad_tab:
+        if not starters.empty:
+            st.dataframe(_format_team_display(starters), use_container_width=True)
+    with bench_tab:
+        if not bench.empty:
+            if "bench_order" in bench.columns:
+                bench = bench.sort_values("bench_order")
+            st.dataframe(_format_team_display(bench), use_container_width=True)
 
 
 def _optimal_team_page() -> None:
@@ -867,6 +1067,7 @@ def _optimal_team_page() -> None:
         f"Using predictions for upcoming gameweek {next_gw} "
         f"(`{predictions_path.name}` in `outputs/`)."
     )
+    _render_confidence_summary(predictions_df)
 
     try:
         optimal_team = pick_best_xi(predictions_df, budget_m=float(BUDGET_MILLIONS))
@@ -886,7 +1087,7 @@ def _optimal_team_page() -> None:
     else:
         st.info("No stored Best XI image found for the latest gameweek.")
 
-    metrics = st.columns(3)
+    metrics = st.columns(4)
     metrics[0].metric(
         "Expected points (XI)",
         f"{optimal_team['expected_points_without_captain']:.2f}",
@@ -896,13 +1097,23 @@ def _optimal_team_page() -> None:
         f"{optimal_team['total_expected_points_with_captain']:.2f}",
     )
     metrics[2].metric("Captain", optimal_team.get("captain", "N/A"))
+    optimal_records = optimal_team["squad"] + optimal_team.get("bench", [])
+    optimal_df = pd.DataFrame(optimal_records)
+    if "confidence_score" in optimal_df.columns:
+        avg_conf = pd.to_numeric(optimal_df["confidence_score"], errors="coerce").mean()
+        metrics[3].metric("Squad confidence", _format_percent(avg_conf, source_is_fraction=False))
+    else:
+        metrics[3].metric("Squad confidence", "N/A")
 
     st.caption(f"Formation: {optimal_team.get('formation_name', 'N/A')}")
     st.caption("Budget assumption: £100.0m total for the 15-player squad.")
-    optimal_records = optimal_team["squad"] + optimal_team.get("bench", [])
-    optimal_df = pd.DataFrame(optimal_records)
     optimal_enriched = _enrich_user_team(optimal_df, predictions_df, gameweek=next_gw)
     _display_team(optimal_team, optimal_enriched)
+
+    leaderboard = _prediction_confidence_frame(predictions_df, limit=15)
+    if not leaderboard.empty:
+        st.subheader("Prediction Confidence Board")
+        st.dataframe(leaderboard, use_container_width=True)
 
 
 def _team_comparison_page() -> None:
@@ -922,6 +1133,7 @@ def _team_comparison_page() -> None:
         f"Using predictions for upcoming gameweek {latest_gw} "
         f"(`{predictions_path.name}` in `outputs/`)."
     )
+    _render_confidence_summary(predictions_df)
 
     stored_team_df = st.session_state.get(SESSION_USER_TEAM_KEY)
     stored_captain = st.session_state.get(SESSION_CAPTAIN_OVERRIDE_KEY)
@@ -1178,7 +1390,7 @@ def _optimal_history_page() -> None:
             )
 
     st.subheader("Summary by Gameweek")
-    st.dataframe(display_df, width="stretch")
+    st.dataframe(display_df, use_container_width=True)
 
     if missing_actual:
         missing_str = ", ".join(f"GW{gw}" for gw in missing_actual)
@@ -1279,7 +1491,7 @@ def _optimal_history_page() -> None:
         }
     )
     st.subheader(f"GW {selected_gw} squad details")
-    st.dataframe(display_players, width="stretch")
+    st.dataframe(display_players, use_container_width=True)
     st.caption("Actual totals include captaincy points; bench figures are raw bench scores.")
 
 def _team_performance_page() -> None:
@@ -1497,19 +1709,49 @@ def _transfer_recommender_page() -> None:
         subset = aggregated[aggregated["player_id"].isin(player_ids)].copy()
         if subset.empty:
             return
+        confidence_cols = [
+            "player_id",
+            "confidence_level",
+            "confidence_score",
+            "start_probability",
+        ]
+        confidence_cols = [col for col in confidence_cols if col in base_predictions.columns]
+        if len(confidence_cols) > 1:
+            subset = subset.merge(
+                base_predictions[confidence_cols].drop_duplicates("player_id"),
+                on="player_id",
+                how="left",
+            )
         subset["position"] = subset["element_type"].map(POSITION_LABELS)
-        display_cols = ["full_name", "team_name", "position"] + gw_cols + ["expected_points"]
+        display_cols = [
+            "full_name",
+            "team_name",
+            "position",
+        ] + gw_cols + [
+            "expected_points",
+            "confidence_level",
+            "confidence_score",
+            "start_probability",
+        ]
+        display_cols = [col for col in display_cols if col in subset.columns]
         subset = subset[display_cols].rename(
             columns={
                 "full_name": "Player",
                 "team_name": "Team",
                 "expected_points": "Total",
+                "confidence_level": "Confidence",
+                "confidence_score": "Conf %",
+                "start_probability": "Start Prob",
                 **rename_gw,
             }
         )
         subset = subset.sort_values("Total", ascending=False).reset_index(drop=True)
+        if "Conf %" in subset.columns:
+            subset["Conf %"] = subset["Conf %"].map(lambda value: _format_percent(value, source_is_fraction=False))
+        if "Start Prob" in subset.columns:
+            subset["Start Prob"] = subset["Start Prob"].map(_format_percent)
         st.subheader(title)
-        st.dataframe(subset, width="stretch")
+        st.dataframe(subset, use_container_width=True)
 
     user_player_ids = [int(pid) for pid in user_team_df["player_id"].tolist()]
     post_transfer_ids = [int(pid) for pid in post_transfer_team["player_id"].tolist()]
@@ -1545,7 +1787,7 @@ PAGES = {
 
 
 def main() -> None:
-    st.markdown(TAB_STYLE, unsafe_allow_html=True)
+    _apply_app_style()
     st.title("FPL Optimization Toolkit")
     tab_labels = list(PAGES)
     tabs = st.tabs(tab_labels)
