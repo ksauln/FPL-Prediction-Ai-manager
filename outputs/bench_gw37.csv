@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-263,Nathaniel Clyne,Crystal Palace,8,2,3.8,4.062780649856517,0,1,0,1,BRE (A)
-321,Jorge Cuenca Barreno,Fulham,10,2,4.3,3.866305131923404,0,1,0,2,WOL (A)
-217,Lyle Foster,Burnley,3,4,4.9,3.78857582720169,0,1,0,3,ARS (A)
-736,Gianluigi Donnarumma,Man City,13,1,5.6,3.6762112402043625,0,1,0,4,BOU (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+224,Marc Cucurella Saseta,Chelsea,7,2,6.1,5.024473375854404,0.9053310020479153,92.6,High,4.604,5.445,0,1,0,1,TOT (H)
+691,Dominic Calvert-Lewin,Leeds,11,4,5.8,4.772429206940176,0.8893531288557357,93.3,High,4.459,5.086,0,1,0,2,BHA (H)
+64,Ollie Watkins,Aston Villa,2,4,8.8,4.709423970349356,0.6006474520192531,80.1,High,3.779,5.64,0,1,0,3,LIV (H)
+341,Karl Darlow,Leeds,11,1,4.0,4.4514568071454566,0.9754271764028173,73.3,Medium,3.958,4.945,0,1,0,4,BHA (H)

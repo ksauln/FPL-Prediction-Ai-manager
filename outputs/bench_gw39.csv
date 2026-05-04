@@ -1,0 +1,5 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order
+74,Adrien Truffert,Bournemouth,4,2,4.7,4.218892066543114,0.9507847001922586,68.1,Medium,3.351,5.087,0,1,0,1
+64,Ollie Watkins,Aston Villa,2,4,8.8,3.812062292864163,0.5717288830284315,76.5,High,2.518,5.106,0,1,0,2
+215,Zian Flemming,Burnley,3,4,5.3,3.7531890865860413,0.8747492468462498,94.5,High,3.579,3.927,0,1,0,3
+341,Karl Darlow,Leeds,11,1,4.0,3.8723766654304566,0.9640157529142449,73.7,Medium,3.466,4.279,0,1,0,4

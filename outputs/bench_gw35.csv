@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-508,Neco Williams,Nott'm Forest,16,2,4.7,4.896498120652694,0,1,0,1,CHE (A)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,3.774568537395506,0,1,0,2,BOU (A)
-311,Norberto Bercique Gomes Betuncal,Everton,9,4,5.0,3.7103205245430355,0,1,0,3,MCI (H)
-736,Gianluigi Donnarumma,Man City,13,1,5.6,4.136214197629198,0,1,0,4,EVE (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+783,Pascal Groß,Brighton,6,3,5.5,6.3429677375035,0.9335080964513487,72.4,Medium,5.723,6.963,0,1,0,1,NEW (A)
+517,Elliot Anderson,Nott'm Forest,16,3,5.6,6.217068417239172,0.9650076067201014,95.0,High,5.868,6.566,0,1,0,2,CHE (A)
+136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.4,5.272052369483085,0.9437608936189645,92.8,High,4.776,5.768,0,1,0,3,WHU (H)
+314,Bernd Leno,Fulham,10,1,4.9,6.3755641523484865,0.9799343923172932,72.2,Medium,5.654,7.097,0,1,0,4,ARS (A)

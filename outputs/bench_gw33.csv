@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-86,David Brooks,Bournemouth,4,3,5.0,7.569293163352526,0,1,0,1,NEW (A) / LEE (H)
-146,Lewis Dunk,Brighton,6,2,4.5,7.280985517655103,0,1,0,2,TOT (A) / CHE (H)
-233,Josh Acheampong,Chelsea,7,2,3.7,6.959923253323897,0,1,0,3,MUN (H) / BHA (A)
-470,Martin Dúbravka,Burnley,3,1,4.0,4.799019594565978,0,1,0,4,NFO (A) / MCI (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+215,Zian Flemming,Burnley,3,4,5.3,9.074439323903881,0.8157397063893391,88.4,High,8.333,9.816,0,1,0,1,NFO (A) / MCI (H)
+624,Jarrod Bowen,West Ham,19,4,7.8,8.80314562514466,0.9651215476468555,67.9,Medium,7.509,10.097,0,1,0,2,CRY (A)
+606,Konstantinos Mavropanos,West Ham,19,2,4.5,8.409331296650432,0.8462867400369396,80.2,High,5.88,10.939,0,1,0,3,CRY (A)
+341,Karl Darlow,Leeds,11,1,4.0,10.575273984076052,0.960361617167893,69.7,Medium,9.346,11.805,0,1,0,4,WOL (H) / BOU (A)

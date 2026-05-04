@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-447,Ayden Heaven,Man Utd,14,2,3.7,5.209878298897712,0,1,0,1,BRE (H)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.7,4.2375370735235816,0,1,0,2,
-311,Norberto Bercique Gomes Betuncal,Everton,9,4,5.0,3.905000555138933,0,1,0,3,WHU (A)
-101,Caoimhín Kelleher,Brentford,5,1,4.8,3.707753083920157,0,1,0,4,MUN (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+517,Elliot Anderson,Nott'm Forest,16,3,5.6,6.06474709218675,0.9650032733734931,93.1,High,5.531,6.599,0,1,0,1,SUN (A)
+783,Pascal Groß,Brighton,6,3,5.5,5.946093146544291,0.9387170139563078,70.6,Medium,5.198,6.694,0,1,0,2,
+624,Jarrod Bowen,West Ham,19,4,7.8,5.605351833837857,0.9791824303909539,68.7,Medium,4.619,6.592,0,1,0,3,EVE (H)
+314,Bernd Leno,Fulham,10,1,4.9,5.209386722645195,0.9738791523806262,73.1,Medium,4.651,5.768,0,1,0,4,AVL (H)

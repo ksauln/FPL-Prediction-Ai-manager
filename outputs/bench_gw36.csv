@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-303,James Garner,Everton,9,3,5.3,4.3353055377511485,0,1,0,1,CRY (A)
-21,Declan Rice,Arsenal,1,3,7.2,4.320232079025483,0,1,0,2,WHU (A)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,3.9958761568109846,0,1,0,3,EVE (H)
-341,Karl Darlow,Leeds,11,1,3.9,3.8426158144681044,0,1,0,4,TOT (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+84,Marcus Tavernier,Bournemouth,4,3,5.4,5.216175483190959,0.9363889640405065,94.8,High,4.923,5.509,0,1,0,1,FUL (A)
+83,Dango Ouattara,Brentford,5,3,5.8,5.171131046920822,0.8366371277264224,93.4,High,4.957,5.386,0,1,0,2,MCI (A)
+64,Ollie Watkins,Aston Villa,2,4,8.8,4.9342553628407195,0.5364204867968458,79.1,High,4.061,5.807,0,1,0,3,BUR (A)
+341,Karl Darlow,Leeds,11,1,4.0,4.905711560546552,0.9797626216985607,70.7,Medium,4.162,5.649,0,1,0,4,TOT (A)

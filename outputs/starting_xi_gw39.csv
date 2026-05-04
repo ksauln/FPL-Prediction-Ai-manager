@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain
+101,Caoimhín Kelleher,Brentford,5,1,4.8,4.489015101245952,0.9554568528778561,88.9,High,3.484,5.494,1,0,0
+5,Gabriel dos Santos Magalhães,Arsenal,1,2,7.2,4.92766723030587,0.9344961580647748,95.3,High,4.689,5.166,1,0,0
+224,Marc Cucurella Saseta,Chelsea,7,2,6.1,4.5949145189231,0.9054373981419652,92.6,High,4.18,5.01,1,0,0
+344,Jaka Bijol,Leeds,11,2,3.9,4.591166678959421,0.9120439583978968,90.0,High,3.882,5.3,1,0,0
+77,James Hill,Bournemouth,4,2,4.2,4.5095864701964965,0.9458891760969524,64.6,Medium,3.231,5.788,1,0,0
+807,Rayan Vitor Simplício Rocha,Bournemouth,4,3,5.4,5.145226396164082,0.7222353186239154,57.7,Medium,3.66,6.63,1,0,1
+449,Bruno Borges Fernandes,Man Utd,14,3,10.4,5.131622773424833,0.9261949905670432,86.7,High,3.864,6.399,1,0,0
+200,Jaidon Anthony,Burnley,3,3,5.0,4.953363286487637,0.9179826190628694,94.7,High,4.697,5.209,1,0,0
+83,Dango Ouattara,Brentford,5,3,5.8,4.651447295123977,0.8248773092404833,91.3,High,4.295,5.008,1,0,0
+457,Carlos Henrique Casimiro,Man Utd,14,3,5.8,4.489387821450313,0.9449328249089026,96.9,High,4.362,4.617,1,0,0
+136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.4,4.998334163821074,0.9440554973845328,90.4,High,4.237,5.76,1,0,0
