@@ -1,6 +1,6 @@
 # FPL Expected Points Pipeline
 
-Automated Fantasy Premier League analytics pipeline that ingests raw data, engineers features, trains ML models, updates bias adjustments, and outputs next gameweek projections alongside an optimized squad selection. A companion Streamlit interface (“FPL Optimization Toolkit”) visualizes the most recent outputs, compares user squads, and recommends transfers.
+Automated Fantasy Premier League analytics pipeline that ingests raw data, engineers features, trains ML models, updates bias adjustments, and outputs next gameweek projections alongside an optimized squad selection. A companion Streamlit interface (“FPL Optimization Toolkit”) visualizes the official next gameweek, confidence-aware predictions, user squad comparisons, and transfer recommendations.
 
 ---
 
@@ -14,7 +14,7 @@ The pipeline is structured so each stage feeds the next while persisting interme
    - Optional historical CSVs from the `vaastav/Fantasy-Premier-League` GitHub repo.
 3. **Feature engineering** – derive rolling windows, lags, opponent strength context, set-piece indicators, and bias features.
 4. **Model selection and training** – compare multiple estimator families (histogram gradient boosting, random forest, MLP, XGBoost with optional GPU support), fit each candidate, and retain both the selected pair and the full set for ensembling.
-5. **Prediction** – score every fitted model, average their expected-point outputs into an ensemble forecast, and apply fixture multipliers.
+5. **Prediction** – score every fitted model, average their expected-point outputs into an ensemble forecast, apply fixture multipliers, and attach confidence diagnostics.
 6. **Evaluation & bias update** – score the most recently completed gameweek, update EMA-based player and positional residual corrections.
 7. **Squad optimization** – construct the best XI plus bench via mixed-integer optimization subject to FPL constraints.
 8. **Outputs** – write predictions, squads, residuals, and logs to disk.
@@ -44,6 +44,7 @@ FPL-Prediction/
 │   └── display.py              # squad visualisation
 ├── models/                     # persisted models and state.json
 ├── outputs/                    # csv/json/png artefacts per run
+├── docs/screenshots/            # README screenshots of the Streamlit toolkit
 ├── logs/                       # detailed run logs
 ├── main.py                     # orchestrates the full pipeline
 ├── streamlit_app.py            # FPL Optimization Toolkit UI
@@ -76,7 +77,7 @@ Adjustments to paths, feature toggles, and model settings live in `fplmodel/conf
 
 - Only the first replay iteration honours `--force-refetch`; later runs reuse cached data.
 - Overrides let you reconstruct history so EMA biases in `models/state.json` evolve just as they would week by week.
-- Without overrides the pipeline relies on live `bootstrap-static` metadata to infer the current gameweek automatically.
+- Without overrides the pipeline relies on live `bootstrap-static` metadata to infer the current, next, and last finished gameweeks automatically.
 
 ### 3.2 Generating Future Projections
 The Streamlit transfer recommender expects prediction files for the next horizon (e.g., GW8–GW12). After running the live pipeline, replay the upcoming gameweeks:
@@ -133,7 +134,12 @@ This writes `outputs/predictions_gw8.csv` through `outputs/predictions_gw12.csv`
 ### 4.6 Prediction (`model.predict_expected_points`)
 - Scores every player across the selected regressors/classifiers.
 - Averages the raw outputs across models, re-applies EMA bias corrections (`player_bias`, `position_bias`), and clips at zero to produce the ensemble column used throughout the rest of the pipeline.
-- Outputs `outputs/predictions_gw<N>.csv` containing per-model raw/corrected predictions plus the ensemble `expected_points`.
+- Applies double/blank gameweek fixture multipliers. Double-gameweek players can therefore have materially higher one-week projections.
+- Adds confidence diagnostics:
+  - `start_probability` – classifier-estimated chance of a player reaching starter-level minutes.
+  - `confidence_score` / `confidence_level` – blended signal from model agreement, player availability, start probability, and recent-data reliability.
+  - `expected_points_lower_80` / `expected_points_upper_80` – approximate 80% expected-points interval.
+- Outputs `outputs/predictions_gw<N>.csv` containing per-model raw/corrected predictions, ensemble `expected_points`, fixture multipliers, and confidence fields.
 
 ### 4.7 Evaluation & Bias Update (`evaluation.evaluate_last_finished_gw_and_update_state`)
 - Reconstructs “gw-1” feature rows for players who played in `last_finished_gw`.
@@ -170,17 +176,29 @@ Launch the UI after running the pipeline at least once:
 streamlit run streamlit_app.py
 ```
 
-The app auto-loads `bootstrap-static.json`, fixtures, and the most recent prediction files from `outputs/`. Session state preserves your selections across pages so you can navigate without re-entering teams.
+The app auto-loads fixtures and prediction files from `outputs/`, checks live FPL `bootstrap-static` event metadata, and falls back to local cached metadata if the network is unavailable. Session state preserves your selections across pages so you can navigate without re-entering teams.
 
-### 5.1 Optimal Team Page
-- Automatically selects the first prediction file whose gameweek is greater than the last finished GW (e.g., after GW7 completes, it uses GW8).
+### 5.1 Screenshots
+
+Optimal team view with confidence summary, squad metrics, and the prediction confidence board:
+
+![Streamlit optimal team page](docs/screenshots/streamlit-optimal-team.png)
+
+Transfer recommender setup showing the official next-gameweek horizon and missing future files:
+
+![Streamlit transfer recommender page](docs/screenshots/streamlit-transfer-recommender.png)
+
+### 5.2 Optimal Team Page
+- Automatically selects the official FPL `is_next` gameweek when that prediction file exists. If live event metadata is unavailable, the app falls back to cached metadata and then to the latest available prediction file.
 - Assumes a £100.0m budget (captioned on the page) and displays:
   - Best XI image from `outputs/best_xi_gw<N>.png` (if present).
-  - Metrics for expected points (with and without captain) and squad costs.
+  - Metrics for expected points (with and without captain), captain, squad confidence, and squad costs.
+  - Confidence summary for the whole prediction file: average confidence, average start probability, high-confidence player count, and watchlist volatility.
+  - Prediction Confidence Board with the top projected players, confidence level, confidence percentage, start probability, and approximate 80% expected-points range.
   - Tables for starters and bench including  
-    `Pos · Name · Team · Opponent · Cost (£m) · Expected CS · Expected A · Expected G · Expected Pts · Captain · Bench Order`.
+    `Pos · Name · Team · Opponent · Cost (£m) · Expected CS · Expected A · Expected G · Expected Pts · Confidence · Conf % · Start Prob · 80% Range · Captain · Bench Order`.
 
-### 5.2 Team Comparison Page
+### 5.3 Team Comparison Page
 - Uses the same upcoming GW predictions.
 - Team input methods:
   1. **Use saved team** – reuse the squad cached during the current session.
@@ -189,12 +207,15 @@ The app auto-loads `bootstrap-static.json`, fixtures, and the most recent predic
   4. **Build interactively** – choose players position-by-position inside the app.
 - Displays:
   - Expected points for your squad vs. optimal, points gap, rating percentage.
+  - Confidence fields for selected players when present in the prediction file.
   - Actual totals from the last finished GW for both teams (when historical data is present).
   - Tables with the same enriched columns listed above.
 - Every submission updates session state, making the squad available to the Transfer Recommender without re-uploading.
 
-### 5.3 Transfer Recommender Page
-- Horizon selector defaults to four gameweeks (or fewer if limited prediction files exist). Missing prediction files are listed explicitly.
+### 5.4 Transfer Recommender Page
+- Horizon selector defaults to four gameweeks (or fewer if limited prediction files exist).
+- Multi-gameweek horizons start from the same official next-gameweek selector used by the Optimal Team and Team Comparison pages.
+- Missing prediction files are listed explicitly so stale or incomplete future projections are visible.
 - Team inputs mirror Team Comparison (saved team, FPL ID, CSV, interactive builder).
 - Parameters:
   - Free transfers available.
@@ -206,8 +227,9 @@ The app auto-loads `bootstrap-static.json`, fixtures, and the most recent predic
     1. Current squad.
     2. Squad after applying recommended transfers.
     3. Optimal squad over the same horizon.
+  - Confidence level, confidence percentage, and start probability for players where the first gameweek in the horizon provides those fields.
 
-### 5.4 Player Comparison Lab
+### 5.5 Player Comparison Lab
 - Multi-player selector combines upcoming prediction horizons with historic stats to show players in context.
 - Projection summary table highlights total expected points across the chosen gameweek window plus average expected points per GW.
 - Skill radar charts plot `expected_goals_per_90`, `expected_assists_per_90`, `clean_sheets_per_90`, and average expected points so you can see complementary profiles at a glance.
@@ -244,11 +266,13 @@ The app auto-loads `bootstrap-static.json`, fixtures, and the most recent predic
   - Bias updates (number of residuals applied).
   - Squad selection metrics and constraints.
 - If projections look unrealistic, inspect:
+  - The selected gameweek in Streamlit. The app should show the official FPL `is_next` gameweek; cached event metadata refreshes every five minutes and falls back to local `data/raw/bootstrap-static.json` when offline.
+  - `fixture_multiplier` in `outputs/predictions_gw*.csv`; double-gameweek teams receive a multiplier greater than 1.0.
   - `models/state.json` for runaway biases.
   - `outputs/residuals_gw*.csv` for large residuals that feed the EMA.
   - Feature importances via the log entries from `log_model_feature_weights`.
 - **Streamlit reload** – `streamlit run streamlit_app.py` hot-reloads code changes and respects cached squad selections in session state.
-- **Missing projections** – ensure horizon files exist (rerun the pipeline with overrides).
+- **Missing projections** – ensure horizon files exist (rerun the pipeline with overrides). The Transfer Recommender lists missing future gameweeks directly.
 - **FPL API errors** – confirm the FPL ID is correct and that the last finished GW has recorded picks.
 
 ---
