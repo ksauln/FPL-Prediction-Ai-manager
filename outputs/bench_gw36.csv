@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-84,Marcus Tavernier,Bournemouth,4,3,5.4,5.216175483190959,0.9363889640405065,94.8,High,4.923,5.509,0,1,0,1,FUL (A)
-83,Dango Ouattara,Brentford,5,3,5.8,5.171131046920822,0.8366371277264224,93.4,High,4.957,5.386,0,1,0,2,MCI (A)
-64,Ollie Watkins,Aston Villa,2,4,8.8,4.9342553628407195,0.5364204867968458,79.1,High,4.061,5.807,0,1,0,3,BUR (A)
-341,Karl Darlow,Leeds,11,1,4.0,4.905711560546552,0.9797626216985607,70.7,Medium,4.162,5.649,0,1,0,4,TOT (A)
+224,Marc Cucurella Saseta,Chelsea,7,2,6.1,4.5632683234386615,0.9040835069187227,95.9,High,4.428,4.698,0,1,0,1,LIV (A)
+74,Adrien Truffert,Bournemouth,4,2,4.7,4.220460662699435,0.9733663597912727,68.0,Medium,3.286,5.155,0,1,0,2,FUL (A)
+136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.4,4.191230976793841,0.9573108944179658,96.6,High,4.02,4.362,0,1,0,3,MCI (A)
+101,Caoimhín Kelleher,Brentford,5,1,4.8,4.2613743738945535,0.9664308477129224,88.5,High,3.152,5.37,0,1,0,4,MCI (A)

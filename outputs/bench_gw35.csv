@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-783,Pascal Groß,Brighton,6,3,5.5,6.3429677375035,0.9335080964513487,72.4,Medium,5.723,6.963,0,1,0,1,NEW (A)
-517,Elliot Anderson,Nott'm Forest,16,3,5.6,6.217068417239172,0.9650076067201014,95.0,High,5.868,6.566,0,1,0,2,CHE (A)
-136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.4,5.272052369483085,0.9437608936189645,92.8,High,4.776,5.768,0,1,0,3,WHU (H)
-314,Bernd Leno,Fulham,10,1,4.9,6.3755641523484865,0.9799343923172932,72.2,Medium,5.654,7.097,0,1,0,4,ARS (A)
+64,Ollie Watkins,Aston Villa,2,4,8.8,4.615247186313771,0.9055771063544784,94.7,High,4.386,4.844,0,1,0,1,TOT (H)
+373,Virgil van Dijk,Liverpool,12,2,6.2,4.596493439104997,0.9533172719986973,71.2,Medium,3.977,5.216,0,1,0,2,MUN (A)
+148,Ferdi Kadıoğlu,Brighton,6,2,4.4,4.31856599404268,0.9395151507867447,64.4,Medium,3.054,5.583,0,1,0,3,NEW (A)
+502,Matz Sels,Nott'm Forest,16,1,4.6,3.8556139128962954,0.9269804991615502,96.4,High,3.726,3.985,0,1,0,4,CHE (A)
