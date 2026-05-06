@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-200,Jaidon Anthony,Burnley,3,3,5.0,4.785053154040074,0.9544670748268358,96.6,High,4.615,4.955,0,1,0,1,ARS (A)
-77,James Hill,Bournemouth,4,2,4.2,4.676099089088058,0.9698037307340388,70.5,Medium,3.958,5.394,0,1,0,2,MCI (H)
-344,Jaka Bijol,Leeds,11,2,3.9,4.565051810531957,0.9342558717677879,94.5,High,4.262,4.868,0,1,0,3,BHA (H)
-341,Karl Darlow,Leeds,11,1,4.0,3.457410511618472,0.9820914315750849,74.3,Medium,3.092,3.823,0,1,0,4,BHA (H)
+5,Gabriel dos Santos Magalhães,Arsenal,1,2,7.2,3.882712362685809,0.9553951332772379,94.8,High,3.57,4.196,0,1,0,1,BUR (H)
+527,Taiwo Awoniyi,Nott'm Forest,16,4,5.2,3.758265095234594,0.5325078661572532,69.5,Medium,0.821,6.695,0,1,0,2,MUN (A)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.5,3.747514116249819,0.674450133743663,56.1,Medium,2.369,5.126,0,1,0,3,TOT (H)
+341,Karl Darlow,Leeds,11,1,4.0,3.2334167997190035,0.9687548013369833,70.7,Medium,2.642,3.825,0,1,0,4,BHA (H)

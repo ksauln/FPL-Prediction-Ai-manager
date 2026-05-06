@@ -1201,11 +1201,14 @@ def predict_expected_points(
         reliability = pd.Series(1.0, index=meta.index)
     reliability_np = reliability.to_numpy(dtype=float)
 
-    # Apply bias corrections
+    # Apply bias corrections, but keep start probability as the gate on upside.
+    # A player who is very unlikely to start should not gain large standalone EP
+    # from residual bias terms.
     player_bias = np.array([state.get_player_bias(pid) for pid in meta["player_id"].values])
     pos_bias = np.array([state.get_position_bias(pos) for pos in meta["element_type"].values])
     ep_raw = ep * reliability_np
-    ep_corrected = (ep + player_bias + pos_bias) * reliability_np
+    bias_correction = (player_bias + pos_bias) * p_start
+    ep_corrected = (ep + bias_correction) * reliability_np
 
     out = meta.copy()
     extra_meta_cols = [

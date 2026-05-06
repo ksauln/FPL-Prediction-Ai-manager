@@ -135,6 +135,25 @@ def add_prediction_confidence(
     out["expected_points_upper_80"] = (expected_points + z_80 * interval_sigma).round(3)
     return out
 
+
+def _combine_ensemble_expected_points(
+    predictions: pd.DataFrame,
+    per_model_raw_cols: list[str],
+    per_model_corrected_cols: list[str],
+) -> pd.DataFrame:
+    """Combine per-model outputs without reapplying bias corrections."""
+    out = predictions.copy()
+    if per_model_raw_cols:
+        out["expected_points_raw"] = out[per_model_raw_cols].mean(axis=1)
+    else:
+        out["expected_points_raw"] = 0.0
+
+    if per_model_corrected_cols:
+        out["expected_points"] = out[per_model_corrected_cols].mean(axis=1).clip(lower=0.0)
+    else:
+        out["expected_points"] = out["expected_points_raw"].clip(lower=0.0)
+    return out
+
 def run_pipeline(
     force_refetch: bool = False,
     override_next_gw: int | None = None,
@@ -339,18 +358,11 @@ def run_pipeline(
         if ensemble_predictions is None:
             raise RuntimeError("No candidate predictions were generated for the ensemble.")
 
-        if per_model_raw_cols:
-            ensemble_predictions["expected_points_raw"] = ensemble_predictions[per_model_raw_cols].mean(axis=1)
-        else:
-            ensemble_predictions["expected_points_raw"] = 0.0
-
-        player_bias = ensemble_predictions["player_id"].apply(state.get_player_bias)
-        position_bias = ensemble_predictions["element_type"].apply(state.get_position_bias)
-        ensemble_predictions["expected_points"] = (
-            ensemble_predictions["expected_points_raw"] + player_bias + position_bias
-        ).clip(lower=0.0)
-
-        predictions = ensemble_predictions
+        predictions = _combine_ensemble_expected_points(
+            ensemble_predictions,
+            per_model_raw_cols=per_model_raw_cols,
+            per_model_corrected_cols=per_model_corrected_cols,
+        )
         logger.info(
             "Generated ensemble predictions for %d players using %d model(s): %s",
             len(predictions),

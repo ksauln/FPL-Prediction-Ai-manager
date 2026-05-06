@@ -4,11 +4,13 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import numpy as np
 import pandas as pd
 
 from fplmodel.features import _add_team_context_features, build_training_and_pred_frames
+from fplmodel.model import predict_expected_points
 from fplmodel.state import ModelState
-from main import add_prediction_confidence
+from main import _combine_ensemble_expected_points, add_prediction_confidence
 
 
 def _elements_df() -> pd.DataFrame:
@@ -171,6 +173,58 @@ class FeatureWorkflowTests(unittest.TestCase):
         self.assertGreater(out.loc[0, "confidence_score"], out.loc[1, "confidence_score"])
         self.assertLessEqual(out.loc[0, "expected_points_lower_80"], out.loc[0, "expected_points"])
         self.assertGreaterEqual(out.loc[0, "expected_points_upper_80"], out.loc[0, "expected_points"])
+
+    def test_predict_expected_points_keeps_low_start_players_low_despite_bias(self) -> None:
+        class StubClassifier:
+            def predict_proba(self, feats: pd.DataFrame) -> np.ndarray:
+                return np.array([[0.99, 0.01]])
+
+        class StubRegressor:
+            def predict(self, feats: pd.DataFrame) -> np.ndarray:
+                return np.array([6.0])
+
+        with TemporaryDirectory() as tmpdir:
+            state = ModelState(path=Path(tmpdir) / "state.json")
+            state.player_bias["1"] = 4.0
+            state.position_bias["1"] = 2.0
+
+            X_pred = pd.DataFrame(
+                {
+                    "player_id": [1],
+                    "full_name": ["Reserve Keeper"],
+                    "team_name": ["Alpha"],
+                    "now_cost_millions": [4.0],
+                    "team_id": [1],
+                    "element_type": [1],
+                    "season_minutes": [270],
+                    "feature_a": [1.0],
+                }
+            )
+
+            out = predict_expected_points(X_pred, StubClassifier(), StubRegressor(), state)
+
+        self.assertAlmostEqual(out.loc[0, "expected_points_raw"], 0.06, places=6)
+        self.assertAlmostEqual(out.loc[0, "expected_points"], 0.12, places=6)
+
+    def test_combine_ensemble_expected_points_uses_corrected_model_mean(self) -> None:
+        predictions = pd.DataFrame(
+            {
+                "player_id": [1],
+                "expected_points_raw__a": [0.0],
+                "expected_points_raw__b": [0.2],
+                "expected_points__a": [0.1],
+                "expected_points__b": [0.3],
+            }
+        )
+
+        out = _combine_ensemble_expected_points(
+            predictions,
+            per_model_raw_cols=["expected_points_raw__a", "expected_points_raw__b"],
+            per_model_corrected_cols=["expected_points__a", "expected_points__b"],
+        )
+
+        self.assertAlmostEqual(out.loc[0, "expected_points_raw"], 0.1, places=6)
+        self.assertAlmostEqual(out.loc[0, "expected_points"], 0.2, places=6)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-224,Marc Cucurella Saseta,Chelsea,7,2,6.1,4.5632683234386615,0.9040835069187227,95.9,High,4.428,4.698,0,1,0,1,LIV (A)
-74,Adrien Truffert,Bournemouth,4,2,4.7,4.220460662699435,0.9733663597912727,68.0,Medium,3.286,5.155,0,1,0,2,FUL (A)
-136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.4,4.191230976793841,0.9573108944179658,96.6,High,4.02,4.362,0,1,0,3,MCI (A)
-101,Caoimhín Kelleher,Brentford,5,1,4.8,4.2613743738945535,0.9664308477129224,88.5,High,3.152,5.37,0,1,0,4,MCI (A)
+77,James Hill,Bournemouth,4,2,4.2,3.5736616676392554,0.9564752148882854,72.9,Medium,3.147,4.0,0,1,0,1,FUL (A)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.5,3.30514633860904,0.6699432498145577,59.2,Medium,2.357,4.254,0,1,0,2,LIV (A)
+666,Viktor Gyökeres,Arsenal,1,4,8.9,3.2338132970998394,0.7384502644325455,86.2,High,2.65,3.818,0,1,0,3,WHU (A)
+341,Karl Darlow,Leeds,11,1,4.0,3.6199954790212314,0.9712667345597423,70.5,Medium,2.98,4.26,0,1,0,4,TOT (A)

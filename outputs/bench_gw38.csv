@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-344,Jaka Bijol,Leeds,11,2,3.9,4.1869591033983315,0.919038929226483,96.7,High,4.089,4.285,0,1,0,1,WHU (A)
-430,Erling Haaland,Man City,13,4,14.6,4.133631253033213,0.9749818425246631,98.6,High,4.07,4.198,0,1,0,2,AVL (H)
-106,Nathan Collins,Brentford,5,2,4.9,3.9925880232860096,0.9571079065392767,70.9,Medium,3.384,4.601,0,1,0,3,LIV (A)
-341,Karl Darlow,Leeds,11,1,4.0,3.529454145182112,0.9753515852312261,72.5,Medium,3.041,4.018,0,1,0,4,WHU (A)
+77,James Hill,Bournemouth,4,2,4.2,3.3355524111382353,0.94880158951356,63.5,Medium,1.98,4.691,0,1,0,1,NFO (A)
+215,Zian Flemming,Burnley,3,4,5.3,2.800166667771383,0.9076821648265235,96.3,High,2.703,2.897,0,1,0,2,WOL (H)
+527,Taiwo Awoniyi,Nott'm Forest,16,4,5.2,2.6605783645752856,0.415546714078148,71.2,Medium,0.0,5.413,0,1,0,3,BOU (H)
+341,Karl Darlow,Leeds,11,1,4.0,3.4585447312882556,0.9617930143036896,70.0,Medium,2.803,4.114,0,1,0,4,WHU (A)
