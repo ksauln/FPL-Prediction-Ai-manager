@@ -6,7 +6,9 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
+import pytest
 
+pytest.importorskip("sklearn", minversion="1.3")
 from fplmodel.features import _add_team_context_features, build_training_and_pred_frames
 from fplmodel.model import predict_expected_points
 from fplmodel.state import ModelState

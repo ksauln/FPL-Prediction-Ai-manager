@@ -7,7 +7,10 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
+pytest.importorskip("jinja2", minversion="3.0.0")
+pytest.importorskip("streamlit")
 from streamlit_app import _load_predictions_for_horizon, _select_prediction_gameweek
 
 

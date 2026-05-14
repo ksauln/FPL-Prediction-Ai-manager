@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-77,James Hill,Bournemouth,4,2,4.2,3.5736616676392554,0.9564752148882854,72.9,Medium,3.147,4.0,0,1,0,1,FUL (A)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.5,3.30514633860904,0.6699432498145577,59.2,Medium,2.357,4.254,0,1,0,2,LIV (A)
-666,Viktor Gyökeres,Arsenal,1,4,8.9,3.2338132970998394,0.7384502644325455,86.2,High,2.65,3.818,0,1,0,3,WHU (A)
-341,Karl Darlow,Leeds,11,1,4.0,3.6199954790212314,0.9712667345597423,70.5,Medium,2.98,4.26,0,1,0,4,TOT (A)
+6,William Saliba,Arsenal,1,2,6.2,3.552986585247775,0.7555358468694982,85.6,High,2.838,4.268,0,1,0,1,WHU (A)
+527,Taiwo Awoniyi,Nott'm Forest,16,4,5.2,3.5052889161651226,0.6535416675381397,80.0,High,2.428,4.582,0,1,0,2,NEW (H)
+666,Viktor Gyökeres,Arsenal,1,4,9.0,3.2189044957081077,0.7552080162237316,90.7,High,2.989,3.449,0,1,0,3,WHU (A)
+341,Karl Darlow,Leeds,11,1,4.0,3.814754079108205,0.9817196142327659,67.1,Medium,2.795,4.834,0,1,0,4,TOT (A)

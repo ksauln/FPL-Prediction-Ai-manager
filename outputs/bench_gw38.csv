@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-77,James Hill,Bournemouth,4,2,4.2,3.3355524111382353,0.94880158951356,63.5,Medium,1.98,4.691,0,1,0,1,NFO (A)
-215,Zian Flemming,Burnley,3,4,5.3,2.800166667771383,0.9076821648265235,96.3,High,2.703,2.897,0,1,0,2,WOL (H)
-527,Taiwo Awoniyi,Nott'm Forest,16,4,5.2,2.6605783645752856,0.415546714078148,71.2,Medium,0.0,5.413,0,1,0,3,BOU (H)
-341,Karl Darlow,Leeds,11,1,4.0,3.4585447312882556,0.9617930143036896,70.0,Medium,2.803,4.114,0,1,0,4,WHU (A)
+64,Ollie Watkins,Aston Villa,2,4,8.7,3.850719952639853,0.8526692289238034,88.2,High,3.14,4.561,0,1,0,1,MCI (A)
+148,Ferdi Kadıoğlu,Brighton,6,2,4.4,3.7865652842760884,0.9432915901299788,72.0,Medium,3.305,4.269,0,1,0,2,MUN (H)
+215,Zian Flemming,Burnley,3,4,5.3,2.913313504685652,0.8614919667716259,91.7,High,2.552,3.275,0,1,0,3,WOL (H)
+733,Senne Lammens,Man Utd,14,1,5.1,3.635999817215342,0.9711874031448173,72.1,Medium,3.122,4.15,0,1,0,4,BHA (A)

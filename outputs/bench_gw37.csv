@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-5,Gabriel dos Santos Magalhães,Arsenal,1,2,7.2,3.882712362685809,0.9553951332772379,94.8,High,3.57,4.196,0,1,0,1,BUR (H)
-527,Taiwo Awoniyi,Nott'm Forest,16,4,5.2,3.758265095234594,0.5325078661572532,69.5,Medium,0.821,6.695,0,1,0,2,MUN (A)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.5,3.747514116249819,0.674450133743663,56.1,Medium,2.369,5.126,0,1,0,3,TOT (H)
-341,Karl Darlow,Leeds,11,1,4.0,3.2334167997190035,0.9687548013369833,70.7,Medium,2.642,3.825,0,1,0,4,BHA (H)
+148,Ferdi Kadıoğlu,Brighton,6,2,4.4,3.4250476528573994,0.9451669665944425,73.1,Medium,3.036,3.814,0,1,0,1,LEE (A)
+256,Daniel Muñoz Mejía,Crystal Palace,8,2,5.9,3.3884732551405703,0.8967421499670511,88.5,High,2.586,4.191,0,1,0,2,BRE (A)
+527,Taiwo Awoniyi,Nott'm Forest,16,4,5.2,3.3765950365038906,0.6591768658684174,80.7,High,2.377,4.376,0,1,0,3,MUN (A)
+502,Matz Sels,Nott'm Forest,16,1,4.6,3.4456100339156914,0.9136304578946526,94.8,High,3.222,3.669,0,1,0,4,MUN (A)

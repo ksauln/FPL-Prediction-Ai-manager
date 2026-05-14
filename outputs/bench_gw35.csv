@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-411,Nico O'Reilly,Man City,13,2,5.2,4.030002734965451,0.8943234950589649,94.8,High,3.838,4.222,0,1,0,1,EVE (A)
-148,Ferdi Kadıoğlu,Brighton,6,2,4.4,3.9111752606413,0.9467714220428887,61.4,Medium,2.138,5.684,0,1,0,2,NEW (A)
-64,Ollie Watkins,Aston Villa,2,4,8.8,3.3071900069419207,0.8830874241358326,88.4,High,2.541,4.073,0,1,0,3,TOT (H)
-736,Gianluigi Donnarumma,Man City,13,1,5.6,3.583704529160202,0.9589761240255805,72.8,Medium,3.142,4.026,0,1,0,4,EVE (A)
+64,Ollie Watkins,Aston Villa,2,4,8.7,3.359809122675138,0.909609221070655,92.4,High,2.941,3.779,0,1,0,1,TOT (H)
+318,Calvin Bassey,Fulham,10,2,4.4,3.18669275498674,0.9412633758404807,95.9,High,3.001,3.372,0,1,0,2,ARS (A)
+373,Virgil van Dijk,Liverpool,12,2,6.1,3.1218861659713086,0.9305789972583316,71.5,Medium,2.674,3.57,0,1,0,3,MUN (A)
+736,Gianluigi Donnarumma,Man City,13,1,5.6,3.273851241294781,0.9607284045941679,70.5,Medium,2.677,3.87,0,1,0,4,EVE (A)
