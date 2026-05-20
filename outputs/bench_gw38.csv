@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-64,Ollie Watkins,Aston Villa,2,4,8.7,3.850719952639853,0.8526692289238034,88.2,High,3.14,4.561,0,1,0,1,MCI (A)
-148,Ferdi Kadıoğlu,Brighton,6,2,4.4,3.7865652842760884,0.9432915901299788,72.0,Medium,3.305,4.269,0,1,0,2,MUN (H)
-215,Zian Flemming,Burnley,3,4,5.3,2.913313504685652,0.8614919667716259,91.7,High,2.552,3.275,0,1,0,3,WOL (H)
-733,Senne Lammens,Man Utd,14,1,5.1,3.635999817215342,0.9711874031448173,72.1,Medium,3.122,4.15,0,1,0,4,BHA (A)
+694,Nordi Mukiele,Sunderland,17,2,4.6,4.041053148649475,0.9252471747662365,95.0,High,3.807,4.275,0,1,0,1,CHE (H)
+500,William Osula,Newcastle,15,4,5.5,3.87795596832194,0.7770697462834486,85.9,High,3.123,4.633,0,1,0,2,FUL (A)
+749,Mateus Mané,Wolves,20,4,4.2,3.1624059762817245,0.7685119239930334,59.3,Medium,1.935,4.39,0,1,0,3,BUR (A)
+670,Robin Roefs,Sunderland,17,1,4.8,3.960497362676641,0.9481856704472311,98.1,High,3.896,4.025,0,1,0,4,CHE (H)
