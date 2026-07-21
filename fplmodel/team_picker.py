@@ -7,6 +7,7 @@ try:
     from pulp import (
         PULP_CBC_CMD,
         LpBinary,
+        LpInteger,
         LpMaximize,
         LpProblem,
         LpStatusOptimal,
@@ -16,6 +17,7 @@ try:
 except ImportError:  # pragma: no cover - exercised in environments without PuLP
     PULP_CBC_CMD = None
     LpBinary = None
+    LpInteger = None
     LpMaximize = None
     LpProblem = None
     LpStatusOptimal = None
@@ -39,6 +41,13 @@ def _solve_for_formation(
     df: pd.DataFrame,
     budget_m: float,
     formation: Dict[str, int],
+    *,
+    current_player_ids: Optional[set[int]] = None,
+    bank_m: float = 0.0,
+    sale_value_by_player_id: Optional[Dict[int, float]] = None,
+    max_transfers: Optional[int] = None,
+    free_transfers: int = 0,
+    transfer_hit_cost: float = 4.0,
 ) -> Dict[str, object]:
     """Solve the ILP for a specific formation."""
     if LpProblem is None:
@@ -64,7 +73,7 @@ def _solve_for_formation(
     starter_points = lpSum(start_vars[pid] * ep_map[pid] for pid in ep_map)
     captain_points = lpSum(captain_vars[pid] * ep_map[pid] for pid in ep_map)
     bench_points = lpSum(bench_vars[pid] * ep_map[pid] for pid in ep_map)
-    prob += starter_points + captain_points + BENCH_EP_WEIGHT * bench_points
+    objective = starter_points + captain_points + BENCH_EP_WEIGHT * bench_points
 
     # Exactly 11 starters based on formation
     desired_xi = sum(formation.values())
@@ -112,11 +121,37 @@ def _solve_for_formation(
         pids = grp["player_id"].tolist()
         prob += lpSum(start_vars[pid] + bench_vars[pid] for pid in pids) <= MAX_PER_TEAM
 
-    # Budget constraint for the full squad
+    # Budget constraint for the full squad or a transition from an owned squad.
     cost_map = df.set_index("player_id")["now_cost_millions"].to_dict()
-    prob += lpSum(
-        (start_vars[pid] + bench_vars[pid]) * cost_map[pid] for pid in ep_map
-    ) <= budget_m
+    transfers_made_expr = None
+    if current_player_ids is None:
+        prob += lpSum(
+            (start_vars[pid] + bench_vars[pid]) * cost_map[pid] for pid in ep_map
+        ) <= budget_m
+    else:
+        current_player_ids = {int(player_id) for player_id in current_player_ids}
+        missing_current = current_player_ids - set(int(player_id) for player_id in ep_map)
+        if missing_current:
+            raise ValueError(f"Current squad players missing from predictions: {sorted(missing_current)}")
+        sale_values = sale_value_by_player_id or {}
+        selected = {pid: start_vars[pid] + bench_vars[pid] for pid in ep_map}
+        incoming_ids = [pid for pid in ep_map if int(pid) not in current_player_ids]
+        transfers_made_expr = lpSum(selected[pid] for pid in incoming_ids)
+        if max_transfers is not None:
+            prob += transfers_made_expr <= int(max_transfers)
+        sale_proceeds = lpSum(
+            (1 - selected[pid]) * float(sale_values.get(int(pid), cost_map[pid]))
+            for pid in ep_map
+            if int(pid) in current_player_ids
+        )
+        purchase_cost = lpSum(selected[pid] * cost_map[pid] for pid in incoming_ids)
+        prob += purchase_cost <= float(bank_m) + sale_proceeds
+
+        paid_transfers = LpVariable("paid_transfers", lowBound=0, cat=LpInteger)
+        prob += paid_transfers >= transfers_made_expr - int(free_transfers)
+        objective -= float(transfer_hit_cost) * paid_transfers
+
+    prob += objective
 
     status = prob.solve(PULP_CBC_CMD(msg=False))
     if status != LpStatusOptimal:
@@ -133,6 +168,12 @@ def _solve_for_formation(
     ]
     optional_columns = [
         "start_probability",
+        "appearance_probability",
+        "availability_this_round",
+        "availability_next_round",
+        "status_availability",
+        "fixture_multiplier",
+        "cameo_points",
         "confidence_score",
         "confidence_level",
         "expected_points_lower_80",
@@ -189,6 +230,20 @@ def _solve_for_formation(
         if (squad["captain"] == 1).any()
         else None,
     }
+    if current_player_ids is not None:
+        selected_ids = set(selected.loc[selected["starting"].eq(1) | selected["bench"].eq(1), "player_id"])
+        transfers_made = len(selected_ids - current_player_ids)
+        paid_transfers = max(0, transfers_made - int(free_transfers))
+        result["transfers_made"] = transfers_made
+        result["optimization_score"] = float(
+            total_ep
+            + BENCH_EP_WEIGHT * float(bench_ordered["expected_points"].sum())
+            - float(transfer_hit_cost) * paid_transfers
+        )
+    else:
+        result["optimization_score"] = float(
+            total_ep + BENCH_EP_WEIGHT * float(bench_ordered["expected_points"].sum())
+        )
     return result
 
 
@@ -197,6 +252,12 @@ def pick_best_xi(
     budget_m: float = BUDGET_MILLIONS,
     formation: Optional[Dict[str, int]] = None,
     formations: Optional[Iterable[Dict[str, int]]] = None,
+    current_player_ids: Optional[Iterable[int]] = None,
+    bank_m: float = 0.0,
+    sale_value_by_player_id: Optional[Dict[int, float]] = None,
+    max_transfers: Optional[int] = None,
+    free_transfers: int = 0,
+    transfer_hit_cost: float = 4.0,
 ) -> Dict[str, object]:
     """
     ILP: pick best XI with bench under budget, formation, per-team, and squad constraints.
@@ -221,15 +282,30 @@ def pick_best_xi(
     best_result: Optional[Dict[str, object]] = None
     best_points = float("-inf")
     last_error: Optional[Exception] = None
+    current_ids = (
+        {int(player_id) for player_id in current_player_ids}
+        if current_player_ids is not None
+        else None
+    )
 
     for current in formations:
         try:
-            result = _solve_for_formation(df, budget_m, current)
+            result = _solve_for_formation(
+                df,
+                budget_m,
+                current,
+                current_player_ids=current_ids,
+                bank_m=bank_m,
+                sale_value_by_player_id=sale_value_by_player_id,
+                max_transfers=max_transfers,
+                free_transfers=free_transfers,
+                transfer_hit_cost=transfer_hit_cost,
+            )
         except RuntimeError as exc:
             last_error = exc
             continue
 
-        current_points = result["total_expected_points_with_captain"]
+        current_points = result["optimization_score"]
         if current_points > best_points:
             best_points = current_points
             result["formation"] = current.copy()

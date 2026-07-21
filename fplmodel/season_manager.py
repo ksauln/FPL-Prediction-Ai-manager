@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from copy import deepcopy
 import json
+import os
+import tempfile
 from time import perf_counter
 from typing import Callable, Dict, Iterable, List, Optional, Sequence
 
@@ -18,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 from .config import (
+    BENCH_EP_WEIGHT,
     BUDGET_MILLIONS,
     FORMATION_OPTIONS,
     MAX_PER_TEAM,
@@ -58,6 +62,7 @@ class SeasonRules:
     max_free_transfers: int = 5
     transfer_hit_cost: float = 4.0
     first_half_end_gw: int = 19
+    free_transfer_topups: Dict[int, int] = field(default_factory=dict)
     chips_by_half: Dict[str, Dict[str, int]] = field(
         default_factory=lambda: {
             "first": {
@@ -95,6 +100,7 @@ class SeasonManagerConfig:
     triple_captain_gain_threshold: float = 5.0
     free_hit_gain_threshold: float = 10.0
     wildcard_gain_threshold: float = 16.0
+    chip_future_value_ratio: float = 0.95
     monte_carlo_noise_scale: float = 1.0
     strategic_chip_gameweeks: Optional[Sequence[int]] = None
 
@@ -111,6 +117,46 @@ class ManagerState:
         default_factory=lambda: {"first": {}, "second": {}}
     )
     history: List[Dict[str, object]] = field(default_factory=list)
+    last_processed_gameweek: int = 0
+    season_name: Optional[str] = None
+
+    def to_dict(self, *, include_history: bool = True) -> dict[str, object]:
+        payload = {
+            "squad_player_ids": [int(player_id) for player_id in self.squad_player_ids],
+            "bank_m": round(float(self.bank_m), 2),
+            "free_transfers": int(self.free_transfers),
+            "purchase_price_by_player_id": {
+                str(int(player_id)): float(price)
+                for player_id, price in self.purchase_price_by_player_id.items()
+            },
+            "used_chips": deepcopy(self.used_chips),
+            "last_processed_gameweek": int(self.last_processed_gameweek),
+            "season_name": self.season_name,
+        }
+        if include_history:
+            history = deepcopy(self.history)
+            for decision in history:
+                decision.pop("manager_state_after", None)
+            payload["history"] = history
+        return payload
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, object]) -> "ManagerState":
+        return cls(
+            squad_player_ids=[int(player_id) for player_id in payload["squad_player_ids"]],
+            bank_m=float(payload.get("bank_m", 0.0)),
+            free_transfers=int(payload.get("free_transfers", 0)),
+            purchase_price_by_player_id={
+                int(player_id): float(price)
+                for player_id, price in dict(
+                    payload.get("purchase_price_by_player_id", {})
+                ).items()
+            },
+            used_chips=deepcopy(payload.get("used_chips", {"first": {}, "second": {}})),
+            history=deepcopy(payload.get("history", [])),
+            last_processed_gameweek=int(payload.get("last_processed_gameweek", 0)),
+            season_name=payload.get("season_name"),
+        )
 
 
 def _normalise_predictions(predictions: pd.DataFrame) -> pd.DataFrame:
@@ -136,6 +182,21 @@ def _normalise_predictions(predictions: pd.DataFrame) -> pd.DataFrame:
     if "start_probability" not in out.columns:
         out["start_probability"] = 1.0
     out["start_probability"] = pd.to_numeric(out["start_probability"], errors="coerce").fillna(0.75)
+    if "appearance_probability" not in out.columns:
+        out["appearance_probability"] = 1.0
+    out["appearance_probability"] = pd.to_numeric(
+        out["appearance_probability"], errors="coerce"
+    ).fillna(1.0).clip(0.0, 1.0)
+    if "cameo_points" not in out.columns:
+        out["cameo_points"] = 1.0
+    out["cameo_points"] = pd.to_numeric(
+        out["cameo_points"], errors="coerce"
+    ).fillna(1.0)
+    if "fixture_multiplier" not in out.columns:
+        out["fixture_multiplier"] = 1.0
+    out["fixture_multiplier"] = pd.to_numeric(
+        out["fixture_multiplier"], errors="coerce"
+    ).fillna(1.0)
     if "confidence_score" not in out.columns:
         out["confidence_score"] = 70.0
     out["confidence_score"] = pd.to_numeric(out["confidence_score"], errors="coerce").fillna(70.0)
@@ -155,6 +216,19 @@ def _normalise_prediction_map(
     if not predictions_by_gw:
         raise ValueError("predictions_by_gw cannot be empty")
     return {int(gw): _normalise_predictions(df) for gw, df in predictions_by_gw.items()}
+
+
+def _prediction_map_season_name(
+    predictions_by_gw: Dict[int, pd.DataFrame],
+) -> Optional[str]:
+    season_names: set[str] = set()
+    for frame in predictions_by_gw.values():
+        if "season_name" not in frame.columns:
+            continue
+        season_names.update(str(value) for value in frame["season_name"].dropna().unique())
+    if len(season_names) > 1:
+        raise ValueError(f"Prediction files contain multiple seasons: {sorted(season_names)}")
+    return next(iter(season_names), None)
 
 
 def _available_horizon(
@@ -374,6 +448,12 @@ def _pick_lineup_from_owned_squad(
     ]
     optional_columns = [
         "start_probability",
+        "appearance_probability",
+        "availability_this_round",
+        "availability_next_round",
+        "status_availability",
+        "fixture_multiplier",
+        "cameo_points",
         "confidence_score",
         "confidence_level",
         "expected_points_lower_80",
@@ -420,7 +500,9 @@ def _pick_lineup_from_owned_squad(
 
 
 def _captain_score(row: pd.Series, config: SeasonManagerConfig) -> float:
-    start_probability = float(row.get("start_probability", 0.75))
+    start_probability = float(row.get("start_probability", 0.75)) * _player_availability(
+        row.to_dict()
+    )
     confidence = float(row.get("confidence_score", 70.0)) / 100.0
     expected_points = float(row["expected_points"])
     reliability = (
@@ -537,18 +619,40 @@ def _transfer_candidate(
     horizon_gws = _available_horizon(predictions_by_gw, gameweek, config.transfer_horizon)
     aggregated = _aggregate_projection_for_gameweek(predictions_by_gw, horizon_gws, gameweek)
     current_ids = set(state.squad_player_ids)
-    current_agg = _squad_frame_for_gw(current_ids, aggregated)
-    current_total = float(current_agg["expected_points"].sum())
-    resale_budget = (
-        _squad_sale_value(
-            state.squad_player_ids,
-            aggregated,
-            state.purchase_price_by_player_id,
-        )
-        + state.bank_m
+    current_team = _summarise_fixed_squad(current_ids, aggregated, config)
+    current_total = float(current_team["total_expected_points_with_captain"]) + (
+        BENCH_EP_WEIGHT * float(current_team.get("bench_expected_points", 0.0))
     )
+    current_prices = _current_price_lookup(aggregated)
+    sale_values = {
+        player_id: _sale_value_millions(
+            state.purchase_price_by_player_id.get(player_id, current_prices[player_id]),
+            current_prices[player_id],
+        )
+        for player_id in current_ids
+    }
 
-    optimal = _optimise_team(aggregated, budget_m=resale_budget, config=config)
+    try:
+        optimal = pick_best_xi(
+            aggregated,
+            formations=config.formations,
+            current_player_ids=current_ids,
+            bank_m=state.bank_m,
+            sale_value_by_player_id=sale_values,
+            max_transfers=config.max_transfers_per_gw,
+            free_transfers=state.free_transfers,
+            transfer_hit_cost=config.rules.transfer_hit_cost,
+        )
+    except RuntimeError:
+        return {
+            "transfers": [],
+            "gain": 0.0,
+            "gross_gain": 0.0,
+            "hit_cost": 0.0,
+            "projected_total_after": current_total,
+            "projected_total_before": current_total,
+            "horizon_gameweeks": horizon_gws,
+        }
     optimal_ids = set(_records_to_squad_ids(optimal))
     outgoing = list(current_ids - optimal_ids)
     incoming = list(optimal_ids - current_ids)
@@ -571,9 +675,6 @@ def _transfer_candidate(
         incoming_by_pos.setdefault(int(lookup.loc[pid, "element_type"]), []).append(pid)
 
     suggestions: list[dict[str, object]] = []
-    trial_ids = list(state.squad_player_ids)
-    trial_bank = float(state.bank_m)
-    max_transfers = min(config.max_transfers_per_gw, len(outgoing), len(incoming))
     for pos in sorted(set(outgoing_by_pos) | set(incoming_by_pos)):
         outs = sorted(outgoing_by_pos.get(pos, []), key=lambda pid: float(lookup.loc[pid, "expected_points"]))
         ins = sorted(
@@ -582,17 +683,10 @@ def _transfer_candidate(
             reverse=True,
         )
         for out_pid, in_pid in zip(outs, ins):
-            if len(suggestions) >= max_transfers:
-                break
-            candidate_ids = [in_pid if pid == out_pid else pid for pid in trial_ids]
-            if not _legal_squad_structure(candidate_ids, aggregated):
-                continue
             out_current_price = float(lookup.loc[out_pid, "now_cost_millions"])
             in_current_price = float(lookup.loc[in_pid, "now_cost_millions"])
             out_purchase_price = state.purchase_price_by_player_id.get(out_pid, out_current_price)
             sale_value = _sale_value_millions(out_purchase_price, out_current_price)
-            if trial_bank + sale_value + 1e-6 < in_current_price:
-                continue
             gain = float(lookup.loc[in_pid, "expected_points"] - lookup.loc[out_pid, "expected_points"])
             suggestions.append(
                 {
@@ -604,12 +698,13 @@ def _transfer_candidate(
                     "in_purchase_price": float(in_current_price),
                 }
             )
-            trial_ids = candidate_ids
-            trial_bank = round(trial_bank + sale_value - in_current_price, 2)
-        if len(suggestions) >= max_transfers:
-            break
 
-    gross_gain = float(sum(item["expected_points_delta"] for item in suggestions))
+    suggestions = _order_transfers_for_execution(suggestions, state.bank_m)
+
+    optimal_total = float(optimal["total_expected_points_with_captain"]) + (
+        BENCH_EP_WEIGHT * float(optimal.get("bench_expected_points", 0.0))
+    )
+    gross_gain = float(optimal_total - current_total)
     paid_transfers = max(0, len(suggestions) - state.free_transfers)
     hit_cost = paid_transfers * config.rules.transfer_hit_cost
     net_gain = gross_gain - hit_cost
@@ -649,19 +744,63 @@ def _apply_transfers(state: ManagerState, transfers: list[dict[str, object]]) ->
         out_id = int(transfer["out_player"]["player_id"])
         in_id = int(transfer["in_player"]["player_id"])
         if out_id in squad:
+            next_bank = (
+                state.bank_m
+                + float(transfer["out_sale_value"])
+                - float(transfer["in_purchase_price"])
+            )
+            if next_bank < -1e-6:
+                raise ValueError(
+                    f"Transfer order is not affordable: {out_id} -> {in_id} would "
+                    f"leave a {next_bank:.2f}m bank."
+                )
             squad[squad.index(out_id)] = in_id
-            state.bank_m += float(transfer["out_sale_value"])
-            state.bank_m -= float(transfer["in_purchase_price"])
+            state.bank_m = next_bank
             state.purchase_price_by_player_id.pop(out_id, None)
             state.purchase_price_by_player_id[in_id] = float(transfer["in_purchase_price"])
     state.squad_player_ids = squad
     state.bank_m = round(float(state.bank_m), 2)
 
 
+def _order_transfers_for_execution(
+    transfers: list[dict[str, object]],
+    starting_bank_m: float,
+) -> list[dict[str, object]]:
+    """Return an order that keeps the bank non-negative after every transfer."""
+    if len(transfers) < 2:
+        return transfers
+    bank = float(starting_bank_m)
+    remaining = list(transfers)
+    ordered: list[dict[str, object]] = []
+    while remaining:
+        affordable_index = next(
+            (
+                index
+                for index, transfer in enumerate(remaining)
+                if bank
+                + float(transfer["out_sale_value"])
+                - float(transfer["in_purchase_price"])
+                >= -1e-6
+            ),
+            None,
+        )
+        if affordable_index is None:
+            raise RuntimeError(
+                "The optimized transfer package is affordable in aggregate but no "
+                "executable transfer order was found."
+            )
+        transfer = remaining.pop(affordable_index)
+        bank += float(transfer["out_sale_value"])
+        bank -= float(transfer["in_purchase_price"])
+        ordered.append(transfer)
+    return ordered
+
+
 def _update_free_transfers_after_gameweek(
     state: ManagerState,
     transfers_made: int,
     rules: SeasonRules,
+    completed_gameweek: int,
 ) -> None:
     spent = min(transfers_made, state.free_transfers)
     remaining = max(0, state.free_transfers - spent)
@@ -669,6 +808,63 @@ def _update_free_transfers_after_gameweek(
         rules.max_free_transfers,
         remaining + rules.free_transfer_per_gameweek,
     )
+    _apply_free_transfer_topup(state, completed_gameweek + 1, rules)
+
+
+def _apply_free_transfer_topup(
+    state: ManagerState,
+    target_gameweek: int,
+    rules: SeasonRules,
+) -> None:
+    topup = rules.free_transfer_topups.get(int(target_gameweek))
+    if topup is not None:
+        state.free_transfers = min(
+            rules.max_free_transfers,
+            max(state.free_transfers, int(topup)),
+        )
+
+
+def _scoring_chip_gain(
+    weekly_team: Dict[str, object],
+    chip: str,
+) -> float:
+    if chip == "bench_boost":
+        return float(weekly_team.get("bench_expected_points", 0.0))
+    if chip == "triple_captain":
+        captain_id = weekly_team.get("captain_id")
+        if captain_id is None:
+            return 0.0
+        starters = pd.DataFrame(weekly_team.get("squad", []))
+        captain_row = starters[starters["player_id"] == int(captain_id)]
+        return float(captain_row["expected_points"].iloc[0]) if not captain_row.empty else 0.0
+    return 0.0
+
+
+def _best_future_scoring_chip_gain(
+    state: ManagerState,
+    predictions_by_gw: Dict[int, pd.DataFrame],
+    gameweek: int,
+    chip: str,
+    config: SeasonManagerConfig,
+) -> float:
+    current_half = _half_for_gameweek(gameweek, config.rules)
+    future_gws = [
+        gw
+        for gw in sorted(predictions_by_gw)
+        if gw > gameweek and _half_for_gameweek(gw, config.rules) == current_half
+    ]
+    gains: list[float] = []
+    for future_gw in future_gws:
+        try:
+            future_team = _summarise_fixed_squad(
+                state.squad_player_ids,
+                predictions_by_gw[future_gw],
+                config,
+            )
+        except ValueError:
+            continue
+        gains.append(_scoring_chip_gain(future_team, chip))
+    return max(gains, default=0.0)
 
 
 def _chip_candidates(
@@ -678,6 +874,8 @@ def _chip_candidates(
     weekly_team: Dict[str, object],
     config: SeasonManagerConfig,
     allowed_chips: Optional[set[str]] = None,
+    non_chip_hit_cost: float = 0.0,
+    non_chip_horizon_value: Optional[float] = None,
 ) -> list[dict[str, object]]:
     if not config.enable_chips:
         return []
@@ -685,22 +883,33 @@ def _chip_candidates(
     allowed_chips = set(CHIP_NAMES if allowed_chips is None else allowed_chips)
     rules = config.rules
     current_predictions = predictions_by_gw[gameweek]
-    current_points = float(weekly_team["total_expected_points_with_captain"])
+    current_points = (
+        float(weekly_team["total_expected_points_with_captain"])
+        - float(non_chip_hit_cost)
+    )
     candidates: list[dict[str, object]] = []
 
     if "bench_boost" in allowed_chips and _chip_remaining(state, gameweek, "bench_boost", rules):
-        bench_gain = float(weekly_team.get("bench_expected_points", 0.0))
-        if bench_gain >= config.bench_boost_gain_threshold:
+        bench_gain = _scoring_chip_gain(weekly_team, "bench_boost")
+        future_gain = _best_future_scoring_chip_gain(
+            state, predictions_by_gw, gameweek, "bench_boost", config
+        )
+        if (
+            bench_gain >= config.bench_boost_gain_threshold
+            and bench_gain >= config.chip_future_value_ratio * future_gain
+        ):
             candidates.append({"chip": "bench_boost", "gain": bench_gain})
 
     if "triple_captain" in allowed_chips and _chip_remaining(state, gameweek, "triple_captain", rules):
-        captain_id = weekly_team.get("captain_id")
-        if captain_id is not None:
-            starters = pd.DataFrame(weekly_team.get("squad", []))
-            captain_row = starters[starters["player_id"] == int(captain_id)]
-            captain_gain = float(captain_row["expected_points"].iloc[0]) if not captain_row.empty else 0.0
-            if captain_gain >= config.triple_captain_gain_threshold:
-                candidates.append({"chip": "triple_captain", "gain": captain_gain})
+        captain_gain = _scoring_chip_gain(weekly_team, "triple_captain")
+        future_gain = _best_future_scoring_chip_gain(
+            state, predictions_by_gw, gameweek, "triple_captain", config
+        )
+        if (
+            captain_gain >= config.triple_captain_gain_threshold
+            and captain_gain >= config.chip_future_value_ratio * future_gain
+        ):
+            candidates.append({"chip": "triple_captain", "gain": captain_gain})
 
     if (
         "free_hit" in allowed_chips
@@ -725,7 +934,11 @@ def _chip_candidates(
         if gain >= config.free_hit_gain_threshold:
             candidates.append({"chip": "free_hit", "gain": gain, "team": free_hit_team})
 
-    if "wildcard" in allowed_chips and _chip_remaining(state, gameweek, "wildcard", rules):
+    if (
+        "wildcard" in allowed_chips
+        and int(gameweek) != 1
+        and _chip_remaining(state, gameweek, "wildcard", rules)
+    ):
         horizon = _available_horizon(predictions_by_gw, gameweek, config.chip_lookahead)
         aggregated = _aggregate_projection_for_gameweek(predictions_by_gw, horizon, gameweek)
         wildcard_budget = (
@@ -741,8 +954,21 @@ def _chip_candidates(
             budget_m=wildcard_budget,
             config=config,
         )
-        current_agg = _squad_frame_for_gw(state.squad_player_ids, aggregated)
-        gain = float(wildcard_team["expected_points_without_captain"] - current_agg["expected_points"].sum())
+        current_horizon_team = _summarise_fixed_squad(
+            state.squad_player_ids,
+            aggregated,
+            config,
+        )
+        wildcard_value = float(wildcard_team["total_expected_points_with_captain"]) + (
+            BENCH_EP_WEIGHT * float(wildcard_team.get("bench_expected_points", 0.0))
+        )
+        current_value = (
+            float(non_chip_horizon_value)
+            if non_chip_horizon_value is not None
+            else float(current_horizon_team["total_expected_points_with_captain"])
+            + BENCH_EP_WEIGHT * float(current_horizon_team.get("bench_expected_points", 0.0))
+        )
+        gain = wildcard_value - current_value
         if gain >= config.wildcard_gain_threshold:
             candidates.append({"chip": "wildcard", "gain": gain, "team": wildcard_team})
 
@@ -762,6 +988,9 @@ def _decision_record(
     transfer_hit_cost: float,
     team_value_m: float,
     squad_sale_value_m: float,
+    squad_player_ids_before_decision: list[int],
+    non_chip_baseline_player_ids: list[int],
+    non_chip_baseline_hit_cost: float,
 ) -> dict[str, object]:
     team_frame = _team_to_frame(weekly_team)
     summary = summarise_team(team_frame).as_dict()
@@ -769,6 +998,9 @@ def _decision_record(
     expected_points = expected_points_before_hits - float(transfer_hit_cost)
     return {
         "gameweek": int(gameweek),
+        "squad_player_ids_before_decision": list(squad_player_ids_before_decision),
+        "non_chip_baseline_player_ids": list(non_chip_baseline_player_ids),
+        "non_chip_baseline_hit_cost": float(non_chip_baseline_hit_cost),
         "squad_player_ids": list(state.squad_player_ids),
         "starting_player_ids": [int(player["player_id"]) for player in weekly_team.get("squad", [])],
         "bench_player_ids": [int(player["player_id"]) for player in weekly_team.get("bench", [])],
@@ -783,6 +1015,9 @@ def _decision_record(
         "bank_m": round(float(state.bank_m), 2),
         "team_value_m": round(float(team_value_m), 2),
         "squad_sale_value_m": round(float(squad_sale_value_m), 2),
+        "team_context": "free_hit" if chip == "free_hit" else "owned_squad",
+        "financial_context": "owned_squad",
+        "displayed_squad_cost_m": round(float(summary["total_cost"]), 2),
         "chip": chip,
         "chip_gain": float(chip_gain),
         "transfer_hit_cost": float(transfer_hit_cost),
@@ -822,6 +1057,7 @@ def simulate_season(
     *,
     gameweeks: Optional[Iterable[int]] = None,
     config: Optional[SeasonManagerConfig] = None,
+    initial_state: Optional[ManagerState] = None,
     progress_callback: Optional[Callable[[dict[str, object]], None]] = None,
     progress_context: Optional[dict[str, object]] = None,
 ) -> dict[str, object]:
@@ -833,6 +1069,7 @@ def simulate_season(
 
     config = config or SeasonManagerConfig()
     predictions = _normalise_prediction_map(predictions_by_gw)
+    prediction_season_name = _prediction_map_season_name(predictions)
     selected_gws = sorted(int(gw) for gw in (gameweeks if gameweeks is not None else predictions))
     if not selected_gws:
         raise ValueError("At least one gameweek is required")
@@ -841,30 +1078,55 @@ def simulate_season(
         raise KeyError(f"Missing predictions for gameweeks: {missing}")
 
     first_gw = selected_gws[0]
-    initial_gws = _available_horizon(predictions, first_gw, config.initial_horizon)
-    initial_projection = _aggregate_projection_for_gameweek(predictions, initial_gws, first_gw)
-    initial_team = _optimise_team(
-        initial_projection,
-        budget_m=config.rules.budget_m,
-        config=config,
-    )
-    initial_ids = _records_to_squad_ids(initial_team)
-    initial_cost = _cost_for_ids(initial_ids, predictions[first_gw])
-    initial_current_prices = _current_price_lookup(predictions[first_gw])
-    state = ManagerState(
-        squad_player_ids=initial_ids,
-        bank_m=round(config.rules.budget_m - initial_cost, 2),
-        free_transfers=0,
-        purchase_price_by_player_id={
-            player_id: float(initial_current_prices[player_id])
-            for player_id in initial_ids
-        },
-    )
+    continuing_existing_state = initial_state is not None
+    if initial_state is None:
+        initial_gws = _available_horizon(predictions, first_gw, config.initial_horizon)
+        initial_projection = _aggregate_projection_for_gameweek(predictions, initial_gws, first_gw)
+        initial_team = _optimise_team(
+            initial_projection,
+            budget_m=config.rules.budget_m,
+            config=config,
+        )
+        initial_ids = _records_to_squad_ids(initial_team)
+        initial_cost = _cost_for_ids(initial_ids, predictions[first_gw])
+        initial_current_prices = _current_price_lookup(predictions[first_gw])
+        state = ManagerState(
+            squad_player_ids=initial_ids,
+            bank_m=round(config.rules.budget_m - initial_cost, 2),
+            free_transfers=0,
+            purchase_price_by_player_id={
+                player_id: float(initial_current_prices[player_id])
+                for player_id in initial_ids
+            },
+            season_name=prediction_season_name,
+        )
+    else:
+        state = ManagerState.from_dict(initial_state.to_dict())
+        if (
+            state.season_name is not None
+            and prediction_season_name is not None
+            and state.season_name != prediction_season_name
+        ):
+            raise ValueError(
+                f"Manager state is for {state.season_name}, but predictions are for "
+                f"{prediction_season_name}. Start a new manager state for the new season."
+            )
+        if state.season_name is None:
+            state.season_name = prediction_season_name
+        expected_next_gameweek = int(state.last_processed_gameweek) + 1
+        if first_gw != expected_next_gameweek:
+            raise ValueError(
+                f"Manager state expects GW{expected_next_gameweek}, but the run starts "
+                f"at GW{first_gw}. Live state must be continued one gameweek at a time."
+            )
+        initial_ids = list(state.squad_player_ids)
+        _squad_frame_for_gw(initial_ids, predictions[first_gw])
 
     decisions: list[dict[str, object]] = []
     progress_context = progress_context or {}
     gameweek_count = len(selected_gws)
     for gameweek_index, gameweek in enumerate(selected_gws, start=1):
+        squad_player_ids_before_decision = list(state.squad_player_ids)
         free_transfers_before = state.free_transfers
         transfer_result = {
             "transfers": [],
@@ -878,6 +1140,28 @@ def simulate_season(
         chip = None
         chip_gain = 0.0
 
+        can_make_regular_transfers = continuing_existing_state or gameweek != first_gw
+        planned_transfer_result = transfer_result
+        planned_transfers: list[dict[str, object]] = []
+        non_chip_team = weekly_team
+        non_chip_baseline_player_ids = list(state.squad_player_ids)
+        if can_make_regular_transfers:
+            planned_transfer_result = _transfer_candidate(
+                state,
+                predictions,
+                gameweek,
+                config,
+            )
+            planned_transfers = planned_transfer_result["transfers"]
+            non_chip_state = ManagerState.from_dict(state.to_dict())
+            _apply_transfers(non_chip_state, planned_transfers)
+            non_chip_baseline_player_ids = list(non_chip_state.squad_player_ids)
+            non_chip_team = _summarise_fixed_squad(
+                non_chip_state.squad_player_ids,
+                predictions[gameweek],
+                config,
+            )
+
         evaluate_strategic_chips = (
             config.strategic_chip_gameweeks is None
             or int(gameweek) in {int(gw) for gw in config.strategic_chip_gameweeks}
@@ -887,9 +1171,15 @@ def simulate_season(
                 state,
                 predictions,
                 gameweek,
-                weekly_team,
+                non_chip_team,
                 config,
                 allowed_chips={"free_hit", "wildcard"},
+                non_chip_hit_cost=float(planned_transfer_result.get("hit_cost", 0.0)),
+                non_chip_horizon_value=(
+                    float(planned_transfer_result["projected_total_after"])
+                    if can_make_regular_transfers
+                    else None
+                ),
             )
             if evaluate_strategic_chips
             else []
@@ -899,6 +1189,13 @@ def simulate_season(
             chip = str(chosen["chip"])
             chip_gain = float(chosen["gain"])
             _mark_chip_used(state, gameweek, chip, config.rules)
+            transfer_result = {
+                "transfers": [],
+                "gain": 0.0,
+                "projected_total_after": 0.0,
+                "projected_total_before": 0.0,
+                "horizon_gameweeks": [gameweek],
+            }
             if chip == "wildcard":
                 available_budget = (
                     _squad_sale_value(
@@ -923,11 +1220,11 @@ def simulate_season(
             elif chip == "free_hit":
                 weekly_team = chosen["team"]
         else:
-            if gameweek != first_gw:
-                transfer_result = _transfer_candidate(state, predictions, gameweek, config)
-                transfers = transfer_result["transfers"]
+            if can_make_regular_transfers:
+                transfer_result = planned_transfer_result
+                transfers = planned_transfers
                 _apply_transfers(state, transfers)
-                weekly_team = _summarise_fixed_squad(state.squad_player_ids, predictions[gameweek], config)
+                weekly_team = non_chip_team
 
             scoring_chip_options = _chip_candidates(
                 state,
@@ -946,8 +1243,15 @@ def simulate_season(
 
         if chip in {"free_hit", "wildcard"}:
             state.free_transfers = free_transfers_before
+            _apply_free_transfer_topup(state, gameweek + 1, config.rules)
         else:
-            _update_free_transfers_after_gameweek(state, len(transfers), config.rules)
+            _update_free_transfers_after_gameweek(
+                state,
+                len(transfers),
+                config.rules,
+                gameweek,
+            )
+        state.last_processed_gameweek = int(gameweek)
         decision = _decision_record(
             gameweek=gameweek,
             state=state,
@@ -968,8 +1272,14 @@ def simulate_season(
                 predictions[gameweek],
                 state.purchase_price_by_player_id,
             ),
+            squad_player_ids_before_decision=squad_player_ids_before_decision,
+            non_chip_baseline_player_ids=non_chip_baseline_player_ids,
+            non_chip_baseline_hit_cost=float(
+                planned_transfer_result.get("hit_cost", 0.0)
+            ),
         )
         state.history.append(decision)
+        decision["manager_state_after"] = state.to_dict()
         decisions.append(decision)
         if progress_callback is not None:
             progress_callback(
@@ -989,6 +1299,7 @@ def simulate_season(
         "initial_squad": initial_ids,
         "decisions": decisions,
         "used_chips": state.used_chips,
+        "final_state": state.to_dict(),
         "summary": {
             "gameweeks": len(selected_gws),
             "start_gameweek": selected_gws[0],
@@ -1022,16 +1333,349 @@ def _sample_prediction_frame(
     return sampled
 
 
-def _sample_player_points(
+def _rebase_policy_run(
+    policy_run: dict[str, object],
+    base_predictions: Dict[int, pd.DataFrame],
+    config: Optional[SeasonManagerConfig] = None,
+) -> dict[str, object]:
+    """Evaluate a sampled policy against the common base forecast distribution."""
+    config = config or SeasonManagerConfig()
+    rebased = deepcopy(policy_run)
+    rebased_history: list[dict[str, object]] = []
+    point_columns = {
+        "expected_points",
+        "expected_points_lower_80",
+        "expected_points_upper_80",
+        "start_probability",
+        "appearance_probability",
+        "availability_this_round",
+        "availability_next_round",
+        "status_availability",
+        "fixture_multiplier",
+        "cameo_points",
+        "confidence_score",
+        "confidence_level",
+    }
+    for decision in rebased["decisions"]:
+        gameweek = int(decision["gameweek"])
+        lookup = base_predictions[gameweek].set_index("player_id")
+        for section in ("squad", "bench"):
+            for player in decision["team"].get(section, []):
+                player_id = int(player["player_id"])
+                if player_id not in lookup.index:
+                    continue
+                source = lookup.loc[player_id]
+                for column in point_columns:
+                    if column in source.index:
+                        player[column] = source[column]
+
+        starters = decision["team"].get("squad", [])
+        bench = decision["team"].get("bench", [])
+        base_points = float(sum(float(player["expected_points"]) for player in starters))
+        bench_points = float(sum(float(player["expected_points"]) for player in bench))
+        captain_id = decision.get("captain_id")
+        captain_points = next(
+            (
+                float(player["expected_points"])
+                for player in starters
+                if captain_id is not None and int(player["player_id"]) == int(captain_id)
+            ),
+            0.0,
+        )
+        before_hits = base_points + captain_points
+        if decision.get("chip") == "bench_boost":
+            before_hits += bench_points
+        elif decision.get("chip") == "triple_captain":
+            before_hits += captain_points
+
+        decision["team"]["expected_points_without_captain"] = base_points
+        decision["team"]["total_expected_points_with_captain"] = base_points + captain_points
+        decision["team"]["bench_expected_points"] = bench_points
+        decision["expected_points_before_transfer_hits"] = before_hits
+        decision["expected_points"] = before_hits - float(
+            decision.get("transfer_hit_cost", 0.0)
+        )
+        decision["bench_expected_points"] = bench_points
+
+        if decision.get("transfers"):
+            horizon = _available_horizon(
+                base_predictions,
+                gameweek,
+                config.transfer_horizon,
+            )
+            aggregated = _aggregate_projection_for_gameweek(
+                base_predictions,
+                horizon,
+                gameweek,
+            )
+            before_transfer_team = _summarise_fixed_squad(
+                decision["squad_player_ids_before_decision"],
+                aggregated,
+                config,
+            )
+            after_transfer_team = _summarise_fixed_squad(
+                decision["squad_player_ids"],
+                aggregated,
+                config,
+            )
+            before_transfer_value = float(
+                before_transfer_team["total_expected_points_with_captain"]
+            ) + BENCH_EP_WEIGHT * float(
+                before_transfer_team.get("bench_expected_points", 0.0)
+            )
+            after_transfer_value = float(
+                after_transfer_team["total_expected_points_with_captain"]
+            ) + BENCH_EP_WEIGHT * float(
+                after_transfer_team.get("bench_expected_points", 0.0)
+            )
+            decision["transfer_gain"] = (
+                after_transfer_value
+                - before_transfer_value
+                - float(decision.get("transfer_hit_cost", 0.0))
+            )
+        else:
+            decision["transfer_gain"] = 0.0
+
+        if decision.get("chip") == "bench_boost":
+            decision["chip_gain"] = bench_points
+        elif decision.get("chip") == "triple_captain":
+            decision["chip_gain"] = captain_points
+        elif decision.get("chip") in {"free_hit", "wildcard"}:
+            chip = str(decision["chip"])
+            horizon = (
+                [gameweek]
+                if chip == "free_hit"
+                else _available_horizon(
+                    base_predictions,
+                    gameweek,
+                    config.chip_lookahead,
+                )
+            )
+            aggregated = _aggregate_projection_for_gameweek(
+                base_predictions,
+                horizon,
+                gameweek,
+            )
+            baseline_team = _summarise_fixed_squad(
+                decision["non_chip_baseline_player_ids"],
+                aggregated,
+                config,
+            )
+            chip_team_ids = [
+                int(player["player_id"])
+                for player in starters + bench
+            ]
+            chip_team = _summarise_fixed_squad(
+                chip_team_ids,
+                aggregated,
+                config,
+            )
+            baseline_value = float(
+                baseline_team["total_expected_points_with_captain"]
+            )
+            chip_value = float(chip_team["total_expected_points_with_captain"])
+            if chip == "wildcard":
+                baseline_value += BENCH_EP_WEIGHT * float(
+                    baseline_team.get("bench_expected_points", 0.0)
+                )
+                chip_value += BENCH_EP_WEIGHT * float(
+                    chip_team.get("bench_expected_points", 0.0)
+                )
+            baseline_value -= float(
+                decision.get("non_chip_baseline_hit_cost", 0.0)
+            )
+            decision["chip_gain"] = chip_value - baseline_value
+        else:
+            decision["chip_gain"] = 0.0
+
+        compact_decision = deepcopy(decision)
+        compact_decision.pop("manager_state_after", None)
+        rebased_history.append(compact_decision)
+        if "manager_state_after" in decision:
+            decision["manager_state_after"]["history"] = deepcopy(rebased_history)
+
+    total_expected = float(
+        sum(float(decision["expected_points"]) for decision in rebased["decisions"])
+    )
+    rebased["summary"]["total_expected_points"] = total_expected
+    if "final_state" in rebased:
+        rebased["final_state"]["history"] = deepcopy(rebased_history)
+    return rebased
+
+
+def _player_availability(player: dict[str, object]) -> float:
+    availability = 1.0
+    for column in (
+        "availability_next_round",
+        "availability_this_round",
+        "status_availability",
+    ):
+        try:
+            value = float(player.get(column))
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(value):
+            availability = value
+            break
+    try:
+        fixture_multiplier = float(player.get("fixture_multiplier", 1.0))
+    except (TypeError, ValueError):
+        fixture_multiplier = 1.0
+    if np.isfinite(fixture_multiplier) and fixture_multiplier <= 0.0:
+        return 0.0
+    return float(np.clip(availability, 0.0, 1.0))
+
+
+def _sample_conditional_points(
+    mean: float,
     player: dict[str, object],
+    probability: float,
     rng: np.random.Generator,
     noise_scale: float,
 ) -> float:
-    mean = float(player.get("expected_points", 0.0))
-    lower = float(player.get("expected_points_lower_80", max(0.0, mean - 1.0)))
-    upper = float(player.get("expected_points_upper_80", mean + 1.0))
-    sigma = max(0.05, ((upper - lower) / (2 * 1.2815515655446004)) * noise_scale)
-    return float(max(0.0, rng.normal(mean, sigma)))
+    if noise_scale <= 0.0:
+        return float(mean)
+    aggregate_mean = float(player.get("expected_points", 0.0))
+    lower = float(
+        player.get("expected_points_lower_80", max(0.0, aggregate_mean - 1.0))
+    )
+    upper = float(player.get("expected_points_upper_80", aggregate_mean + 1.0))
+    aggregate_sigma = max(
+        0.05,
+        ((upper - lower) / (2 * 1.2815515655446004)) * noise_scale,
+    )
+    conditional_sigma = aggregate_sigma / max(np.sqrt(probability), 0.25)
+    return float(rng.normal(mean, conditional_sigma))
+
+
+def _sample_player_outcome(
+    player: dict[str, object],
+    rng: np.random.Generator,
+    noise_scale: float,
+) -> tuple[bool, float]:
+    availability = _player_availability(player)
+    start_probability = float(player.get("start_probability", 1.0)) * availability
+    appearance_probability = (
+        float(player.get("appearance_probability", 1.0)) * availability
+    )
+    start_probability = float(np.clip(start_probability, 0.0, 1.0))
+    appearance_probability = float(
+        np.clip(max(appearance_probability, start_probability), 0.0, 1.0)
+    )
+    outcome_roll = rng.random()
+    if appearance_probability <= 0.0 or outcome_roll > appearance_probability:
+        return False, 0.0
+
+    expected_points = float(player.get("expected_points", 0.0))
+    cameo_probability = max(0.0, appearance_probability - start_probability)
+    cameo_points = float(player.get("cameo_points", 1.0))
+    if start_probability <= 0.0 and cameo_probability > 0.0:
+        cameo_points = expected_points / cameo_probability
+    starter_points = (
+        (expected_points - cameo_probability * cameo_points) / start_probability
+        if start_probability > 0.0
+        else 0.0
+    )
+    if outcome_roll <= start_probability:
+        return True, _sample_conditional_points(
+            starter_points,
+            player,
+            start_probability,
+            rng,
+            noise_scale,
+        )
+    return True, _sample_conditional_points(
+        cameo_points,
+        player,
+        cameo_probability,
+        rng,
+        noise_scale,
+    )
+
+
+def _valid_playing_formation(players: list[dict[str, object]]) -> bool:
+    counts = pd.Series([int(player["element_type"]) for player in players]).value_counts()
+    return (
+        int(counts.get(1, 0)) == 1
+        and int(counts.get(2, 0)) >= 3
+        and int(counts.get(3, 0)) >= 2
+        and int(counts.get(4, 0)) >= 1
+        and len(players) <= 11
+    )
+
+
+def _score_decision_outcomes(
+    decision: dict[str, object],
+    outcomes: dict[int, tuple[bool, float]],
+) -> float:
+    """Apply FPL autosubs and captain fallback to sampled player outcomes."""
+    starters = [dict(player) for player in decision["team"].get("squad", [])]
+    bench = sorted(
+        [dict(player) for player in decision["team"].get("bench", [])],
+        key=lambda player: int(player.get("bench_order", 99)),
+    )
+
+    def played(player: dict[str, object]) -> bool:
+        return bool(outcomes.get(int(player["player_id"]), (False, 0.0))[0])
+
+    if decision.get("chip") == "bench_boost":
+        scoring_players = [player for player in starters + bench if played(player)]
+    else:
+        playing_starters = [player for player in starters if played(player)]
+        missing_count = len(starters) - len(playing_starters)
+
+        if not any(int(player["element_type"]) == 1 for player in playing_starters):
+            reserve_gk = next(
+                (
+                    player
+                    for player in bench
+                    if int(player["element_type"]) == 1 and played(player)
+                ),
+                None,
+            )
+            if reserve_gk is not None:
+                playing_starters.append(reserve_gk)
+                missing_count -= 1
+
+        available_outfield = [
+            player
+            for player in bench
+            if int(player["element_type"]) != 1 and played(player)
+        ]
+        selected_subs: list[dict[str, object]] = []
+        if missing_count > 0 and available_outfield:
+            from itertools import combinations
+
+            max_subs = min(missing_count, len(available_outfield))
+            for count in range(max_subs, 0, -1):
+                valid = [
+                    list(combo)
+                    for combo in combinations(available_outfield, count)
+                    if _valid_playing_formation(playing_starters + list(combo))
+                ]
+                if valid:
+                    selected_subs = valid[0]
+                    break
+        scoring_players = playing_starters + selected_subs
+
+    total = float(
+        sum(outcomes[int(player["player_id"])][1] for player in scoring_players)
+    )
+    captain_id = decision.get("captain_id")
+    vice_id = decision.get("vice_captain_id")
+    effective_captain_id = None
+    if captain_id is not None and outcomes.get(int(captain_id), (False, 0.0))[0]:
+        effective_captain_id = int(captain_id)
+    elif vice_id is not None and outcomes.get(int(vice_id), (False, 0.0))[0]:
+        effective_captain_id = int(vice_id)
+    if effective_captain_id is not None:
+        captain_points = float(outcomes[effective_captain_id][1])
+        total += captain_points
+        if decision.get("chip") == "triple_captain":
+            total += captain_points
+
+    total -= float(decision.get("transfer_hit_cost", 0.0))
+    return float(total)
 
 
 def _sample_decision_points(
@@ -1039,26 +1683,45 @@ def _sample_decision_points(
     rng: np.random.Generator,
     noise_scale: float,
 ) -> float:
-    starters = list(decision["team"].get("squad", []))
-    bench = list(decision["team"].get("bench", []))
-    starter_draws = {
-        int(player["player_id"]): _sample_player_points(player, rng, noise_scale)
-        for player in starters
+    players = list(decision["team"].get("squad", [])) + list(
+        decision["team"].get("bench", [])
+    )
+    outcomes = {
+        int(player["player_id"]): _sample_player_outcome(player, rng, noise_scale)
+        for player in players
     }
-    total = float(sum(starter_draws.values()))
+    return _score_decision_outcomes(decision, outcomes)
 
-    captain_id = decision.get("captain_id")
-    if captain_id is not None:
-        captain_points = starter_draws.get(int(captain_id), 0.0)
-        total += captain_points
-        if decision.get("chip") == "triple_captain":
-            total += captain_points
 
-    if decision.get("chip") == "bench_boost":
-        total += sum(_sample_player_points(player, rng, noise_scale) for player in bench)
-
-    total -= float(decision.get("transfer_hit_cost", 0.0))
-    return float(total)
+def _simulation_progress_event(
+    *,
+    started_at: float,
+    completed_simulations: int,
+    total_simulations: int,
+    phase: str,
+    progress: Optional[float] = None,
+    **details: object,
+) -> dict[str, object]:
+    elapsed = perf_counter() - started_at
+    fraction = (
+        float(progress)
+        if progress is not None
+        else completed_simulations / total_simulations
+    )
+    fraction = min(1.0, max(0.0, fraction))
+    eta = None
+    if fraction > 0:
+        eta = max(0.0, elapsed * (1.0 - fraction) / fraction)
+    return {
+        "event": "simulation_progress",
+        "phase": phase,
+        "completed_simulations": int(completed_simulations),
+        "total_simulations": int(total_simulations),
+        "progress": fraction,
+        "elapsed_seconds": elapsed,
+        "eta_seconds": eta,
+        **details,
+    }
 
 
 def _run_fixed_policy_point_simulations(
@@ -1070,8 +1733,13 @@ def _run_fixed_policy_point_simulations(
     show_progress: bool,
     season_label: str,
     simulation_id_start: int = 1,
+    progress_callback: Optional[Callable[[dict[str, object]], None]] = None,
+    total_simulations: Optional[int] = None,
+    progress_started_at: Optional[float] = None,
 ) -> dict[str, object]:
     started_at = perf_counter()
+    overall_started_at = progress_started_at or started_at
+    overall_total = total_simulations or simulations
     runs: list[dict[str, object]] = []
     best_total = float("-inf")
     best_run: Optional[dict[str, object]] = None
@@ -1091,7 +1759,6 @@ def _run_fixed_policy_point_simulations(
         compact_run = {
             "simulation_id": simulation_id,
             "summary": run_summary,
-            "weekly_points": weekly_points,
         }
         runs.append(compact_run)
 
@@ -1104,20 +1771,37 @@ def _run_fixed_policy_point_simulations(
                 "weekly_points": weekly_points,
             }
 
-        if show_progress and (
-            simulation_id == 1
-            or simulation_id == simulations
-            or simulation_id % max(1, simulations // 20) == 0
-        ):
+        completed_in_block = idx + 1
+        should_print = show_progress and (
+            completed_in_block == 1
+            or completed_in_block == simulations
+            or completed_in_block % max(1, simulations // 20) == 0
+        )
+        should_emit = progress_callback is not None and (
+            completed_in_block == simulations
+            or completed_in_block % max(1, simulations // 100) == 0
+        )
+        if should_print:
             elapsed = perf_counter() - started_at
-            average = elapsed / simulation_id
-            eta = average * (simulations - simulation_id)
+            average = elapsed / completed_in_block
+            eta = average * (simulations - completed_in_block)
             print(
                 f"{season_label} - simulation #{simulation_id} complete | "
                 f"elapsed {_format_duration(elapsed)} | "
                 f"average {average:.3f}s per simulation | "
                 f"ETA {_format_duration(eta)}",
                 flush=True,
+            )
+        if should_emit:
+            overall_completed = simulation_id
+            phase = "complete" if overall_completed >= overall_total else "simulating"
+            progress_callback(
+                _simulation_progress_event(
+                    started_at=overall_started_at,
+                    completed_simulations=overall_completed,
+                    total_simulations=overall_total,
+                    phase=phase,
+                )
             )
 
     totals = [float(run["summary"]["total_expected_points"]) for run in runs]
@@ -1126,8 +1810,10 @@ def _run_fixed_policy_point_simulations(
         "manager_principle": MANAGER_PRINCIPLE,
         "simulation_mode": "fixed_policy",
         "policy_run": policy_run,
+        "recommended_policy": policy_run,
         "runs": runs,
-        "best_run": best_run,
+        "best_run": policy_run,
+        "best_outcome_run": best_run,
         "summary": {
             "simulations": simulations,
             "simulation_mode": "fixed_policy",
@@ -1173,6 +1859,8 @@ def _run_periodic_reoptimization_simulations(
     show_progress: bool,
     season_label: str,
     policy_refresh_interval: int,
+    initial_state: Optional[ManagerState],
+    progress_callback: Optional[Callable[[dict[str, object]], None]],
 ) -> dict[str, object]:
     if policy_refresh_interval < 1:
         raise ValueError("policy_refresh_interval must be >= 1")
@@ -1181,7 +1869,7 @@ def _run_periodic_reoptimization_simulations(
     runs: list[dict[str, object]] = []
     policy_runs: list[dict[str, object]] = []
     best_total = float("-inf")
-    best_run: Optional[dict[str, object]] = None
+    best_outcome_run: Optional[dict[str, object]] = None
     simulation_id = 1
     block_index = 0
 
@@ -1194,12 +1882,43 @@ def _run_periodic_reoptimization_simulations(
                 f"for simulations {simulation_id}-{simulation_id + block_size - 1}",
                 flush=True,
             )
+        if progress_callback is not None:
+            progress_callback(
+                _simulation_progress_event(
+                    started_at=started_at,
+                    completed_simulations=len(runs),
+                    total_simulations=simulations,
+                    phase="optimizing_policy",
+                    policy_block=block_index,
+                )
+            )
 
         sampled_predictions = {
             gw: _sample_prediction_frame(df, rng, config.monte_carlo_noise_scale)
             for gw, df in base_predictions.items()
         }
-        policy_run = simulate_season(sampled_predictions, gameweeks=gameweeks, config=config)
+        def policy_progress(event: dict[str, object]) -> None:
+            if progress_callback is None:
+                return
+            progress_callback(
+                _simulation_progress_event(
+                    started_at=started_at,
+                    completed_simulations=len(runs),
+                    total_simulations=simulations,
+                    phase="optimizing_policy",
+                    policy_block=block_index,
+                    current_gameweek=event.get("gameweek"),
+                )
+            )
+
+        sampled_policy_run = simulate_season(
+            sampled_predictions,
+            gameweeks=gameweeks,
+            config=config,
+            initial_state=initial_state,
+            progress_callback=policy_progress if progress_callback is not None else None,
+        )
+        policy_run = _rebase_policy_run(sampled_policy_run, base_predictions, config)
         policy_run["policy_block"] = block_index
         policy_run["simulation_id_start"] = simulation_id
         policy_run["simulation_id_end"] = simulation_id + block_size - 1
@@ -1217,19 +1936,40 @@ def _run_periodic_reoptimization_simulations(
         for run in block_result["runs"]:
             run["policy_block"] = block_index
             runs.append(run)
-            total_points = float(run["summary"]["total_expected_points"])
-            if total_points > best_total:
-                best_total = total_points
-                best_run = {
-                    **policy_run,
-                    "simulation_id": run["simulation_id"],
-                    "summary": run["summary"],
-                    "weekly_points": run["weekly_points"],
-                }
+
+        block_best_outcome = block_result["best_outcome_run"]
+        block_best_total = float(
+            block_best_outcome["summary"]["total_expected_points"]
+        )
+        if block_best_total > best_total:
+            best_total = block_best_total
+            best_outcome_run = block_best_outcome
+
+        block_totals = [
+            float(run["summary"]["total_expected_points"])
+            for run in block_result["runs"]
+        ]
+        policy_run["policy_evaluation"] = {
+            "average_total_points": float(np.mean(block_totals)),
+            "median_total_points": float(np.median(block_totals)),
+            "p10_total_points": float(np.percentile(block_totals, 10)),
+            "p90_total_points": float(np.percentile(block_totals, 90)),
+            "simulations": len(block_totals),
+        }
 
         simulation_id += block_size
+        completed = len(runs)
+        if progress_callback is not None:
+            progress_callback(
+                _simulation_progress_event(
+                    started_at=started_at,
+                    completed_simulations=completed,
+                    total_simulations=simulations,
+                    phase="complete" if completed == simulations else "simulating",
+                    policy_block=block_index,
+                )
+            )
         if show_progress:
-            completed = len(runs)
             elapsed = perf_counter() - started_at
             average = elapsed / completed
             eta = average * (simulations - completed)
@@ -1240,12 +1980,18 @@ def _run_periodic_reoptimization_simulations(
                 flush=True,
             )
 
+    recommended_policy = max(
+        policy_runs,
+        key=lambda policy: float(policy["policy_evaluation"]["average_total_points"]),
+    )
     return {
         "manager_principle": MANAGER_PRINCIPLE,
         "simulation_mode": "periodic_reoptimization",
         "policy_runs": policy_runs,
         "runs": runs,
-        "best_run": best_run,
+        "recommended_policy": recommended_policy,
+        "best_run": recommended_policy,
+        "best_outcome_run": best_outcome_run,
         "summary": _summarize_runs(
             runs,
             simulations=simulations,
@@ -1270,6 +2016,8 @@ def run_repeated_season_simulations(
     progress_gameweek_interval: int = 5,
     simulation_mode: str = "full_reoptimization",
     policy_refresh_interval: int = 1000,
+    initial_state: Optional[ManagerState] = None,
+    progress_callback: Optional[Callable[[dict[str, object]], None]] = None,
 ) -> dict[str, object]:
     """Run repeated stateful season simulations with prediction uncertainty."""
 
@@ -1281,11 +2029,33 @@ def run_repeated_season_simulations(
     config = config or SeasonManagerConfig()
     base_predictions = _normalise_prediction_map(predictions_by_gw)
     rng = np.random.default_rng(random_seed)
+    total_started_at = perf_counter()
 
     if simulation_mode == "fixed_policy":
         if show_progress:
             print(f"{season_label} - optimizing fixed manager policy", flush=True)
-        policy_run = simulate_season(base_predictions, gameweeks=gameweeks, config=config)
+        def fixed_policy_progress(event: dict[str, object]) -> None:
+            if progress_callback is None:
+                return
+            progress_callback(
+                _simulation_progress_event(
+                    started_at=total_started_at,
+                    completed_simulations=0,
+                    total_simulations=simulations,
+                    phase="optimizing_policy",
+                    current_gameweek=event.get("gameweek"),
+                )
+            )
+
+        policy_run = simulate_season(
+            base_predictions,
+            gameweeks=gameweeks,
+            config=config,
+            initial_state=initial_state,
+            progress_callback=(
+                fixed_policy_progress if progress_callback is not None else None
+            ),
+        )
         if show_progress:
             print(
                 f"{season_label} - fixed policy optimized across "
@@ -1299,6 +2069,8 @@ def run_repeated_season_simulations(
             config=config,
             show_progress=show_progress,
             season_label=season_label,
+            progress_callback=progress_callback,
+            progress_started_at=total_started_at,
         )
 
     if simulation_mode == "periodic_reoptimization":
@@ -1311,31 +2083,48 @@ def run_repeated_season_simulations(
             show_progress=show_progress,
             season_label=season_label,
             policy_refresh_interval=policy_refresh_interval,
+            initial_state=initial_state,
+            progress_callback=progress_callback,
         )
 
     runs: list[dict[str, object]] = []
-    total_started_at = perf_counter()
 
-    def progress_callback(event: dict[str, object]) -> None:
-        if not show_progress or event.get("event") != "gameweek_complete":
+    def gameweek_progress(event: dict[str, object]) -> None:
+        if event.get("event") != "gameweek_complete":
             return
         gameweek_index = int(event["gameweek_index"])
         gameweeks_total = int(event["gameweeks_total"])
-        if (
+        should_report = (
             gameweek_index != gameweeks_total
             and progress_gameweek_interval > 0
             and gameweek_index % progress_gameweek_interval != 0
-        ):
+        )
+        if should_report:
             return
         sim_id = int(event["simulation_id"])
         gameweek = int(event["gameweek"])
         elapsed = perf_counter() - float(event["simulation_started_at"])
-        print(
-            f"{season_label} - simulation #{sim_id}/{simulations}: "
-            f"GW{gameweek} complete ({gameweek_index}/{gameweeks_total}) "
-            f"elapsed {_format_duration(elapsed)}",
-            flush=True,
-        )
+        if show_progress:
+            print(
+                f"{season_label} - simulation #{sim_id}/{simulations}: "
+                f"GW{gameweek} complete ({gameweek_index}/{gameweeks_total}) "
+                f"elapsed {_format_duration(elapsed)}",
+                flush=True,
+            )
+        if progress_callback is not None:
+            fractional_completed = (
+                (sim_id - 1) + gameweek_index / gameweeks_total
+            ) / simulations
+            progress_callback(
+                _simulation_progress_event(
+                    started_at=total_started_at,
+                    completed_simulations=sim_id - 1,
+                    total_simulations=simulations,
+                    phase="optimizing_policy",
+                    progress=fractional_completed,
+                    current_gameweek=gameweek,
+                )
+            )
 
     for idx in range(simulations):
         simulation_id = idx + 1
@@ -1353,7 +2142,12 @@ def run_repeated_season_simulations(
             sampled_predictions,
             gameweeks=gameweeks,
             config=config,
-            progress_callback=progress_callback if show_progress else None,
+            initial_state=initial_state,
+            progress_callback=(
+                gameweek_progress
+                if show_progress or progress_callback is not None
+                else None
+            ),
             progress_context={
                 "simulation_id": simulation_id,
                 "simulation_started_at": simulation_started_at,
@@ -1361,9 +2155,22 @@ def run_repeated_season_simulations(
         )
         run["simulation_id"] = simulation_id
         runs.append(run)
+        completed = idx + 1
+        if progress_callback is not None:
+            progress_callback(
+                _simulation_progress_event(
+                    started_at=total_started_at,
+                    completed_simulations=completed,
+                    total_simulations=simulations,
+                    phase=(
+                        "finalizing_policy"
+                        if completed == simulations
+                        else "simulating"
+                    ),
+                )
+            )
         if show_progress:
             elapsed_total = perf_counter() - total_started_at
-            completed = idx + 1
             average_per_simulation = elapsed_total / completed
             remaining = simulations - completed
             eta = average_per_simulation * remaining
@@ -1375,12 +2182,32 @@ def run_repeated_season_simulations(
                 flush=True,
             )
 
-    best_run = max(runs, key=lambda run: float(run["summary"]["total_expected_points"]))
+    best_outcome_run = max(
+        runs,
+        key=lambda run: float(run["summary"]["total_expected_points"]),
+    )
+    recommended_policy = simulate_season(
+        base_predictions,
+        gameweeks=gameweeks,
+        config=config,
+        initial_state=initial_state,
+    )
+    if progress_callback is not None:
+        progress_callback(
+            _simulation_progress_event(
+                started_at=total_started_at,
+                completed_simulations=simulations,
+                total_simulations=simulations,
+                phase="complete",
+            )
+        )
     return {
         "manager_principle": MANAGER_PRINCIPLE,
         "simulation_mode": "full_reoptimization",
         "runs": runs,
-        "best_run": best_run,
+        "recommended_policy": recommended_policy,
+        "best_run": recommended_policy,
+        "best_outcome_run": best_outcome_run,
         "summary": _summarize_runs(
             runs,
             simulations=simulations,
@@ -1394,6 +2221,7 @@ def load_prediction_files(
     *,
     start_gw: Optional[int] = None,
     end_gw: Optional[int] = None,
+    expected_season_name: Optional[str] = None,
 ) -> dict[int, pd.DataFrame]:
     """Load ``outputs/predictions_gw<N>.csv`` files into a gameweek map."""
 
@@ -1407,9 +2235,31 @@ def load_prediction_files(
             continue
         if end_gw is not None and gw > end_gw:
             continue
-        frames[gw] = pd.read_csv(path)
+        frame = pd.read_csv(path)
+        if expected_season_name is not None:
+            if "season_name" not in frame.columns:
+                raise ValueError(
+                    f"{path.name} has no season_name metadata. Regenerate it with the "
+                    f"current pipeline before using it for {expected_season_name}."
+                )
+            season_names = {str(value) for value in frame["season_name"].dropna().unique()}
+            if season_names != {expected_season_name}:
+                raise ValueError(
+                    f"{path.name} is tagged for {sorted(season_names) or ['unknown']}, "
+                    f"not expected season {expected_season_name}."
+                )
+        if "gameweek" in frame.columns:
+            artifact_gameweeks = {
+                int(value) for value in pd.to_numeric(frame["gameweek"], errors="coerce").dropna().unique()
+            }
+            if artifact_gameweeks and artifact_gameweeks != {gw}:
+                raise ValueError(
+                    f"{path.name} contains gameweek metadata {sorted(artifact_gameweeks)}."
+                )
+        frames[gw] = frame
     if not frames:
         raise FileNotFoundError(f"No prediction files found in {output_dir}")
+    _prediction_map_season_name(frames)
     return frames
 
 
@@ -1419,11 +2269,40 @@ def save_season_simulation_artifact(
 ) -> Path:
     """Persist a simulation result as JSON."""
 
+    return _save_json_artifact(result, output_path)
+
+
+def _save_json_artifact(payload: dict[str, object], output_path: Path) -> Path:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as handle:
-        json.dump(result, handle, indent=2)
+    temporary_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=output_path.parent,
+            prefix=f".{output_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            json.dump(payload, handle, indent=2)
+        os.replace(temporary_path, output_path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
     return output_path
+
+
+def save_manager_state(state: ManagerState, output_path: Path) -> Path:
+    """Persist manager state for the next live gameweek run."""
+    return _save_json_artifact(state.to_dict(), output_path)
+
+
+def load_manager_state(path: Path) -> ManagerState:
+    """Load a state file created by :func:`save_manager_state`."""
+    with Path(path).open("r", encoding="utf-8") as handle:
+        return ManagerState.from_dict(json.load(handle))
 
 
 __all__ = [
@@ -1432,7 +2311,9 @@ __all__ = [
     "SeasonManagerConfig",
     "SeasonRules",
     "load_prediction_files",
+    "load_manager_state",
     "run_repeated_season_simulations",
     "save_season_simulation_artifact",
+    "save_manager_state",
     "simulate_season",
 ]

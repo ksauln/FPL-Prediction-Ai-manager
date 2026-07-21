@@ -23,6 +23,18 @@ from .utils import save_json, load_json, unix_now
 
 logger = logging.getLogger(__name__)
 
+PLAYER_HISTORY_CACHE_SCHEMA_VERSION = 2
+LIVE_METADATA_CACHE_TTL_SECONDS = 15 * 60
+
+
+def _cache_file_fresh(path: Path, ttl_seconds: int) -> bool:
+    if not path.exists():
+        return False
+    try:
+        return (unix_now() - path.stat().st_mtime) <= ttl_seconds
+    except OSError:
+        return False
+
 def _safe_get_json(url: str) -> Any:
     r = requests.get(url, timeout=30)
     r.raise_for_status()
@@ -30,7 +42,7 @@ def _safe_get_json(url: str) -> Any:
 
 def fetch_bootstrap_static(force: bool = False) -> Dict[str, Any]:
     path = RAW_DIR / "bootstrap-static.json"
-    if path.exists() and not force:
+    if not force and _cache_file_fresh(path, LIVE_METADATA_CACHE_TTL_SECONDS):
         return load_json(path)
     data = _safe_get_json(FPL_BOOTSTRAP)
     save_json(path, data)
@@ -38,7 +50,7 @@ def fetch_bootstrap_static(force: bool = False) -> Dict[str, Any]:
 
 def fetch_fixtures_all(force: bool = False) -> Any:
     path = RAW_DIR / "fixtures-all.json"
-    if path.exists() and not force:
+    if not force and _cache_file_fresh(path, LIVE_METADATA_CACHE_TTL_SECONDS):
         return load_json(path)
     data = _safe_get_json(FPL_FIXTURES_ALL)
     save_json(path, data)
@@ -50,6 +62,8 @@ def _player_cache_fresh(path: Path, min_seasons: int) -> bool:
     try:
         with open(path, "r", encoding="utf-8") as f:
             meta = json.load(f)
+        if int(meta.get("_history_cache_schema_version", 0)) != PLAYER_HISTORY_CACHE_SCHEMA_VERSION:
+            return False
         ts = meta.get("_fetched_ts", 0)
         seasons_available = int(meta.get("_history_seasons", 1))
         if seasons_available < min_seasons:
@@ -93,7 +107,9 @@ def fetch_player_history(
     Player element-summary includes current season 'history' and upcoming fixtures.
     """
     path = RAW_DIR / f"player_{player_id}.json"
-    required_seasons = max(seasons_back, 0) + 1  # always include current season
+    # The official element-summary endpoint only exposes the current season.
+    # Older seasons are loaded from the external historical dataset instead.
+    required_seasons = 1
     if (not force) and _player_cache_fresh(path, required_seasons):
         return load_json(path)
     url = FPL_ELEMENT_SUMMARY.format(player_id=player_id)
@@ -103,21 +119,6 @@ def fetch_player_history(
     history_all = _annotate_history(data.get("history", []), current_season_code)
 
     included_seasons = [current_season_code]
-    past_seasons = _season_codes_to_fetch(seasons_back, now=now)
-    for season_code in past_seasons:
-        season_url = f"{url}?season={season_code}"
-        try:
-            season_payload = _safe_get_json(season_url)
-        except requests.HTTPError as exc:
-            if getattr(exc, "response", None) is not None and exc.response.status_code == 404:
-                included_seasons.append(season_code)
-                continue
-            raise
-        season_history = _annotate_history(season_payload.get("history", []), season_code)
-        history_all.extend(season_history)
-        included_seasons.append(season_code)
-
-    included_seasons = list(dict.fromkeys(included_seasons))
 
     history_all.sort(
         key=lambda row: (
@@ -130,6 +131,7 @@ def fetch_player_history(
 
     data["history"] = history_all
     data["_fetched_ts"] = unix_now()
+    data["_history_cache_schema_version"] = PLAYER_HISTORY_CACHE_SCHEMA_VERSION
     data["_history_season_codes"] = included_seasons
     data["_history_seasons"] = len(included_seasons)
     save_json(path, data)

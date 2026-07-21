@@ -68,6 +68,99 @@ def _current_season_mask(df: pd.DataFrame) -> pd.Series:
     return season_sort == current_start
 
 
+def _season_mask(df: pd.DataFrame, current_season_name: str | None) -> pd.Series:
+    if current_season_name is not None and "season_name" in df.columns:
+        return df["season_name"].astype(str).eq(str(current_season_name))
+    return _current_season_mask(df)
+
+
+def _target_fixture_context(
+    histories: pd.DataFrame,
+    fixtures_df: pd.DataFrame | None,
+    *,
+    next_gw: int,
+    current_season: pd.Series,
+    windows: Iterable[int],
+) -> pd.DataFrame:
+    """Build current team/opponent form values for the fixtures in ``next_gw``."""
+    columns = ["team_id", "fixture_count", "was_home"]
+    if fixtures_df is None or fixtures_df.empty or "event" not in fixtures_df.columns:
+        return pd.DataFrame(columns=columns)
+
+    target = fixtures_df[pd.to_numeric(fixtures_df["event"], errors="coerce") == int(next_gw)]
+    if target.empty:
+        return pd.DataFrame(columns=columns)
+
+    stats = [
+        "team_goals_for",
+        "team_goals_against",
+        "team_goal_diff",
+        "team_clean_sheet",
+        "team_conceded_two_plus",
+        "team_match_points",
+    ]
+    completed = histories[current_season].copy() if len(histories) else histories.copy()
+    required = {"team", "fixture", "was_home", "team_h_score", "team_a_score"}
+    latest_by_team: dict[int, dict[str, float]] = {}
+    if required.issubset(completed.columns) and not completed.empty:
+        was_home = completed["was_home"].astype(bool)
+        completed["team_goals_for"] = np.where(
+            was_home, completed["team_h_score"], completed["team_a_score"]
+        )
+        completed["team_goals_against"] = np.where(
+            was_home, completed["team_a_score"], completed["team_h_score"]
+        )
+        completed["team_goal_diff"] = completed["team_goals_for"] - completed["team_goals_against"]
+        completed["team_clean_sheet"] = (completed["team_goals_against"] == 0).astype(int)
+        completed["team_conceded_two_plus"] = (completed["team_goals_against"] >= 2).astype(int)
+        completed["team_match_points"] = np.select(
+            [
+                completed["team_goals_for"] > completed["team_goals_against"],
+                completed["team_goals_for"] == completed["team_goals_against"],
+            ],
+            [3, 1],
+            default=0,
+        )
+        team_matches = completed.drop_duplicates(["team", "fixture"]).copy()
+        team_matches = _add_history_sort_keys(team_matches)
+        team_matches = team_matches.sort_values(
+            _history_sort_columns(team_matches, ["team"]), kind="mergesort"
+        )
+        for team_id, group in team_matches.groupby("team"):
+            values: dict[str, float] = {}
+            for window in windows:
+                tail = group.tail(int(window))
+                for stat in stats:
+                    values[f"{stat}_ma{window}"] = float(
+                        pd.to_numeric(tail[stat], errors="coerce").mean()
+                    )
+            latest_by_team[int(team_id)] = values
+
+    fixture_map: dict[int, list[tuple[bool, int]]] = {}
+    for fixture in target.to_dict(orient="records"):
+        home = int(fixture["team_h"])
+        away = int(fixture["team_a"])
+        fixture_map.setdefault(home, []).append((True, away))
+        fixture_map.setdefault(away, []).append((False, home))
+
+    rows: list[dict[str, float | int]] = []
+    feature_names = [f"{stat}_ma{window}" for window in windows for stat in stats]
+    for team_id, fixtures in fixture_map.items():
+        row: dict[str, float | int] = {
+            "team_id": team_id,
+            "fixture_count": len(fixtures),
+            "was_home": float(np.mean([1.0 if is_home else 0.0 for is_home, _ in fixtures])),
+        }
+        own = latest_by_team.get(team_id, {})
+        for feature in feature_names:
+            row[feature] = float(own.get(feature, 0.0))
+            opponent_values = [latest_by_team.get(opponent, {}).get(feature, 0.0) for _, opponent in fixtures]
+            opponent_feature = feature.replace("team_", "opp_team_", 1)
+            row[opponent_feature] = float(np.mean(opponent_values)) if opponent_values else 0.0
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def _prepare_player_static_features(elements_df: pd.DataFrame) -> pd.DataFrame:
     """Enhance elements dataframe with numeric form metrics and set-piece flags."""
     df = elements_df.copy()
@@ -410,6 +503,8 @@ def build_training_and_pred_frames(
     next_gw: int,
     last_finished_gw: int,
     state: ModelState,
+    fixtures_df: pd.DataFrame | None = None,
+    current_season_name: str | None = None,
 ) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.DataFrame]:
     """
     Returns:
@@ -426,38 +521,6 @@ def build_training_and_pred_frames(
         "player_id",
         "team_id",
         "element_type",
-        "form",
-        "points_per_game",
-        "value_form",
-        "value_season",
-        "selected_by_percent",
-        "expected_goals_per_90",
-        "expected_assists_per_90",
-        "expected_goal_involvements_per_90",
-        "expected_goals_conceded_per_90",
-        "goals_conceded_per_90",
-        "saves_per_90",
-        "starts_per_90",
-        "clean_sheets_per_90",
-        "defensive_contribution_per_90",
-        "season_minutes",
-        "chance_of_playing_this_round",
-        "chance_of_playing_next_round",
-        "availability_this_round",
-        "availability_next_round",
-        "status_availability",
-        "status_injury_flag",
-        "injury_risk_flag",
-        "corners_and_indirect_freekicks_order",
-        "direct_freekicks_order",
-        "penalties_order",
-        "has_corners_duty",
-        "primary_corners_taker",
-        "has_direct_fk_duty",
-        "primary_direct_fk_taker",
-        "has_penalty_duty",
-        "primary_penalty_taker",
-        "set_piece_duty_score",
     ]
     merge_cols = [c for c in static_feature_cols if c in elements_enhanced.columns]
     base = histories_df.merge(
@@ -473,89 +536,29 @@ def build_training_and_pred_frames(
         base["team"] = base["team"].fillna(base["team_current"])
         base = base.drop(columns=["team_current"])
     base = _rolling_feats(base, windows=tuple(ROLLING_WINDOWS))
-    base = _merge_team_strength(base, teams_df)
-
-    # Include bias features
-    base["player_bias"] = base["player_id"].astype(str).map(state.player_bias).fillna(0.0)
-    base["pos_bias"] = base["element_type"].astype(str).map(state.position_bias).fillna(0.0)
 
     rolling_feature_cols = [
         c
         for c in base.columns
         if any(c.endswith(f"_ma{w}") for w in ROLLING_WINDOWS) or c.endswith("_lag1")
     ]
-    manual_features = [
-        "was_home",
-        "team_strength_overall",
-        "team_strength_home",
-        "team_strength_away",
-        "team_attack_home",
-        "team_attack_away",
-        "team_def_home",
-        "team_def_away",
-        "team_form_rating",
-        "team_points_table",
-        "team_league_position",
-        "team_matches_played",
-        "team_wins",
-        "team_draws",
-        "team_losses",
-        "opp_strength_overall",
-        "opp_strength_home",
-        "opp_strength_away",
-        "opp_attack_home",
-        "opp_attack_away",
-        "opp_def_home",
-        "opp_def_away",
-        "opp_form_rating",
-        "opp_points_table",
-        "opp_league_position",
-        "opp_matches_played",
-        "opp_wins",
-        "opp_draws",
-        "opp_losses",
-        "form",
-        "points_per_game",
-        "value_form",
-        "value_season",
-        "selected_by_percent",
-        "expected_goals_per_90",
-        "expected_assists_per_90",
-        "expected_goal_involvements_per_90",
-        "expected_goals_conceded_per_90",
-        "goals_conceded_per_90",
-        "saves_per_90",
-        "starts_per_90",
-        "clean_sheets_per_90",
-        "defensive_contribution_per_90",
-        "availability_this_round",
-        "availability_next_round",
-        "status_availability",
-        "status_injury_flag",
-        "injury_risk_flag",
-        "corners_and_indirect_freekicks_order",
-        "direct_freekicks_order",
-        "penalties_order",
-        "has_corners_duty",
-        "primary_corners_taker",
-        "has_direct_fk_duty",
-        "primary_direct_fk_taker",
-        "has_penalty_duty",
-        "primary_penalty_taker",
-        "set_piece_duty_score",
-        "player_bias",
-        "pos_bias",
-    ]
+    # Snapshot fields from bootstrap are current information and must not be
+    # copied onto old training targets. Keep the model inputs historical.
+    manual_features = ["was_home"]
     manual_feature_cols = [c for c in manual_features if c in base.columns]
     feature_cols = rolling_feature_cols + manual_feature_cols
 
     # TRAIN: current season only uses completed GWs; prior completed seasons remain fully available.
-    current_season = _current_season_mask(base)
+    current_season = _season_mask(base, current_season_name)
     completed_current_rows = (~current_season) | (base["round"] <= last_finished_gw)
     train_rows = base[(base["enough_prev"]) & completed_current_rows].copy()
     X_train = train_rows[feature_cols].fillna(0.0)
     y_train = train_rows["total_points"].astype(float)
-    metadata_cols = [c for c in ("season_name", "round", "kickoff_time", "minutes") if c in train_rows.columns]
+    metadata_cols = [
+        c
+        for c in ("season_name", "round", "kickoff_time", "minutes", "element_type")
+        if c in train_rows.columns
+    ]
     train_metadata = train_rows[metadata_cols].copy() if metadata_cols else pd.DataFrame(index=train_rows.index)
 
     # PRED: prefer each player's latest current-season row up to the last finished GW,
@@ -574,43 +577,72 @@ def build_training_and_pred_frames(
         )
         last_rows = pd.concat([last_rows, historical_fallback], ignore_index=True, sort=False)
     last_rows = last_rows.drop(columns=[_TEMP_SEASON_SORT_COL, _TEMP_KICKOFF_SORT_COL], errors="ignore")
-    # but we must attach players' meta for identification (name, cost, team, element_type)
-    last_rows = last_rows.drop(columns=["team_id", "element_type"], errors="ignore").merge(
-        elements_with_team[
-            [
-                "player_id",
-                "full_name",
-                "now_cost_millions",
-                "team_id",
-                "element_type",
-                "team_name",
-                "season_minutes",
-            ]
-        ],
+    historical_features = last_rows[["player_id"] + feature_cols].drop_duplicates(
+        "player_id", keep="last"
+    )
+
+    meta_cols = [
+        "player_id",
+        "full_name",
+        "now_cost_millions",
+        "team_id",
+        "element_type",
+        "team_name",
+        "season_minutes",
+        "availability_this_round",
+        "availability_next_round",
+        "status_availability",
+        "status_injury_flag",
+        "injury_risk_flag",
+    ]
+    meta_cols = [col for col in meta_cols if col in elements_with_team.columns]
+    X_pred = elements_with_team[meta_cols].drop_duplicates("player_id").merge(
+        historical_features,
         on="player_id",
         how="left",
-        suffixes=("", "_meta"),
     )
-    if "season_minutes_meta" in last_rows.columns:
-        if "season_minutes" in last_rows.columns:
-            last_rows["season_minutes"] = last_rows["season_minutes"].fillna(last_rows["season_minutes_meta"])
-        else:
-            last_rows = last_rows.rename(columns={"season_minutes_meta": "season_minutes"})
-        last_rows = last_rows.drop(columns=["season_minutes_meta"])
-    X_pred = last_rows[
-        [
-            "player_id",
-            "full_name",
-            "team_name",
-            "now_cost_millions",
-            "team_id",
-            "element_type",
-            "season_minutes",
+
+    history_counts = base.groupby("player_id").size().rename("history_match_count")
+    X_pred = X_pred.merge(history_counts, on="player_id", how="left")
+    X_pred["history_match_count"] = X_pred["history_match_count"].fillna(0.0)
+
+    # Historical replay must use the price available in the target gameweek,
+    # not the final bootstrap price captured when the replay is run.
+    if "value" in base.columns:
+        target_prices = base[
+            current_season & (pd.to_numeric(base["round"], errors="coerce") == int(next_gw))
+        ][["player_id", "value"]].copy()
+        if not target_prices.empty:
+            target_prices["historical_price"] = (
+                pd.to_numeric(target_prices["value"], errors="coerce") / 10.0
+            )
+            target_prices = target_prices.dropna(subset=["historical_price"]).drop_duplicates(
+                "player_id", keep="last"
+            )
+            price_map = target_prices.set_index("player_id")["historical_price"]
+            mapped_prices = X_pred["player_id"].map(price_map)
+            X_pred["now_cost_millions"] = mapped_prices.fillna(X_pred["now_cost_millions"])
+
+    fixture_context = _target_fixture_context(
+        base,
+        fixtures_df,
+        next_gw=next_gw,
+        current_season=current_season,
+        windows=tuple(ROLLING_WINDOWS),
+    )
+    if not fixture_context.empty:
+        X_pred = X_pred.merge(fixture_context, on="team_id", how="left", suffixes=("", "_target"))
+        target_columns = ["was_home"] + [
+            col for col in feature_cols if col.startswith("team_") or col.startswith("opp_team_")
         ]
-    ].reset_index(drop=True)
-    X_pred_features = last_rows[feature_cols].fillna(0.0).reset_index(drop=True)
-    # Return both meta and features separately for convenience
-    X_pred = X_pred.join(X_pred_features)
+        for col in target_columns:
+            target_col = f"{col}_target"
+            if target_col in X_pred.columns:
+                X_pred[col] = X_pred[target_col].fillna(X_pred.get(col, 0.0))
+                X_pred = X_pred.drop(columns=[target_col])
+
+    X_pred[feature_cols] = X_pred[feature_cols].fillna(0.0)
+    X_pred = X_pred.reset_index(drop=True)
     return X_train, y_train, X_pred, train_metadata
 
 def expand_for_double_gw(pred_df: pd.DataFrame, fixtures_df: pd.DataFrame, next_gw: int) -> pd.DataFrame:
@@ -627,7 +659,7 @@ def expand_for_double_gw(pred_df: pd.DataFrame, fixtures_df: pd.DataFrame, next_
     for _, row in gw_fx.iterrows():
         team_counts[row["team_h"]] = team_counts.get(row["team_h"], 0) + 1
         team_counts[row["team_a"]] = team_counts.get(row["team_a"], 0) + 1
-    pred_df["fixture_multiplier"] = pred_df["team_id"].map(team_counts).fillna(1).astype(float)
+    pred_df["fixture_multiplier"] = pred_df["team_id"].map(team_counts).fillna(0).astype(float)
     return pred_df
 
 

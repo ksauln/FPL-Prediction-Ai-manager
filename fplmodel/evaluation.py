@@ -1,11 +1,19 @@
 from __future__ import annotations
+import numpy as np
 import pandas as pd
 from typing import Tuple
 
 from .state import ModelState
 
 def evaluate_last_finished_gw_and_update_state(
-    clf, reg, X_train_like: pd.DataFrame, histories_df: pd.DataFrame, last_finished_gw: int, state: ModelState
+    start_clf,
+    appearance_clf,
+    reg,
+    cameo_points_by_position: dict[int, float],
+    X_train_like: pd.DataFrame,
+    histories_df: pd.DataFrame,
+    last_finished_gw: int,
+    state: ModelState,
 ) -> pd.DataFrame:
     """
     Build a held-out style prediction for last_finished_gw using features from gw-1,
@@ -37,9 +45,13 @@ def evaluate_last_finished_gw_and_update_state(
 
     # Predict
     feats = merged[feats_cols].fillna(0.0)
-    p_start = clf.predict_proba(feats)[:, 1]
+    start_probability = start_clf.predict_proba(feats)[:, 1]
+    appearance_probability = appearance_clf.predict_proba(feats)[:, 1]
+    appearance_probability = np.maximum(appearance_probability, start_probability)
     pts_hat = reg.predict(feats)
-    ep = p_start * pts_hat
+    cameo_probability = np.clip(appearance_probability - start_probability, 0.0, 1.0)
+    cameo_points = merged["element_type"].map(cameo_points_by_position).fillna(1.0)
+    ep = start_probability * pts_hat + cameo_probability * cameo_points.to_numpy()
 
     merged["predicted_points"] = ep
     merged["residual"] = merged["total_points"].astype(float) - merged["predicted_points"].astype(float)

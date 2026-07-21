@@ -30,6 +30,8 @@ python main.py
 streamlit run streamlit_app.py
 ```
 
+During the season, use **Update data & predictions** under the sidebar navigation to force-refresh official FPL players, prices, availability, histories, and fixtures. The update reruns the prediction pipeline for the official next gameweek and builds a four-gameweek planning horizon without changing the committed AI Manager state.
+
 ![AI Manager season-planning and simulation settings](docs/screenshots/ai-manager.jpg)
 
 See the [AI Manager season runbook](docs/ai-manager-season.md) for the end-to-end workflow and [season manager design notes](docs/season-manager.md) for the simulation modes and rules.
@@ -280,6 +282,7 @@ Transfer recommender setup showing the official next-gameweek horizon and missin
 ![Streamlit transfer recommender page](docs/screenshots/streamlit-transfer-recommender.png)
 
 ### 5.2 AI Manager Page
+- **Update data & predictions** in the sidebar refreshes live FPL inputs and rebuilds the next four gameweeks of prediction artifacts. Progress and any failure are shown in the sidebar.
 - **Run simulations** configures planning or live mode, gameweek range, simulation count, policy refresh interval, uncertainty, strategy thresholds, and season rules. The manager still chooses the squad, transfers, chips, lineup, bench, captain, and vice-captain itself.
 - **Review results** compares policy blocks and simulation totals, shows the recommended policy by gameweek, and displays the selected starting XI, bench, transfers, captaincy, chip, bank, and team value.
 - **Manager state** shows the committed live squad, purchase prices, bank, free transfers, chip usage, and decision history.

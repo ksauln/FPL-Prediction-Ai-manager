@@ -24,6 +24,8 @@ from fplmodel.team_performance_display import (
     TeamPerformanceDependencies,
     render_team_performance_page,
 )
+from fplmodel.manager_dashboard import render_ai_manager_page
+from fplmodel.dashboard_updates import refresh_dashboard_data
 from fplmodel.utils import get_current_and_last_finished_gw
 
 
@@ -109,6 +111,7 @@ SESSION_USER_TEAM_KEY = "user_team_df"
 SESSION_CAPTAIN_OVERRIDE_KEY = "user_team_captain_override"
 SESSION_FPL_TEAM_CACHE = "fpl_team_cache"
 SESSION_SHARED_FPL_ID = "shared_fpl_id"
+SESSION_UPDATE_RESULT_KEY = "dashboard_update_result"
 FPL_BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 
 
@@ -957,7 +960,7 @@ def _build_team_interactively(
             "captain": "Captain",
         }
     )
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
     return team_df
 
@@ -1071,10 +1074,10 @@ def _display_team(team: Dict[str, object], enriched: Optional[pd.DataFrame] = No
     if enriched is None or enriched.empty:
         squad_tab, bench_tab = st.tabs(["Starting XI", "Bench"])
         with squad_tab:
-            st.dataframe(pd.DataFrame(team["squad"]), use_container_width=True)
+            st.dataframe(pd.DataFrame(team["squad"]), width="stretch")
         with bench_tab:
             if team.get("bench"):
-                st.dataframe(pd.DataFrame(team["bench"]), use_container_width=True)
+                st.dataframe(pd.DataFrame(team["bench"]), width="stretch")
         return
 
     starters = enriched[enriched["starting"] == 1].copy()
@@ -1083,12 +1086,12 @@ def _display_team(team: Dict[str, object], enriched: Optional[pd.DataFrame] = No
 
     with squad_tab:
         if not starters.empty:
-            st.dataframe(_format_team_display(starters), use_container_width=True)
+            st.dataframe(_format_team_display(starters), width="stretch")
     with bench_tab:
         if not bench.empty:
             if "bench_order" in bench.columns:
                 bench = bench.sort_values("bench_order")
-            st.dataframe(_format_team_display(bench), use_container_width=True)
+            st.dataframe(_format_team_display(bench), width="stretch")
 
 
 def _optimal_team_page() -> None:
@@ -1149,7 +1152,7 @@ def _optimal_team_page() -> None:
     leaderboard = _prediction_confidence_frame(predictions_df, limit=15)
     if not leaderboard.empty:
         st.subheader("Prediction Confidence Board")
-        st.dataframe(leaderboard, use_container_width=True)
+        st.dataframe(leaderboard, width="stretch")
 
 
 def _team_comparison_page() -> None:
@@ -1426,7 +1429,7 @@ def _optimal_history_page() -> None:
             )
 
     st.subheader("Summary by Gameweek")
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="stretch")
 
     if missing_actual:
         missing_str = ", ".join(f"GW{gw}" for gw in missing_actual)
@@ -1527,7 +1530,7 @@ def _optimal_history_page() -> None:
         }
     )
     st.subheader(f"GW {selected_gw} squad details")
-    st.dataframe(display_players, use_container_width=True)
+    st.dataframe(display_players, width="stretch")
     st.caption("Actual totals include captaincy points; bench figures are raw bench scores.")
 
 def _team_performance_page() -> None:
@@ -1787,7 +1790,7 @@ def _transfer_recommender_page() -> None:
         if "Start Prob" in subset.columns:
             subset["Start Prob"] = subset["Start Prob"].map(_format_percent)
         st.subheader(title)
-        st.dataframe(subset, use_container_width=True)
+        st.dataframe(subset, width="stretch")
 
     user_player_ids = [int(pid) for pid in user_team_df["player_id"].tolist()]
     post_transfer_ids = [int(pid) for pid in post_transfer_team["player_id"].tolist()]
@@ -1813,6 +1816,7 @@ def _transfer_recommender_page() -> None:
 
 
 PAGES = {
+    "AI Manager": render_ai_manager_page,
     "Optimal Team": _optimal_team_page,
     "Optimal Results": _optimal_history_page,
     "Team Comparison": _team_comparison_page,
@@ -1822,14 +1826,80 @@ PAGES = {
 }
 
 
+def _render_sidebar_update_control() -> None:
+    with st.sidebar:
+        st.divider()
+        st.subheader("Updates")
+        st.caption(
+            "Pull current FPL data and rebuild predictions for the next four gameweeks."
+        )
+        update_requested = st.button(
+            "Update data & predictions",
+            type="primary",
+            width="stretch",
+        )
+        if update_requested:
+            with st.status(
+                "Updating FPL data and predictions...",
+                expanded=True,
+            ) as update_status:
+                try:
+                    result = refresh_dashboard_data(
+                        horizon=4,
+                        progress_callback=update_status.write,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    message = f"Update failed: {exc}"
+                    st.session_state[SESSION_UPDATE_RESULT_KEY] = {
+                        "status": "error",
+                        "message": message,
+                    }
+                    update_status.update(
+                        label="Update failed",
+                        state="error",
+                        expanded=True,
+                    )
+                else:
+                    gameweeks = result["gameweeks"]
+                    gameweek_label = (
+                        f"GW{gameweeks[0]}-GW{gameweeks[-1]}"
+                        if len(gameweeks) > 1
+                        else f"GW{gameweeks[0]}"
+                    )
+                    message = (
+                        f"Updated {result['season_name']} data and predictions for "
+                        f"{gameweek_label}."
+                    )
+                    st.cache_data.clear()
+                    st.session_state[SESSION_UPDATE_RESULT_KEY] = {
+                        "status": "success",
+                        "message": message,
+                    }
+                    update_status.update(
+                        label="Data and predictions updated",
+                        state="complete",
+                        expanded=False,
+                    )
+
+        previous_result = st.session_state.get(SESSION_UPDATE_RESULT_KEY)
+        if previous_result:
+            if previous_result.get("status") == "success":
+                st.success(str(previous_result.get("message", "Update complete.")))
+            else:
+                st.error(str(previous_result.get("message", "Update failed.")))
+
+
 def main() -> None:
     _apply_app_style()
     st.title("FPL Optimization Toolkit")
-    tab_labels = list(PAGES)
-    tabs = st.tabs(tab_labels)
-    for tab, (label, render_page) in zip(tabs, PAGES.items()):
-        with tab:
-            render_page()
+    st.sidebar.header("Navigation")
+    selected_page = st.sidebar.radio(
+        "Page",
+        options=list(PAGES),
+        label_visibility="collapsed",
+    )
+    _render_sidebar_update_control()
+    PAGES[selected_page]()
 
 
 if __name__ == "__main__":

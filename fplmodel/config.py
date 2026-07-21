@@ -29,9 +29,17 @@ CACHE_TTL_DAYS = 2
 PLAYER_HISTORY_FETCH_WORKERS = 8
 
 # Historical data
-PLAYER_HISTORY_SEASONS_BACK = 5  # append this many prior seasons to player match history
+# The official element-summary endpoint exposes current-season matches only.
+PLAYER_HISTORY_SEASONS_BACK = 0
 USE_EXTERNAL_HISTORY = True
-EXTERNAL_HISTORY_SEASONS = ["2020-21", "2021-22", "2022-23", "2023-24", "2024-25"]  # extend training with these completed seasons
+EXTERNAL_HISTORY_SEASONS = [
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+    "2024-25",
+    "2025-26",
+]
 
 # GPU acceleration
 ENABLE_GPU_TRAINING = True  # attempt to use GPU-accelerated models when available
@@ -149,7 +157,9 @@ FORMATION_OPTIONS = [
     {"GK": 1, "DEF": 4, "MID": 4, "FWD": 2},  # 4-4-2
     {"GK": 1, "DEF": 4, "MID": 5, "FWD": 1},  # 4-5-1
     {"GK": 1, "DEF": 4, "MID": 3, "FWD": 3},  # 4-3-3
+    {"GK": 1, "DEF": 5, "MID": 4, "FWD": 1},  # 5-4-1
     {"GK": 1, "DEF": 5, "MID": 3, "FWD": 2},  # 5-3-2
+    {"GK": 1, "DEF": 5, "MID": 2, "FWD": 3},  # 5-2-3
 ]
 SQUAD_POSITION_LIMITS = {"GK": 2, "DEF": 5, "MID": 5, "FWD": 3}
 BENCH_SIZE = 4

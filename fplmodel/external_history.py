@@ -40,6 +40,21 @@ def _load_team_map(season: str) -> dict[str, int]:
     return dict(zip(teams["name"].astype(str), teams["id"].astype(int)))
 
 
+def _load_player_code_map(season: str) -> dict[int, int]:
+    players_path = _season_dir(season) / "players_raw.csv"
+    if not players_path.exists():
+        logger.warning("Missing players_raw.csv for season %s at %s", season, players_path)
+        return {}
+    players = pd.read_csv(players_path, usecols=lambda col: col in {"id", "code"})
+    if "id" not in players.columns or "code" not in players.columns:
+        logger.warning("players_raw.csv for season %s lacks id/code columns", season)
+        return {}
+    ids = pd.to_numeric(players["id"], errors="coerce")
+    codes = pd.to_numeric(players["code"], errors="coerce")
+    valid = ids.notna() & codes.notna()
+    return dict(zip(ids[valid].astype(int), codes[valid].astype(int)))
+
+
 def _normalise_frame(df: pd.DataFrame, season: str, team_map: dict[str, int]) -> pd.DataFrame:
     rename_map = {
         "element": "player_id",
@@ -153,6 +168,7 @@ def load_external_histories(
             logger.info("No gameweek CSVs found for season %s", season)
             continue
         team_map = _load_team_map(season)
+        player_code_map = _load_player_code_map(season)
         season_frames = []
         for path in gw_files:
             try:
@@ -163,6 +179,9 @@ def load_external_histories(
             gw_df = _normalise_frame(gw_df, season, team_map)
             if gw_df.empty:
                 continue
+            gw_df["player_code"] = gw_df["player_id"].map(player_code_map)
+            gw_df = gw_df[gw_df["player_code"].notna()].copy()
+            gw_df["player_code"] = gw_df["player_code"].astype(int)
             season_frames.append(gw_df)
         if not season_frames:
             continue

@@ -29,6 +29,10 @@ models/regressor.joblib
 models/classifier.joblib
 models/*.pkl
 outputs/season_plan_simulations.json
+outputs/ai_manager_jobs/
+outputs/manager_state_*.json
+outputs/prediction_backups/
+outputs/seasons/
 #models/state.json
 #models/model_selection_summary.csv
 

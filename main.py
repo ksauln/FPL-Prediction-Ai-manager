@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse
 from collections import defaultdict
+from datetime import datetime
 import json
 import os
 import pandas as pd
@@ -28,6 +29,7 @@ from fplmodel.state import ModelState
 from fplmodel.utils import get_current_and_last_finished_gw
 from fplmodel.logging_utils import configure_run_logger, update_log_filename_for_gameweek, log_timed_step
 from fplmodel.external_history import load_external_histories
+from fplmodel.prediction_artifacts import archive_prediction_file
 
 from fplmodel.team_picker import pick_best_xi
 try:
@@ -178,10 +180,97 @@ def list_current_player_history_files(raw_dir, player_ids: list[int]) -> list[st
     return sorted(files, key=lambda name: int(name.split("_")[1].split(".")[0]))
 
 
+def infer_season_name(events_df: pd.DataFrame) -> str | None:
+    """Infer an FPL season code such as ``2026-27`` from event deadlines."""
+    if events_df is None or events_df.empty or "deadline_time" not in events_df.columns:
+        return None
+    deadlines = pd.to_datetime(events_df["deadline_time"], errors="coerce", utc=True).dropna()
+    if deadlines.empty:
+        return None
+    start_year = int(deadlines.min().year)
+    return f"{start_year}-{str(start_year + 1)[-2:]}"
+
+
+def expected_season_name_for_date(now: datetime | None = None) -> str:
+    """Return the season that should be live for a calendar date."""
+    now = now or datetime.now()
+    start_year = now.year if now.month >= 7 else now.year - 1
+    return f"{start_year}-{str(start_year + 1)[-2:]}"
+
+
+def validate_season_name(
+    actual_season_name: str | None,
+    expected_season_name: str | None = None,
+) -> str:
+    """Reject stale or malformed bootstrap data before it reaches the model."""
+    expected = expected_season_name or expected_season_name_for_date()
+    if actual_season_name != expected:
+        actual_label = actual_season_name or "unknown"
+        raise RuntimeError(
+            f"FPL API season mismatch: expected {expected}, but bootstrap data is "
+            f"for {actual_label}. The new game may not be live yet, or the cache may "
+            "be stale. Retry with --force-refetch after the FPL site launches; use "
+            "--expected-season only when intentionally replaying another season."
+        )
+    return expected
+
+
+def previous_season_name(season_name: str) -> str:
+    start_year = int(season_name.split("-", 1)[0]) - 1
+    return f"{start_year}-{str(start_year + 1)[-2:]}"
+
+
+def validate_external_history_coverage(
+    external_histories: pd.DataFrame,
+    season_name: str,
+    expected_gameweeks: int = 38,
+) -> None:
+    """Require a complete prior season before a GW1 cold-start run."""
+    if "season_name" not in external_histories.columns or "round" not in external_histories.columns:
+        raise RuntimeError("External history is missing season_name or round metadata.")
+    season_rows = external_histories[external_histories["season_name"].eq(season_name)]
+    rounds = {
+        int(value)
+        for value in pd.to_numeric(season_rows["round"], errors="coerce").dropna().unique()
+    }
+    missing = sorted(set(range(1, expected_gameweeks + 1)) - rounds)
+    if missing:
+        missing_labels = ", ".join(f"GW{gameweek}" for gameweek in missing)
+        raise RuntimeError(
+            f"External history for {season_name} is incomplete; missing {missing_labels}. "
+            "Update data/external/Fantasy-Premier-League before the preseason run."
+        )
+
+
+def remap_external_histories_to_current_players(
+    external_histories: pd.DataFrame,
+    elements_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Map season-specific historical element ids through stable player codes."""
+    if external_histories is None or external_histories.empty:
+        return pd.DataFrame()
+    if "player_code" not in external_histories.columns or "code" not in elements_df.columns:
+        return pd.DataFrame()
+    current = elements_df[["player_id", "code"]].copy()
+    current["player_code"] = pd.to_numeric(current["code"], errors="coerce")
+    current = current.dropna(subset=["player_code"]).drop_duplicates("player_code")
+    current["player_code"] = current["player_code"].astype(int)
+    current = current[["player_code", "player_id"]].rename(
+        columns={"player_id": "current_player_id"}
+    )
+    remapped = external_histories.merge(current, on="player_code", how="inner")
+    remapped = remapped.drop(columns=["player_id"], errors="ignore").rename(
+        columns={"current_player_id": "player_id"}
+    )
+    remapped["player_id"] = remapped["player_id"].astype(int)
+    return remapped
+
+
 def run_pipeline(
     force_refetch: bool = False,
     override_next_gw: int | None = None,
     override_last_finished_gw: int | None = None,
+    expected_season_name: str | None = None,
 ):
     logger, file_handler, log_path = configure_run_logger()
     logger.info("Starting pipeline run (force_refetch=%s)", force_refetch)
@@ -197,6 +286,9 @@ def run_pipeline(
         with log_timed_step(logger, "Normalising bootstrap data"):
             norms = normalize_bootstrap(bootstrap)
         elements_df, teams_df, events_df = norms["elements"], norms["teams"], norms["events"]
+        fixtures_df = pd.DataFrame(fixtures)
+        current_season_name = infer_season_name(events_df)
+        validate_season_name(current_season_name, expected_season_name)
         logger.info(
             "Loaded normalised frames: %d elements, %d teams, %d events",
             len(elements_df),
@@ -271,17 +363,19 @@ def run_pipeline(
         histories_df = pd.DataFrame(rows)
         logger.info("Built player histories dataframe with %d rows", len(histories_df))
 
-        if histories_df.empty:
-            logger.error("No player history data found in %s", RAW_DIR)
-            raise RuntimeError("No player history data found.")
-
         if USE_EXTERNAL_HISTORY:
             with log_timed_step(logger, "Loading external history data"):
                 external_histories = load_external_histories(EXTERNAL_HISTORY_SEASONS)
             if external_histories is not None and not external_histories.empty:
-                external_histories = external_histories[
-                    external_histories["player_id"].isin(elements_df["player_id"])
-                ].copy()
+                if last_finished_gw == 0 and current_season_name is not None:
+                    validate_external_history_coverage(
+                        external_histories,
+                        previous_season_name(current_season_name),
+                    )
+                external_histories = remap_external_histories_to_current_players(
+                    external_histories,
+                    elements_df,
+                )
                 logger.info(
                     "Loaded %d external history rows for seasons %s",
                     len(external_histories),
@@ -300,11 +394,25 @@ def run_pipeline(
             else:
                 logger.info("No external history rows loaded.")
 
+        if histories_df.empty:
+            logger.error("No current or mapped historical player data found")
+            raise RuntimeError(
+                "No usable player history data found. Ensure the external history dataset "
+                "is installed for a pre-season GW1 run."
+            )
+
         # 4) Build training and next-gw prediction frames
-        state = ModelState()
+        state = ModelState(season_name=current_season_name)
         with log_timed_step(logger, "Building training and prediction feature frames"):
             X_train, y_train, X_pred, train_metadata = build_training_and_pred_frames(
-                elements_df, teams_df, histories_df, next_gw, last_finished_gw, state
+                elements_df,
+                teams_df,
+                histories_df,
+                next_gw,
+                last_finished_gw,
+                state,
+                fixtures_df=fixtures_df,
+                current_season_name=current_season_name,
             )
         logger.info(
             "Prepared features: X_train=%s, y_train=%d, X_pred=%s",
@@ -325,9 +433,19 @@ def run_pipeline(
             ", ".join(train_features.columns.astype(str)),
         )
         with log_timed_step(logger, "Training prediction models"):
-            clf, reg, candidate_models = train_models(train_features, y_train, train_metadata)
+            clf, appearance_clf, reg, cameo_points, candidate_models = train_models(
+                train_features,
+                y_train,
+                train_metadata,
+            )
         log_model_feature_weights(logger, train_features.columns, reg, model_label="regressor")
         log_model_feature_weights(logger, train_features.columns, clf, model_label="classifier")
+        log_model_feature_weights(
+            logger,
+            train_features.columns,
+            appearance_clf,
+            model_label="appearance classifier",
+        )
         logger.info(
             "Model training complete; fitted %d candidate pair(s).",
             len(candidate_models),
@@ -357,27 +475,44 @@ def run_pipeline(
         per_model_raw_cols: list[str] = []
         per_model_corrected_cols: list[str] = []
         per_model_start_cols: list[str] = []
+        per_model_appearance_cols: list[str] = []
         per_model_points_hat_cols: list[str] = []
+        per_model_cameo_cols: list[str] = []
         ensemble_predictions = None
 
         with log_timed_step(logger, "Generating next gameweek predictions"):
             for bundle in candidate_models:
-                preds = predict_expected_points(X_pred, bundle.classifier, bundle.regressor, state)
+                preds = predict_expected_points(
+                    X_pred,
+                    bundle.classifier,
+                    bundle.regressor,
+                    state,
+                    appearance_clf=bundle.appearance_classifier,
+                    cameo_points_by_position=bundle.cameo_points_by_position,
+                )
                 suffix = bundle.name
                 raw_col = f"expected_points_raw__{suffix}"
                 corrected_col = f"expected_points__{suffix}"
                 start_col = f"start_probability__{suffix}"
+                appearance_col = f"appearance_probability__{suffix}"
                 points_hat_col = f"points_hat__{suffix}"
+                cameo_col = f"cameo_points__{suffix}"
                 if ensemble_predictions is None:
                     ensemble_predictions = preds[meta_cols].copy()
                 ensemble_predictions[raw_col] = preds["expected_points_raw"].values
                 ensemble_predictions[corrected_col] = preds["expected_points"].values
                 ensemble_predictions[start_col] = preds["p_start"].values
+                ensemble_predictions[appearance_col] = preds["p_appearance"].values
                 ensemble_predictions[points_hat_col] = preds["points_hat"].values
+                ensemble_predictions[cameo_col] = preds["element_type"].map(
+                    bundle.cameo_points_by_position
+                ).fillna(1.0).values
                 per_model_raw_cols.append(raw_col)
                 per_model_corrected_cols.append(corrected_col)
                 per_model_start_cols.append(start_col)
+                per_model_appearance_cols.append(appearance_col)
                 per_model_points_hat_cols.append(points_hat_col)
+                per_model_cameo_cols.append(cameo_col)
 
         if ensemble_predictions is None:
             raise RuntimeError("No candidate predictions were generated for the ensemble.")
@@ -387,6 +522,10 @@ def run_pipeline(
             per_model_raw_cols=per_model_raw_cols,
             per_model_corrected_cols=per_model_corrected_cols,
         )
+        predictions["appearance_probability"] = predictions[
+            per_model_appearance_cols
+        ].mean(axis=1).clip(lower=0.0, upper=1.0)
+        predictions["cameo_points"] = predictions[per_model_cameo_cols].mean(axis=1)
         logger.info(
             "Generated ensemble predictions for %d players using %d model(s): %s",
             len(predictions),
@@ -395,7 +534,6 @@ def run_pipeline(
         )
 
         # 7) Double/Blank GW scaling (approximate): multiply EP by number of fixtures
-        fixtures_df = pd.DataFrame(fixtures)
         predictions = expand_for_double_gw(predictions, fixtures_df, next_gw)
         if "fixture_multiplier" in predictions.columns:
             predictions["expected_points"] = predictions["expected_points"] * predictions["fixture_multiplier"]
@@ -403,11 +541,18 @@ def run_pipeline(
                 predictions[col] = predictions[col] * predictions["fixture_multiplier"]
             for col in per_model_points_hat_cols:
                 predictions[col] = predictions[col] * predictions["fixture_multiplier"]
+            for col in per_model_cameo_cols:
+                predictions[col] = predictions[col] * predictions["fixture_multiplier"]
+            predictions["cameo_points"] = (
+                predictions["cameo_points"] * predictions["fixture_multiplier"]
+            )
         predictions = add_prediction_confidence(
             predictions,
             per_model_corrected_cols=per_model_corrected_cols,
             per_model_start_cols=per_model_start_cols,
         )
+        predictions["season_name"] = current_season_name
+        predictions["gameweek"] = int(next_gw)
         logger.info("Applied fixture multipliers; average EP now %.2f", predictions["expected_points"].mean())
 
         top_preds = (
@@ -423,7 +568,14 @@ def run_pipeline(
         train_like = X_pred[["player_id", "element_type"] + feature_columns].copy()
         with log_timed_step(logger, "Evaluating last finished gameweek residuals"):
             res_df = evaluate_last_finished_gw_and_update_state(
-                clf, reg, train_like, histories_df, last_finished_gw, state
+                clf,
+                appearance_clf,
+                reg,
+                cameo_points,
+                train_like,
+                histories_df,
+                last_finished_gw,
+                state,
             )
         if res_df is not None and len(res_df):
             logger.info("Residuals computed for %d players in GW %s", len(res_df), last_finished_gw)
@@ -441,6 +593,12 @@ def run_pipeline(
             "now_cost_millions",
             "expected_points",
             "start_probability",
+            "appearance_probability",
+            "availability_this_round",
+            "availability_next_round",
+            "status_availability",
+            "fixture_multiplier",
+            "cameo_points",
             "confidence_score",
             "confidence_level",
             "expected_points_lower_80",
@@ -452,6 +610,8 @@ def run_pipeline(
                 predictions[picker_cols],
                 formations=FORMATION_OPTIONS,
             )
+        team["season_name"] = current_season_name
+        team["gameweek"] = int(next_gw)
         logger.info(
             "Selected squad: total cost %.1fM | starting cost %.1fM | bench cost %.1fM",
             team["total_cost"],
@@ -498,6 +658,14 @@ def run_pipeline(
         predictions_csv = OUTPUTS_DIR / f"predictions_gw{next_gw}.csv"
         predictions.sort_values("expected_points", ascending=False).to_csv(predictions_csv, index=False)
         logger.info("Predictions saved to %s", predictions_csv)
+        predictions_archive_csv = archive_prediction_file(
+            predictions_path=predictions_csv,
+            output_root=OUTPUTS_DIR,
+            bootstrap_path=RAW_DIR / "bootstrap-static.json",
+            season_name=current_season_name,
+            gameweek=int(next_gw),
+        )
+        logger.info("Season prediction archive saved to %s", predictions_archive_csv)
 
         xi_csv = OUTPUTS_DIR / f"starting_xi_gw{next_gw}.csv"
         squad_df = pd.DataFrame(team.get("squad", []))
@@ -535,9 +703,11 @@ def run_pipeline(
 
         logger.info("Pipeline complete for GW %s", next_gw)
         return {
+            "season_name": current_season_name,
             "next_gw": int(next_gw),
             "last_finished_gw": int(last_finished_gw),
             "predictions_csv": str(predictions_csv),
+            "predictions_archive_csv": str(predictions_archive_csv),
             "team_json": str(team_json),
             "team_graphic": str(team_image),
             "starting_xi_csv": str(xi_csv) if xi_csv is not None else None,
@@ -559,6 +729,7 @@ def replay_gameweeks(
     start_gw: int,
     end_gw: int | None = None,
     force_refetch: bool = False,
+    expected_season_name: str | None = None,
 ) -> list[dict[str, object]]:
     """
     Sequentially run the pipeline for a range of gameweeks using GW overrides.
@@ -576,6 +747,7 @@ def replay_gameweeks(
             force_refetch=run_force_refetch,
             override_next_gw=gw,
             override_last_finished_gw=max(gw - 1, 0),
+            expected_season_name=expected_season_name,
         )
         results.append(result)
     return results
@@ -598,6 +770,13 @@ if __name__ == "__main__":
         help="Manually set the last finished gameweek for a single pipeline run.",
     )
     parser.add_argument(
+        "--expected-season",
+        help=(
+            "Expected season code, for example 2026-27. Defaults to the season implied "
+            "by today's date and rejects stale bootstrap data."
+        ),
+    )
+    parser.add_argument(
         "--replay-start-gw",
         type=int,
         help="Start gameweek for sequential replay using overrides.",
@@ -614,6 +793,7 @@ if __name__ == "__main__":
             start_gw=args.replay_start_gw,
             end_gw=args.replay_end_gw,
             force_refetch=args.force_refetch,
+            expected_season_name=args.expected_season,
         )
         print(json.dumps(results, indent=2))
     else:
@@ -621,5 +801,6 @@ if __name__ == "__main__":
             force_refetch=args.force_refetch,
             override_next_gw=args.override_next_gw,
             override_last_finished_gw=args.override_last_finished_gw,
+            expected_season_name=args.expected_season,
         )
         print(json.dumps(out, indent=2))

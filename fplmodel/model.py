@@ -70,6 +70,8 @@ logger = logging.getLogger(__name__)
 
 REG_PATH = MODELS_DIR / "regressor.joblib"
 CLF_PATH = MODELS_DIR / "classifier.joblib"
+APPEARANCE_CLF_PATH = MODELS_DIR / "appearance_classifier.joblib"
+CAMEO_POINTS_PATH = MODELS_DIR / "cameo_points_by_position.joblib"
 
 class CorrelatedFeatureDropper(BaseEstimator, TransformerMixin):
     """
@@ -559,7 +561,9 @@ class FittedModelBundle:
     name: str
     display_name: str
     classifier: Pipeline
+    appearance_classifier: Pipeline
     regressor: Pipeline
+    cameo_points_by_position: dict[int, float]
 
 
 def _xgboost_available() -> bool:
@@ -768,23 +772,30 @@ def _format_metric(mean: float | None, std: float | None, lower_is_better: bool 
 
 def _evaluate_model_candidates(
     candidates: Sequence[ModelCandidate],
-    X_train: pd.DataFrame,
+    X_classifier: pd.DataFrame,
     y_start: np.ndarray,
+    y_appearance: np.ndarray,
+    classifier_sample_weight: np.ndarray | None,
+    classifier_cv_strategy: BaseCrossValidator | None,
+    X_regressor: pd.DataFrame,
     y_points: pd.Series,
-    sample_weight: np.ndarray | None,
-    cv_strategy: BaseCrossValidator | None,
+    regressor_sample_weight: np.ndarray | None,
+    regressor_cv_strategy: BaseCrossValidator | None,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
 
-    def _cv_splits(n_samples: int) -> BaseCrossValidator | int | None:
-        if cv_strategy is not None:
-            return cv_strategy
+    def _cv_splits(
+        n_samples: int,
+        strategy: BaseCrossValidator | None,
+    ) -> BaseCrossValidator | int | None:
+        if strategy is not None:
+            return strategy
         if n_samples < 2:
             return None
         return min(HYPERPARAM_TUNING_CV, n_samples)
 
-    clf_cv = _cv_splits(len(y_start))
-    reg_cv = _cv_splits(len(y_points))
+    clf_cv = _cv_splits(len(y_start), classifier_cv_strategy)
+    reg_cv = _cv_splits(len(y_points), regressor_cv_strategy)
 
     for candidate in candidates:
         result: dict[str, Any] = {
@@ -792,9 +803,12 @@ def _evaluate_model_candidates(
             "name": candidate.display_name,
             "clf_balanced_accuracy": np.nan,
             "clf_balanced_accuracy_std": np.nan,
+            "appearance_balanced_accuracy": np.nan,
+            "appearance_balanced_accuracy_std": np.nan,
             "reg_mae": np.nan,
             "reg_mae_std": np.nan,
             "clf_best_params": None,
+            "appearance_best_params": None,
             "reg_best_params": None,
         }
 
@@ -807,17 +821,38 @@ def _evaluate_model_candidates(
             mean, std, best_params = _tune_and_score(
                 candidate.build_classifier,
                 candidate.clf_param_distributions,
-                X_train,
+                X_classifier,
                 y_start,
                 label=f"classifier[{candidate.name}]",
                 scoring="balanced_accuracy",
                 require_two_classes=True,
                 cv=clf_cv,
-                sample_weight=sample_weight,
+                sample_weight=classifier_sample_weight,
             )
             result["clf_balanced_accuracy"] = mean
             result["clf_balanced_accuracy_std"] = std
             result["clf_best_params"] = best_params
+
+        if clf_cv is None or np.unique(y_appearance).size < 2:
+            logger.info(
+                "Skipping appearance classifier CV for %s: insufficient target variation.",
+                candidate.display_name,
+            )
+        else:
+            mean, std, best_params = _tune_and_score(
+                candidate.build_classifier,
+                candidate.clf_param_distributions,
+                X_classifier,
+                y_appearance,
+                label=f"appearance_classifier[{candidate.name}]",
+                scoring="balanced_accuracy",
+                require_two_classes=True,
+                cv=clf_cv,
+                sample_weight=classifier_sample_weight,
+            )
+            result["appearance_balanced_accuracy"] = mean
+            result["appearance_balanced_accuracy_std"] = std
+            result["appearance_best_params"] = best_params
 
         if reg_cv is None:
             logger.info(
@@ -828,12 +863,12 @@ def _evaluate_model_candidates(
             mean, std, best_params = _tune_and_score(
                 candidate.build_regressor,
                 candidate.reg_param_distributions,
-                X_train,
+                X_regressor,
                 y_points,
                 label=f"regressor[{candidate.name}]",
                 scoring="neg_mean_absolute_error",
                 cv=reg_cv,
-                sample_weight=sample_weight,
+                sample_weight=regressor_sample_weight,
             )
             result["reg_mae"] = mean
             result["reg_mae_std"] = std
@@ -842,11 +877,16 @@ def _evaluate_model_candidates(
         results.append(result)
 
         logger.info(
-            "Candidate %s | classifier=%s | regressor=%s",
+            "Candidate %s | starter classifier=%s | appearance classifier=%s | regressor=%s",
             candidate.display_name,
             _format_metric(
                 result["clf_balanced_accuracy"],
                 result["clf_balanced_accuracy_std"],
+                lower_is_better=False,
+            ),
+            _format_metric(
+                result["appearance_balanced_accuracy"],
+                result["appearance_balanced_accuracy_std"],
                 lower_is_better=False,
             ),
             _format_metric(
@@ -863,6 +903,8 @@ def _evaluate_model_candidates(
                 "model": res["name"],
                 "balanced_accuracy_mean": res["clf_balanced_accuracy"],
                 "balanced_accuracy_std": res["clf_balanced_accuracy_std"],
+                "appearance_balanced_accuracy_mean": res["appearance_balanced_accuracy"],
+                "appearance_balanced_accuracy_std": res["appearance_balanced_accuracy_std"],
                 "mae_mean": res["reg_mae"],
                 "mae_std": res["reg_mae_std"],
             }
@@ -907,15 +949,16 @@ def train_models(
     X_train: pd.DataFrame,
     y_train: pd.Series,
     metadata: pd.DataFrame | None = None,
-) -> Tuple[Pipeline, Pipeline, list[FittedModelBundle]]:
+) -> Tuple[Pipeline, Pipeline, Pipeline, dict[int, float], list[FittedModelBundle]]:
     """
     Train classifier (starts >=60) and regressor (points) by comparing multiple model families.
 
     metadata provides optional columns (e.g., season_name, round, kickoff_time) used to
     construct chronological CV folds and per-season sample weights.
 
-    Returns the selected classifier/regressor pipelines plus every fitted candidate pair
-    for downstream ensembling.
+    Returns the selected 60-minute classifier, any-appearance classifier,
+    conditional points regressor, cameo-point means, and every fitted candidate
+    bundle for downstream ensembling.
     """
 
     X_train, y_train, metadata_sorted, sample_weight, cv_strategy, season_weights = _prepare_training_temporal_order(
@@ -963,27 +1006,91 @@ def train_models(
         logger.info("Using default CV folds for hyperparameter tuning (time splits unavailable).")
 
     y_start = derive_start_target(X_train, metadata_sorted)
+    if metadata_sorted is not None and "minutes" in metadata_sorted.columns:
+        minutes = pd.to_numeric(metadata_sorted["minutes"], errors="coerce").fillna(0.0)
+        y_appearance = (minutes.to_numpy() > 0.0).astype(int)
+    else:
+        y_appearance = y_start.copy()
+    start_mask = y_start.astype(bool)
+    if start_mask.sum() < max(20, HYPERPARAM_TUNING_CV + 1):
+        logger.warning(
+            "Too few 60-minute rows for a conditional points model; using all training rows."
+        )
+        start_mask = np.ones(len(X_train), dtype=bool)
+    reg_X_train = X_train.loc[start_mask].reset_index(drop=True)
+    reg_y_train = y_train.loc[start_mask].reset_index(drop=True)
+    reg_sample_weight = sample_weight[start_mask] if sample_weight is not None else None
+
+    cameo_points_by_position: dict[int, float] = {}
+    if metadata_sorted is not None and "minutes" in metadata_sorted.columns:
+        minutes = pd.to_numeric(metadata_sorted["minutes"], errors="coerce").fillna(0.0)
+        cameo_mask = minutes.gt(0.0) & minutes.lt(60.0)
+        cameo_points = y_train.loc[cameo_mask]
+        fallback_cameo_points = float(cameo_points.mean()) if not cameo_points.empty else 1.0
+        fallback_cameo_points = float(np.clip(fallback_cameo_points, 0.0, 5.0))
+        if "element_type" in metadata_sorted.columns:
+            positions = pd.to_numeric(metadata_sorted["element_type"], errors="coerce")
+            for position in (1, 2, 3, 4):
+                position_points = y_train.loc[cameo_mask & positions.eq(position)]
+                mean_points = (
+                    float(position_points.mean())
+                    if not position_points.empty
+                    else fallback_cameo_points
+                )
+                cameo_points_by_position[position] = float(np.clip(mean_points, 0.0, 5.0))
+        else:
+            cameo_points_by_position = {
+                position: fallback_cameo_points for position in (1, 2, 3, 4)
+            }
+    if not cameo_points_by_position:
+        cameo_points_by_position = {position: 1.0 for position in (1, 2, 3, 4)}
 
     candidates = _build_model_candidates()
-    selection_X, selection_y_start, selection_y_train, selection_sample_weight = _selection_training_sample(
+    selection_X, selection_y_start, _, selection_sample_weight = _selection_training_sample(
         X_train,
         y_start,
         y_train,
         sample_weight,
     )
+    selection_y_appearance = y_appearance[-len(selection_X):]
+
+    reg_selection_X = reg_X_train
+    reg_selection_y = reg_y_train
+    reg_selection_weight = reg_sample_weight
+    if (
+        MODEL_SELECTION_MAX_SAMPLES is not None
+        and int(MODEL_SELECTION_MAX_SAMPLES) > 0
+        and len(reg_selection_X) > int(MODEL_SELECTION_MAX_SAMPLES)
+    ):
+        start_idx = len(reg_selection_X) - int(MODEL_SELECTION_MAX_SAMPLES)
+        reg_selection_X = reg_selection_X.iloc[start_idx:].reset_index(drop=True)
+        reg_selection_y = reg_selection_y.iloc[start_idx:].reset_index(drop=True)
+        if reg_selection_weight is not None:
+            reg_selection_weight = reg_selection_weight[start_idx:]
+    reg_selection_cv: BaseCrossValidator | None = None
+    if len(reg_selection_X) >= 3:
+        reg_selection_cv = TimeSeriesSplit(
+            n_splits=min(HYPERPARAM_TUNING_CV, len(reg_selection_X) - 1)
+        )
     evaluation_results = _evaluate_model_candidates(
         candidates,
         selection_X,
         selection_y_start,
-        selection_y_train,
+        selection_y_appearance,
         selection_sample_weight,
         cv_strategy,
+        reg_selection_X,
+        reg_selection_y,
+        reg_selection_weight,
+        reg_selection_cv,
     )
 
     # Default selections fall back to the first candidate (histogram gradient boosting)
     best_clf_candidate = candidates[0]
+    best_appearance_candidate = candidates[0]
     best_reg_candidate = candidates[0]
     best_clf_metrics: dict[str, Any] | None = None
+    best_appearance_metrics: dict[str, Any] | None = None
     best_reg_metrics: dict[str, Any] | None = None
 
     for res in evaluation_results:
@@ -994,6 +1101,14 @@ def train_models(
             ):
                 best_clf_metrics = res
                 best_clf_candidate = res["candidate"]
+        if not np.isnan(res.get("appearance_balanced_accuracy", np.nan)):
+            if (
+                best_appearance_metrics is None
+                or res["appearance_balanced_accuracy"]
+                > best_appearance_metrics["appearance_balanced_accuracy"]
+            ):
+                best_appearance_metrics = res
+                best_appearance_candidate = res["candidate"]
         if not np.isnan(res.get("reg_mae", np.nan)):
             if best_reg_metrics is None or res["reg_mae"] < best_reg_metrics["reg_mae"]:
                 best_reg_metrics = res
@@ -1013,6 +1128,22 @@ def train_models(
         logger.info(
             "Falling back to default classifier model: %s",
             best_clf_candidate.display_name,
+        )
+
+    if best_appearance_metrics:
+        logger.info(
+            "Selected appearance classifier model: %s (balanced_accuracy=%s)",
+            best_appearance_candidate.display_name,
+            _format_metric(
+                best_appearance_metrics["appearance_balanced_accuracy"],
+                best_appearance_metrics["appearance_balanced_accuracy_std"],
+                lower_is_better=False,
+            ),
+        )
+    else:
+        logger.info(
+            "Falling back to default appearance classifier model: %s",
+            best_appearance_candidate.display_name,
         )
 
     if best_reg_metrics:
@@ -1037,6 +1168,7 @@ def train_models(
     for res in evaluation_results:
         candidate = res["candidate"]
         clf_override_params = res.get("clf_best_params") if res else None
+        appearance_override_params = res.get("appearance_best_params") if res else None
         reg_override_params = res.get("reg_best_params") if res else None
 
         try:
@@ -1061,16 +1193,37 @@ def train_models(
             continue
 
         try:
+            candidate_appearance_clf = _fit_with_optional_tuning(
+                candidate.build_classifier(),
+                candidate.clf_param_distributions,
+                X_train,
+                y_appearance,
+                label=f"appearance_classifier[{candidate.name}]",
+                scoring="balanced_accuracy",
+                require_two_classes=True,
+                override_params=appearance_override_params,
+                cv=cv_strategy,
+                sample_weight=sample_weight,
+            )
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.warning(
+                "Training appearance classifier %s failed (%s); skipping candidate for ensemble.",
+                candidate.display_name,
+                exc,
+            )
+            continue
+
+        try:
             candidate_reg = _fit_with_optional_tuning(
                 candidate.build_regressor(),
                 candidate.reg_param_distributions,
-                X_train,
-                y_train,
+                reg_X_train,
+                reg_y_train,
                 label=f"regressor[{candidate.name}]",
                 scoring="neg_mean_absolute_error",
                 override_params=reg_override_params,
-                cv=cv_strategy,
-                sample_weight=sample_weight,
+                cv=None,
+                sample_weight=reg_sample_weight,
             )
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.warning(
@@ -1084,7 +1237,9 @@ def train_models(
             name=candidate.name,
             display_name=candidate.display_name,
             classifier=candidate_clf,
+            appearance_classifier=candidate_appearance_clf,
             regressor=candidate_reg,
+            cameo_points_by_position=cameo_points_by_position,
         )
         fitted_candidates.append(bundle)
         fitted_map[candidate.name] = bundle
@@ -1104,47 +1259,76 @@ def train_models(
             scoring="balanced_accuracy",
             require_two_classes=True,
         )
+        fallback_appearance_clf = _fit_with_optional_tuning(
+            fallback.build_classifier(),
+            fallback.clf_param_distributions,
+            X_train,
+            y_appearance,
+            label=f"appearance_classifier[{fallback.name}]",
+            scoring="balanced_accuracy",
+            require_two_classes=True,
+        )
         fallback_reg = _fit_with_optional_tuning(
             fallback.build_regressor(),
             fallback.reg_param_distributions,
-            X_train,
-            y_train,
+            reg_X_train,
+            reg_y_train,
             label=f"regressor[{fallback.name}]",
             scoring="neg_mean_absolute_error",
+            sample_weight=reg_sample_weight,
         )
         fallback_bundle = FittedModelBundle(
             name=fallback.name,
             display_name=fallback.display_name,
             classifier=fallback_clf,
+            appearance_classifier=fallback_appearance_clf,
             regressor=fallback_reg,
+            cameo_points_by_position=cameo_points_by_position,
         )
         fitted_candidates.append(fallback_bundle)
         fitted_map[fallback.name] = fallback_bundle
 
     fallback_bundle = fitted_candidates[0]
+    fallback_candidate = next(
+        candidate for candidate in candidates if candidate.name == fallback_bundle.name
+    )
     if best_clf_candidate.name not in fitted_map:
         logger.warning(
             "Selected classifier %s unavailable after fitting; reverting to %s.",
             best_clf_candidate.display_name,
             fallback_bundle.display_name,
         )
-        best_clf_candidate = candidates[0]
+        best_clf_candidate = fallback_candidate
+    if best_appearance_candidate.name not in fitted_map:
+        logger.warning(
+            "Selected appearance classifier %s unavailable after fitting; reverting to %s.",
+            best_appearance_candidate.display_name,
+            fallback_bundle.display_name,
+        )
+        best_appearance_candidate = fallback_candidate
     if best_reg_candidate.name not in fitted_map:
         logger.warning(
             "Selected regressor %s unavailable after fitting; reverting to %s.",
             best_reg_candidate.display_name,
             fallback_bundle.display_name,
         )
-        best_reg_candidate = candidates[0]
+        best_reg_candidate = fallback_candidate
 
     clf_bundle = fitted_map.get(best_clf_candidate.name, fallback_bundle)
+    appearance_bundle = fitted_map.get(best_appearance_candidate.name, fallback_bundle)
     reg_bundle = fitted_map.get(best_reg_candidate.name, fallback_bundle)
     clf = clf_bundle.classifier
+    appearance_clf = appearance_bundle.appearance_classifier
     reg = reg_bundle.regressor
+    cameo_points = reg_bundle.cameo_points_by_position
 
     _log_feature_selection(
         clf.named_steps.get("feature_selector"),
         f"classifier ({best_clf_candidate.display_name})",
+    )
+    _log_feature_selection(
+        appearance_clf.named_steps.get("feature_selector"),
+        f"appearance classifier ({best_appearance_candidate.display_name})",
     )
     _log_feature_selection(
         reg.named_steps.get("feature_selector"),
@@ -1152,8 +1336,9 @@ def train_models(
     )
 
     logger.info(
-        "Final model selection: classifier=%s | regressor=%s",
+        "Final model selection: starter classifier=%s | appearance classifier=%s | regressor=%s",
         best_clf_candidate.display_name,
+        best_appearance_candidate.display_name,
         best_reg_candidate.display_name,
     )
 
@@ -1161,19 +1346,25 @@ def train_models(
     CLF_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     joblib.dump(clf, CLF_PATH)
+    joblib.dump(appearance_clf, APPEARANCE_CLF_PATH)
     joblib.dump(reg, REG_PATH)
-    return clf, reg, fitted_candidates
+    joblib.dump(cameo_points, CAMEO_POINTS_PATH)
+    return clf, appearance_clf, reg, cameo_points, fitted_candidates
 
-def load_models() -> Tuple[Pipeline, Pipeline]:
+def load_models() -> Tuple[Pipeline, Pipeline, Pipeline, dict[int, float]]:
     clf = joblib.load(CLF_PATH)
+    appearance_clf = joblib.load(APPEARANCE_CLF_PATH)
     reg = joblib.load(REG_PATH)
-    return clf, reg
+    cameo_points = joblib.load(CAMEO_POINTS_PATH)
+    return clf, appearance_clf, reg, cameo_points
 
 def predict_expected_points(
     X_meta_and_feats: pd.DataFrame,
     clf: Pipeline,
     reg: Pipeline,
     state: ModelState,
+    appearance_clf: Pipeline | None = None,
+    cameo_points_by_position: dict[int, float] | None = None,
 ) -> pd.DataFrame:
     """
     Input contains meta columns: player_id, full_name, team_name, now_cost_millions, team_id, element_type
@@ -1181,47 +1372,76 @@ def predict_expected_points(
     Returns a DataFrame with expected_points and bias-corrected EP.
     """
     base_meta_cols = ["player_id", "full_name", "team_name", "now_cost_millions", "team_id", "element_type"]
-    optional_meta_cols = [col for col in ("season_minutes",) if col in X_meta_and_feats.columns]
+    optional_meta_names = (
+        "season_minutes",
+        "history_match_count",
+        "availability_this_round",
+        "availability_next_round",
+        "status_availability",
+        "status_injury_flag",
+        "injury_risk_flag",
+        "fixture_count",
+    )
+    optional_meta_cols = [col for col in optional_meta_names if col in X_meta_and_feats.columns]
     meta_cols = base_meta_cols + optional_meta_cols
     meta = X_meta_and_feats[meta_cols].copy()
     feats = X_meta_and_feats.drop(columns=meta_cols)
 
     p_start = clf.predict_proba(feats)[:, 1]
+    if appearance_clf is None:
+        raise ValueError(
+            "appearance_clf is required because start probability cannot be used "
+            "as appearance probability."
+        )
+    p_appearance = appearance_clf.predict_proba(feats)[:, 1]
+    p_appearance = np.maximum(p_appearance, p_start)
     pts_hat = reg.predict(feats)
-    ep = p_start * pts_hat
-
-    if "season_minutes" in meta.columns:
+    if "history_match_count" in meta.columns:
+        history_matches = pd.to_numeric(meta["history_match_count"], errors="coerce").fillna(0.0)
+        reliability = np.clip(history_matches / float(max(1, MIN_MATCHES_FOR_FEATURES)), 0.0, 1.0)
+    elif "season_minutes" in meta.columns:
         season_minutes = pd.to_numeric(meta["season_minutes"], errors="coerce").fillna(0.0)
         minutes_threshold = float(MIN_MATCHES_FOR_FEATURES * 90.0)
-        if minutes_threshold > 0:
-            reliability = np.clip(season_minutes / minutes_threshold, 0.0, 1.0)
-        else:  # pragma: no cover - defensive
-            reliability = pd.Series(1.0, index=meta.index)
+        reliability = np.clip(season_minutes / minutes_threshold, 0.0, 1.0)
     else:
         reliability = pd.Series(1.0, index=meta.index)
     reliability_np = reliability.to_numpy(dtype=float)
+
+    availability = pd.Series(1.0, index=meta.index, dtype=float)
+    if "availability_next_round" in meta.columns:
+        availability = pd.to_numeric(meta["availability_next_round"], errors="coerce")
+    if "availability_this_round" in meta.columns:
+        availability = availability.fillna(
+            pd.to_numeric(meta["availability_this_round"], errors="coerce")
+        )
+    if "status_availability" in meta.columns:
+        availability = availability.fillna(
+            pd.to_numeric(meta["status_availability"], errors="coerce")
+        )
+    availability_np = availability.fillna(1.0).clip(0.0, 1.0).to_numpy(dtype=float)
 
     # Apply bias corrections, but keep start probability as the gate on upside.
     # A player who is very unlikely to start should not gain large standalone EP
     # from residual bias terms.
     player_bias = np.array([state.get_player_bias(pid) for pid in meta["player_id"].values])
     pos_bias = np.array([state.get_position_bias(pos) for pos in meta["element_type"].values])
-    ep_raw = ep * reliability_np
+    cameo_lookup = cameo_points_by_position or {position: 1.0 for position in (1, 2, 3, 4)}
+    cameo_points = np.array(
+        [float(cameo_lookup.get(int(position), 1.0)) for position in meta["element_type"]]
+    )
+    cameo_probability = np.clip(p_appearance - p_start, 0.0, 1.0)
+    # The regressor estimates points conditional on reaching 60 minutes. A
+    # separate appearance model and historical cameo mean account for sub-60
+    # appearances without treating them as autosub-triggering DNPs.
+    ep_raw = (
+        p_start * pts_hat + cameo_probability * cameo_points
+    ) * availability_np
     bias_correction = (player_bias + pos_bias) * p_start
-    ep_corrected = (ep + bias_correction) * reliability_np
+    ep_corrected = ep_raw + (bias_correction * availability_np)
 
     out = meta.copy()
-    extra_meta_cols = [
-        "availability_this_round",
-        "availability_next_round",
-        "status_availability",
-        "status_injury_flag",
-        "injury_risk_flag",
-    ]
-    for col in extra_meta_cols:
-        if col in X_meta_and_feats.columns:
-            out[col] = X_meta_and_feats[col].values
     out["p_start"] = p_start
+    out["p_appearance"] = p_appearance
     out["points_hat"] = pts_hat
     out["reliability_weight"] = reliability_np
     out["expected_points_raw"] = ep_raw

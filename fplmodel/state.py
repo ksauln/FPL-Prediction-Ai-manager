@@ -13,8 +13,9 @@ class ModelState:
       - position_bias: dict[pos_code] = float (EMA)
       - last_evaluated_gw: int
     """
-    def __init__(self, path: Path | None = None):
+    def __init__(self, path: Path | None = None, season_name: str | None = None):
         self.path = path or (MODELS_DIR / "state.json")
+        self.season_name = season_name
         self.player_bias: Dict[str, float] = {}
         self.position_bias: Dict[str, float] = {}
         self.last_evaluated_gw: int = 0
@@ -28,6 +29,16 @@ class ModelState:
                 self.player_bias = data.get("player_bias", {})
                 self.position_bias = data.get("position_bias", {})
                 self.last_evaluated_gw = data.get("last_evaluated_gw", 0)
+                stored_season = data.get("season_name")
+                if (
+                    self.season_name is not None
+                    and stored_season != self.season_name
+                ):
+                    self.player_bias = {}
+                    self.position_bias = {}
+                    self.last_evaluated_gw = 0
+                elif self.season_name is None:
+                    self.season_name = stored_season
             except Exception:
                 # start fresh if corrupted
                 self.player_bias, self.position_bias, self.last_evaluated_gw = {}, {}, 0
@@ -40,6 +51,7 @@ class ModelState:
                     "player_bias": self.player_bias,
                     "position_bias": self.position_bias,
                     "last_evaluated_gw": self.last_evaluated_gw,
+                    "season_name": self.season_name,
                 },
                 f,
                 indent=2,
