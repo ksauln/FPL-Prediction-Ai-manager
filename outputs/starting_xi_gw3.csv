@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,next_fixture
+670,Robin Roefs,Sunderland,17,1,4.8,5.757762117795648,0.9525714648661283,92.5,High,5.193,6.322,1,0,0,BRE (H)
+72,Marcos Senesi Barón,Bournemouth,4,2,5.2,7.532825487684955,0.9418428032505541,80.8,High,4.106,10.959,1,0,0,TOT (A)
+226,Trevoh Chalobah,Chelsea,7,2,5.4,5.772231503665124,0.9080522576917597,88.8,High,4.891,6.654,1,0,0,FUL (H)
+408,Rúben dos Santos Gato Alves Dias,Man City,13,2,5.5,5.676500021575129,0.8832837904341702,92.7,High,5.302,6.051,1,0,0,BHA (A)
+74,Adrien Truffert,Bournemouth,4,2,4.8,5.477131301357232,0.9205329174487829,57.9,Medium,2.83,8.124,1,0,0,TOT (A)
+82,Antoine Semenyo,Man City,13,3,8.0,8.254902148565932,0.8967723003488619,91.3,High,7.654,8.856,1,0,1,BHA (A)
+205,Josh Cullen,Burnley,3,3,4.9,7.887271921286168,0.918971866467402,72.4,Medium,7.181,8.594,1,0,0,MUN (A)
+427,Tijjani Reijnders,Man City,13,3,5.0,6.883691580594451,0.8858291791991146,71.3,Medium,6.219,7.548,1,0,0,BHA (A)
+200,Jaidon Anthony,Burnley,3,3,5.0,6.839403498028507,0.8725128624082563,82.5,High,4.888,8.791,1,0,0,MUN (A)
+660,Anton Stach,Leeds,11,3,4.8,6.229568986014209,0.8980275288244137,66.5,Medium,5.163,7.296,1,0,0,NEW (H)
+283,Jean-Philippe Mateta,Crystal Palace,8,4,7.6,6.132158648817687,0.8266004840597803,89.1,High,5.527,6.737,1,0,0,AVL (A)

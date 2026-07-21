@@ -12,7 +12,11 @@ pytest.importorskip("sklearn", minversion="1.3")
 from fplmodel.features import _add_team_context_features, build_training_and_pred_frames
 from fplmodel.model import predict_expected_points
 from fplmodel.state import ModelState
-from main import _combine_ensemble_expected_points, add_prediction_confidence
+from main import (
+    _combine_ensemble_expected_points,
+    add_prediction_confidence,
+    list_current_player_history_files,
+)
 
 
 def _elements_df() -> pd.DataFrame:
@@ -227,6 +231,22 @@ class FeatureWorkflowTests(unittest.TestCase):
 
         self.assertAlmostEqual(out.loc[0, "expected_points_raw"], 0.1, places=6)
         self.assertAlmostEqual(out.loc[0, "expected_points"], 0.2, places=6)
+
+    def test_player_history_file_listing_ignores_stale_player_caches(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            raw_dir = Path(tmpdir)
+            for filename in [
+                "player_1.json",
+                "player_2.json",
+                "player_999.json",
+                "player_invalid.json",
+                "bootstrap-static.json",
+            ]:
+                (raw_dir / filename).write_text("{}", encoding="utf-8")
+
+            files = list_current_player_history_files(raw_dir, [2, 1])
+
+        self.assertEqual(files, ["player_1.json", "player_2.json"])
 
 
 if __name__ == "__main__":

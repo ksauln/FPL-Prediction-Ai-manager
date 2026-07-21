@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-295,Michael Keane,Everton,9,2,4.7,4.294147766203867,0,1,0,1,AVL (A)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,4.060431107351541,0,1,0,2,SUN (A)
-691,Dominic Calvert-Lewin,Leeds,11,4,6.0,3.787367580293248,0,1,0,3,FUL (H)
-287,Jordan Pickford,Everton,9,1,5.6,3.565695216661201,0,1,0,4,AVL (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+329,Harry Wilson,Fulham,10,3,5.8,4.853765132249256,0.8950159858035311,90.5,High,4.254,5.454,0,1,0,1,LEE (A)
+291,James Tarkowski,Everton,9,2,5.8,4.8173795823856,0.9557601789771202,90.3,High,3.996,5.639,0,1,0,2,AVL (A)
+344,Jaka Bijol,Leeds,11,2,3.9,4.730321782585623,0.9401624106098208,91.4,High,4.099,5.362,0,1,0,3,FUL (H)
+287,Jordan Pickford,Everton,9,1,5.6,4.204101634398935,0.9637377962526237,71.9,Medium,3.642,4.766,0,1,0,4,AVL (A)

@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-386,Alexis Mac Allister,Liverpool,12,3,6.3,4.599576795181553,0,1,0,1,WOL (A)
-411,Nico O'Reilly,Man City,13,2,5.0,4.468039204223219,0,1,0,2,NFO (H)
-252,Marc Guiu Paz,Chelsea,7,4,4.0,4.151982046110813,0,1,0,3,AVL (A)
-341,Karl Darlow,Leeds,11,1,3.9,3.6302971553710304,0,1,0,4,SUN (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+260,Marc Guéhi,Man City,13,2,5.1,4.676579101788131,0.9679611401537955,95.6,High,4.398,4.955,0,1,0,1,NFO (H)
+178,Danny Welbeck,Brighton,6,4,6.3,4.54357157760985,0.7799969834465641,85.3,High,3.682,5.406,0,1,0,2,ARS (H)
+113,Sepp van den Berg,Brentford,5,2,4.4,4.3286088086713175,0.8581737697161884,94.4,High,4.164,4.493,0,1,0,3,BOU (A)
+366,Alisson Becker,Liverpool,12,1,5.4,4.329570307274284,0.9667756633455639,98.7,High,4.265,4.394,0,1,0,4,WOL (A)

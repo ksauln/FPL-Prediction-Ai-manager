@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-342,Jayden Bogle,Leeds,11,2,4.5,4.543324672357392,0,1,0,1,AVL (H)
-714,Nick Woltemade,Newcastle,15,4,7.4,4.083456974335047,0,1,0,2,MCI (H)
-671,Callum Wilson,West Ham,19,4,5.8,3.9589012535947883,0,1,0,3,BOU (A)
-470,Martin Dúbravka,Burnley,3,1,4.0,3.9646783911519288,0,1,0,4,CHE (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+517,Elliot Anderson,Nott'm Forest,16,3,5.7,5.095006619974332,0.9668314446914966,94.9,High,4.748,5.442,0,1,0,1,LIV (A)
+205,Josh Cullen,Burnley,3,3,4.9,4.913105576069602,0.9038169594620563,63.6,Medium,3.611,6.215,0,1,0,2,CHE (H)
+261,Chris Richards,Crystal Palace,8,2,4.4,4.912814716782629,0.9600891589724534,70.2,Medium,4.165,5.661,0,1,0,3,WOL (A)
+314,Bernd Leno,Fulham,10,1,5.0,3.77438518342141,0.9414117468479427,67.6,Medium,2.919,4.629,0,1,0,4,SUN (H)

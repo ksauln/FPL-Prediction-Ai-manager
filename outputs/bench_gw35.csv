@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-64,Ollie Watkins,Aston Villa,2,4,8.7,3.359809122675138,0.909609221070655,92.4,High,2.941,3.779,0,1,0,1,TOT (H)
-318,Calvin Bassey,Fulham,10,2,4.4,3.18669275498674,0.9412633758404807,95.9,High,3.001,3.372,0,1,0,2,ARS (A)
-373,Virgil van Dijk,Liverpool,12,2,6.1,3.1218861659713086,0.9305789972583316,71.5,Medium,2.674,3.57,0,1,0,3,MUN (A)
-736,Gianluigi Donnarumma,Man City,13,1,5.6,3.273851241294781,0.9607284045941679,70.5,Medium,2.677,3.87,0,1,0,4,EVE (A)
+783,Pascal Groß,Brighton,6,3,5.6,4.946868335100209,0.9467599470883752,65.5,Medium,3.739,6.155,0,1,0,1,NEW (A)
+508,Neco Williams,Nott'm Forest,16,2,4.8,4.9119977671845785,0.8829817650059257,94.9,High,4.732,5.092,0,1,0,2,CHE (A)
+526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.9,3.8933971259917377,0.7577177944933184,86.7,High,3.282,4.505,0,1,0,3,CHE (A)
+679,Mads Hermansen,West Ham,19,1,4.2,4.32532420899617,0.9756018934140567,71.2,Medium,3.681,4.969,0,1,0,4,BRE (A)

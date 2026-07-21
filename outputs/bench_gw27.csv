@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-10,Myles Lewis-Skelly,Arsenal,1,2,5.1,4.178664182481438,0,1,0,1,TOT (A)
-217,Lyle Foster,Burnley,3,4,4.9,4.000116894809626,0,1,0,2,CHE (A)
-337,Raúl Jiménez Rodríguez,Fulham,10,4,6.1,3.6588544823662956,0,1,0,3,SUN (A)
-753,John Ruddy,Newcastle,15,1,4.0,3.7921061707422425,0,1,0,4,MCI (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+437,Lisandro Martínez,Man Utd,14,2,4.8,4.411947957174663,0.9462767191349095,97.8,High,4.343,4.481,0,1,0,1,EVE (A)
+749,Mateus Mané,Wolves,20,4,4.2,4.186171746818994,0.941426041915622,70.6,Medium,3.569,4.803,0,1,0,2,CRY (A)
+730,Brian Brobbey,Sunderland,17,4,5.3,3.905537049119215,0.8774076610474579,94.4,High,3.718,4.093,0,1,0,3,FUL (H)
+220,Robert Lynch Sánchez,Chelsea,7,1,4.8,3.6344808363578975,0.9673435495192415,94.8,High,3.301,3.968,0,1,0,4,BUR (H)

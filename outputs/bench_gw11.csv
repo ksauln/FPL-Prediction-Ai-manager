@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-575,Micky van de Ven,Spurs,18,2,4.8,4.089083197331826,0,1,0,1,MUN (H)
-526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.8,3.3703679089350413,0,1,0,2,LEE (H)
-681,Benjamin Sesko,Man Utd,14,4,7.3,3.3649693819324438,0,1,0,3,TOT (A)
-565,Guglielmo Vicario,Spurs,18,1,5.1,3.646694798498687,0,1,0,4,MUN (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+256,Daniel Muñoz Mejía,Crystal Palace,8,2,5.9,5.58512806363251,0.9176622428884035,95.2,High,5.362,5.808,0,1,0,1,BHA (H)
+668,Granit Xhaka,Sunderland,17,3,5.1,4.972336813858914,0.9361680150698327,97.2,High,4.879,5.066,0,1,0,2,ARS (H)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,4.522414517507698,0.83070901054643,87.4,High,3.764,5.281,0,1,0,3,WOL (H)
+670,Robin Roefs,Sunderland,17,1,4.8,4.120218127801413,0.9475314003746165,97.7,High,4.045,4.196,0,1,0,4,ARS (H)

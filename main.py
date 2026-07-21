@@ -30,7 +30,15 @@ from fplmodel.logging_utils import configure_run_logger, update_log_filename_for
 from fplmodel.external_history import load_external_histories
 
 from fplmodel.team_picker import pick_best_xi
-from fplmodel.display import create_best_xi_graphic
+try:
+    from fplmodel.display import create_best_xi_graphic
+except ImportError as exc:  # pragma: no cover - depends on optional plotting stack
+    _DISPLAY_IMPORT_ERROR = exc
+
+    def create_best_xi_graphic(*args, **kwargs):
+        raise ImportError(
+            "Rendering the best XI graphic requires the optional plotting dependencies."
+        ) from _DISPLAY_IMPORT_ERROR
 
 
 def build_fixture_labels(fixtures_df: pd.DataFrame, teams_df: pd.DataFrame, next_gw: int) -> dict[int, str]:
@@ -154,6 +162,22 @@ def _combine_ensemble_expected_points(
         out["expected_points"] = out["expected_points_raw"].clip(lower=0.0)
     return out
 
+
+def list_current_player_history_files(raw_dir, player_ids: list[int]) -> list[str]:
+    """Return cached player history files that match the current bootstrap player list."""
+    current_ids = {int(player_id) for player_id in player_ids}
+    files: list[str] = []
+    for filename in os.listdir(raw_dir):
+        if not filename.startswith("player_") or not filename.endswith(".json"):
+            continue
+        player_id_text = filename.removeprefix("player_").removesuffix(".json")
+        if not player_id_text.isdigit():
+            continue
+        if int(player_id_text) in current_ids:
+            files.append(filename)
+    return sorted(files, key=lambda name: int(name.split("_")[1].split(".")[0]))
+
+
 def run_pipeline(
     force_refetch: bool = False,
     override_next_gw: int | None = None,
@@ -228,12 +252,12 @@ def run_pipeline(
 
         # 3) Load histories from disk into one DF
         #    Avoid re-reading thousands of files into memory at once by streaming
-        raw_files = [
-            fn
-            for fn in os.listdir(RAW_DIR)
-            if fn.startswith("player_") and fn.endswith(".json")
-        ]
-        logger.info("Loading %d player history files from %s", len(raw_files), RAW_DIR)
+        raw_files = list_current_player_history_files(RAW_DIR, player_ids)
+        logger.info(
+            "Loading %d current player history files from %s",
+            len(raw_files),
+            RAW_DIR,
+        )
 
         rows = []
         with log_timed_step(logger, "Collating player history JSON into dataframe"):

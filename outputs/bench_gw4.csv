@@ -1,0 +1,5 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+541,Reinildo Mandava,Sunderland,17,2,3.8,4.485650815299918,0.943225317894747,91.7,High,3.893,5.078,0,1,0,1,CRY (A)
+430,Erling Haaland,Man City,13,4,14.7,4.461329595230451,0.8701007686231145,88.7,High,3.738,5.184,0,1,0,2,MUN (H)
+408,Rúben dos Santos Gato Alves Dias,Man City,13,2,5.5,4.089646873948937,0.8133399189310442,89.7,High,3.632,4.548,0,1,0,3,MUN (H)
+469,Nick Pope,Newcastle,15,1,5.0,4.230271161526305,0.8175048590642517,93.1,High,4.044,4.416,0,1,0,4,WOL (H)

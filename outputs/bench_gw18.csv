@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-284,Eddie Nketiah,Crystal Palace,8,4,5.4,4.750659491846937,0,1,0,1,TOT (H)
-6,William Saliba,Arsenal,1,2,5.9,4.708959555582484,0,1,0,2,BHA (H)
-714,Nick Woltemade,Newcastle,15,4,7.4,4.583125060025385,0,1,0,3,MUN (A)
-736,Gianluigi Donnarumma,Man City,13,1,5.7,4.2128794980847735,0,1,0,4,NFO (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+390,Ryan Gravenberch,Liverpool,12,3,5.4,4.785291191445721,0.9205858473341725,92.9,High,4.36,5.211,0,1,0,1,WOL (H)
+322,Kenny Tete,Fulham,10,2,4.5,4.776208852993111,0.8358251884388832,86.4,High,3.853,5.7,0,1,0,2,WHU (A)
+113,Sepp van den Berg,Brentford,5,2,4.4,4.612552103850029,0.9219293282236513,88.0,High,3.603,5.622,0,1,0,3,BOU (H)
+139,Bart Verbruggen,Brighton,6,1,4.6,4.409922257451209,0.9329316697703826,64.3,Medium,3.141,5.679,0,1,0,4,ARS (A)

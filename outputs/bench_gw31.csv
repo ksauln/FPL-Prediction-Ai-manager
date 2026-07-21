@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-10,Myles Lewis-Skelly,Arsenal,1,2,5.0,4.465487234679554,0,1,0,1,
-681,Benjamin Sesko,Man Utd,14,4,7.4,3.377440338534433,0,1,0,2,BOU (A)
-365,Lukas Nmecha,Leeds,11,4,5.0,3.253141094852663,0,1,0,3,BRE (H)
-32,Emiliano Martínez Romero,Aston Villa,2,1,5.1,3.883990222642071,0,1,0,4,WHU (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+113,Sepp van den Berg,Brentford,5,2,4.4,5.062606209862496,0.9058886875232106,91.9,High,4.571,5.554,0,1,0,1,LEE (A)
+136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.2,4.079179377591783,0.9333079634966127,91.9,High,3.535,4.623,0,1,0,2,LEE (A)
+624,Jarrod Bowen,West Ham,19,4,7.8,4.038033847682359,0.9522111110989213,70.8,Medium,3.425,4.651,0,1,0,3,AVL (A)
+366,Alisson Becker,Liverpool,12,1,5.4,3.6919115819912958,0.9332495410529231,96.6,High,3.569,3.815,0,1,0,4,BHA (A)

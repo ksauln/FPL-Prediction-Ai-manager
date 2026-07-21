@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,next_fixture
+736,Gianluigi Donnarumma,Man City,13,1,5.6,2.4633052742277384,0.8437550216665957,66.9,Medium,1.88,3.046,1,0,0,TOT (H)
+694,Nordi Mukiele,Sunderland,17,2,4.6,2.7460927430317446,0.8890060942733029,96.6,High,2.682,2.81,1,0,0,BUR (A)
+706,James Justin,Leeds,11,2,4.0,1.5794354411227391,0.876408377042502,86.8,High,0.669,2.49,1,0,0,ARS (A)
+815,Axel Disasi,West Ham,19,2,4.5,1.4767102674248493,0.88332918314536,69.2,Medium,1.075,1.878,1,0,0,CHE (H)
+807,Rayan Vitor Simplício Rocha,Bournemouth,4,3,5.4,3.854144932856875,0.7976532057677836,62.6,Medium,2.858,4.85,1,0,1,WOL (H)
+708,Mateus Gonçalo Espanha Fernandes,West Ham,19,3,5.5,2.3980218800367137,0.9159700679904466,97.1,High,2.334,2.462,1,0,0,CHE (H)
+796,Conor Gallagher,Spurs,18,3,5.0,2.366128906799343,0.8026716590142153,90.9,High,2.075,2.657,1,0,0,MCI (A)
+722,Florentino Ibrain Morris Luís,Burnley,3,3,5.0,2.1432575484626093,0.6541562198537874,62.8,Medium,1.651,2.636,1,0,0,SUN (H)
+817,Adam Armstrong,Wolves,20,4,5.1,2.5472248034657685,0.881989723657225,68.6,Medium,2.019,3.075,1,0,0,BOU (A)
+791,Valentín Castellanos,West Ham,19,4,5.5,2.4101097248571786,0.8071009923710903,67.8,Medium,1.972,2.848,1,0,0,CHE (H)
+730,Brian Brobbey,Sunderland,17,4,5.3,2.354220421631794,0.8127090021246728,93.5,High,2.232,2.477,1,0,0,BUR (A)

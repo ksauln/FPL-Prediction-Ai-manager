@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-681,Benjamin Sesko,Man Utd,14,4,7.3,3.6635158020102523,0,1,0,1,LIV (A)
-36,Matty Cash,Aston Villa,2,2,4.6,3.612048270413916,0,1,0,2,TOT (A)
-708,Mateus Gonçalo Espanha Fernandes,West Ham,19,3,5.5,3.511480839599892,0,1,0,3,BRE (H)
-736,Gianluigi Donnarumma,Man City,13,1,5.7,5.651127955544482,0,1,0,4,EVE (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,4.708878826452349,0.9216105211789816,89.1,High,3.854,5.563,0,1,0,1,NFO (A)
+256,Daniel Muñoz Mejía,Crystal Palace,8,2,5.9,4.47768576007881,0.9589129955895955,96.6,High,4.302,4.653,0,1,0,2,BOU (H)
+295,Michael Keane,Everton,9,2,4.5,4.462700188725944,0.8921304724018391,95.4,High,4.311,4.614,0,1,0,3,MCI (A)
+670,Robin Roefs,Sunderland,17,1,4.8,3.6659150035543178,0.9488631845504487,94.5,High,3.344,3.988,0,1,0,4,WOL (H)

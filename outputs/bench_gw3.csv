@@ -1,0 +1,5 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+525,Chris Wood,Nott'm Forest,16,4,7.1,5.303956881229556,0.8338951406011248,82.1,High,3.609,6.999,0,1,0,1,WHU (H)
+661,Hugo Ekitiké,Liverpool,12,4,9.0,5.234019628660246,0.7978105346437663,58.2,Medium,3.492,6.976,0,1,0,2,ARS (H)
+347,Gabriel Gudmundsson,Leeds,11,2,3.8,5.165671375293024,0.8004136829281204,59.0,Medium,3.559,6.772,0,1,0,3,NEW (H)
+469,Nick Pope,Newcastle,15,1,5.0,4.963853359792445,0.8985930133884432,92.3,High,4.53,5.398,0,1,0,4,LEE (A)

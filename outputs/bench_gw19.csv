@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-661,Hugo Ekitiké,Liverpool,12,4,9.1,5.499028455398449,0,1,0,1,LEE (H)
-443,Luke Shaw,Man Utd,14,2,4.5,5.138709223868551,0,1,0,2,WOL (H)
-407,Matheus Nunes,Man City,13,2,5.4,4.961490834388323,0,1,0,3,SUN (A)
-182,James Trafford,Man City,13,1,4.6,5.174165946604867,0,1,0,4,SUN (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+694,Nordi Mukiele,Sunderland,17,2,4.6,4.335934534867409,0.9626071890944186,97.9,High,4.253,4.419,0,1,0,1,MCI (H)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,4.114691108610311,0.7687608286801761,81.1,High,2.651,5.578,0,1,0,2,BOU (H)
+714,Nick Woltemade,Newcastle,15,4,6.7,3.7464086685218914,0.9079659538076887,94.6,High,3.518,3.975,0,1,0,3,BUR (A)
+670,Robin Roefs,Sunderland,17,1,4.8,4.260398164725487,0.9499000271615563,94.2,High,3.905,4.616,0,1,0,4,MCI (H)

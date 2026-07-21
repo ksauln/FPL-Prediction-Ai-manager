@@ -39,6 +39,7 @@ FPL-Prediction/
 │   ├── evaluation.py           # residual computation and EMA bias updates
 │   ├── team_picker.py          # ILP squad optimization
 │   ├── transfer_recommender.py # multi-GW projections + transfer suggestions
+│   ├── season_manager.py       # stateful full-season manager simulation
 │   ├── team_analysis.py        # squad summaries and comparisons
 │   ├── state.py / utils.py / logging_utils.py
 │   └── display.py              # squad visualisation
@@ -87,6 +88,46 @@ python main.py --force-refetch --replay-start-gw 8 --replay-end-gw 12
 ```
 
 This writes `outputs/predictions_gw8.csv` through `outputs/predictions_gw12.csv`, along with best XI JSON/PNG artefacts, enabling multi-week app projections.
+
+### 3.3 Simulating A Full FPL Manager
+The season manager adds the stateful layer above one-week predictions: initial squad, weekly transfers, free-transfer carryover, captain, vice-captain, chips, player purchase prices, FPL sale values, bank, team value, and repeated uncertainty-aware simulations. See `docs/season-manager.md` for design notes, `docs/ai-manager-season.md` for the season runbook, or open `manager_test.ipynb` to run and inspect the manager output in notebook form.
+
+For a quick notebook run:
+
+```bash
+jupyter notebook manager_test.ipynb
+```
+
+If Jupyter is not available in your active environment, install or launch it from the environment you normally use for notebooks, then select the project Python environment as the kernel.
+
+When it is time to run the actual new season:
+
+1. Update the upstream data after FPL prices, teams, fixtures, and GW1 metadata are live:
+
+   ```bash
+   python main.py --force-refetch --override-next-gw 1 --override-last-finished-gw 0
+   ```
+
+2. Generate enough future prediction files for the manager horizon. For a full-season planning pass, generate every available future gameweek:
+
+   ```bash
+   python main.py --replay-start-gw 1 --replay-end-gw 38
+   ```
+
+3. Open `manager_test.ipynb`, set:
+   - `START_GW = 1`
+   - `END_GW = 38`
+   - `SIMULATIONS = 100` or higher for a more stable result
+   - `SIMULATION_MODE = "periodic_reoptimization"` for large runs such as 50,000 simulations
+
+4. Check `SeasonRules` in `fplmodel/season_manager.py` before trusting a live run. FPL chip and free-transfer rules can change by season.
+
+5. Run the notebook and review:
+   - simulation summary
+   - best-run weekly decisions
+   - transfer table
+   - chip timing
+   - GW1 squad
 
 ---
 

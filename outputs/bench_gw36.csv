@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-6,William Saliba,Arsenal,1,2,6.2,3.552986585247775,0.7555358468694982,85.6,High,2.838,4.268,0,1,0,1,WHU (A)
-527,Taiwo Awoniyi,Nott'm Forest,16,4,5.2,3.5052889161651226,0.6535416675381397,80.0,High,2.428,4.582,0,1,0,2,NEW (H)
-666,Viktor Gyökeres,Arsenal,1,4,9.0,3.2189044957081077,0.7552080162237316,90.7,High,2.989,3.449,0,1,0,3,WHU (A)
-341,Karl Darlow,Leeds,11,1,4.0,3.814754079108205,0.9817196142327659,67.1,Medium,2.795,4.834,0,1,0,4,TOT (A)
+106,Nathan Collins,Brentford,5,2,4.9,5.552487180724645,0.9384687266219718,67.6,Medium,4.557,6.548,0,1,0,1,MCI (A)
+666,Viktor Gyökeres,Arsenal,1,4,9.1,4.133357935149913,0.721969084204946,82.9,High,3.179,5.087,0,1,0,2,WHU (A)
+691,Dominic Calvert-Lewin,Leeds,11,4,5.8,4.130375703613355,0.8926314729713543,96.8,High,4.066,4.194,0,1,0,3,TOT (A)
+341,Karl Darlow,Leeds,11,1,4.0,4.241889088128033,0.9680860520154928,68.2,Medium,3.344,5.14,0,1,0,4,TOT (A)

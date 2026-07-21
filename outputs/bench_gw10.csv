@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-258,Tyrick Mitchell,Crystal Palace,8,2,5.0,4.138813498290831,0,1,0,1,BRE (H)
-430,Erling Haaland,Man City,13,4,14.7,3.465890593666337,0,1,0,2,BOU (H)
-681,Benjamin Sesko,Man Utd,14,4,7.3,3.3892206032743313,0,1,0,3,NFO (A)
-366,Alisson Becker,Liverpool,12,1,5.4,2.79784426618365,0,1,0,4,AVL (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+224,Marc Cucurella Saseta,Chelsea,7,2,6.1,4.4341910264149025,0.8669849437394774,90.0,High,3.86,5.008,0,1,0,1,TOT (A)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,4.17537593058686,0.8741377255515961,90.5,High,3.643,4.708,0,1,0,2,TOT (A)
+681,Benjamin Sesko,Man Utd,14,4,7.2,4.042972917407182,0.7131937881931967,70.0,Medium,2.865,5.221,0,1,0,3,NFO (A)
+670,Robin Roefs,Sunderland,17,1,4.8,3.59630930528977,0.9076488733321342,94.6,High,3.366,3.826,0,1,0,4,EVE (H)

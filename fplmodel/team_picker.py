@@ -3,7 +3,24 @@ from __future__ import annotations
 from typing import Dict, Iterable, Optional
 
 import pandas as pd
-from pulp import LpBinary, LpMaximize, LpProblem, LpStatusOptimal, LpVariable, lpSum
+try:
+    from pulp import (
+        PULP_CBC_CMD,
+        LpBinary,
+        LpMaximize,
+        LpProblem,
+        LpStatusOptimal,
+        LpVariable,
+        lpSum,
+    )
+except ImportError:  # pragma: no cover - exercised in environments without PuLP
+    PULP_CBC_CMD = None
+    LpBinary = None
+    LpMaximize = None
+    LpProblem = None
+    LpStatusOptimal = None
+    LpVariable = None
+    lpSum = None
 
 from .config import (
     BENCH_GK_COUNT,
@@ -24,6 +41,9 @@ def _solve_for_formation(
     formation: Dict[str, int],
 ) -> Dict[str, object]:
     """Solve the ILP for a specific formation."""
+    if LpProblem is None:
+        raise ImportError("PuLP is required for squad optimization. Install the 'pulp' package.")
+
     # Decision variables
     start_vars = {
         pid: LpVariable(f"x_{pid}", lowBound=0, upBound=1, cat=LpBinary)
@@ -98,7 +118,7 @@ def _solve_for_formation(
         (start_vars[pid] + bench_vars[pid]) * cost_map[pid] for pid in ep_map
     ) <= budget_m
 
-    status = prob.solve()
+    status = prob.solve(PULP_CBC_CMD(msg=False))
     if status != LpStatusOptimal:
         raise RuntimeError("No optimal XI found. Try adjusting budget or formation.")
 

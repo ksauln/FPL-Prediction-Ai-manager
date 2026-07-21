@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-38,Ezri Konsa Ngoyo,Aston Villa,2,2,4.4,4.397287905422565,0,1,0,1,BOU (A)
-741,Harry Gray,Leeds,11,4,4.5,4.31917247413991,0,1,0,2,NFO (H)
-233,Josh Acheampong,Chelsea,7,2,3.8,4.169472620842616,0,1,0,3,WOL (A)
-753,John Ruddy,Newcastle,15,1,4.0,4.202830087351742,0,1,0,4,BRE (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+6,William Saliba,Arsenal,1,2,6.3,5.095806872926664,0.8548243278516177,94.6,High,4.945,5.247,0,1,0,1,SUN (H)
+624,Jarrod Bowen,West Ham,19,4,7.8,4.255565024336018,0.9645391028296925,67.4,Medium,3.278,5.233,0,1,0,2,BUR (A)
+749,Mateus Mané,Wolves,20,4,4.2,4.016513246166566,0.9072704063464151,66.7,Medium,3.141,4.892,0,1,0,3,CHE (H)
+670,Robin Roefs,Sunderland,17,1,4.8,3.703913035451089,0.9725873214244919,99.0,High,3.64,3.768,0,1,0,4,ARS (A)

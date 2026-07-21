@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.8,4.340452830818721,0,1,0,1,MCI (H)
-569,Cristian Romero,Spurs,18,2,5.0,4.3383775040788795,0,1,0,2,NFO (A)
-526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.8,3.8088188844454636,0,1,0,3,TOT (H)
-182,James Trafford,Man City,13,1,4.6,4.487800308301923,0,1,0,4,CRY (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+714,Nick Woltemade,Newcastle,15,4,6.7,4.623259666873707,0.9176682101990019,90.3,High,3.939,5.307,0,1,0,1,SUN (A)
+684,Malick Thiaw,Newcastle,15,2,4.9,4.485561198256448,0.9381904189781936,67.8,Medium,3.603,5.368,0,1,0,2,SUN (A)
+526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.9,3.9805710246244392,0.806653948100106,93.5,High,3.844,4.117,0,1,0,3,TOT (H)
+220,Robert Lynch Sánchez,Chelsea,7,1,4.8,3.841086858965695,0.9167216764479482,94.3,High,3.569,4.113,0,1,0,4,EVE (H)

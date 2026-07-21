@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-608,Ollie Scarles,West Ham,19,2,4.3,4.724700967660786,0,1,0,1,MCI (H)
-178,Danny Welbeck,Brighton,6,4,6.2,4.021387709058709,0,1,0,2,SUN (A)
-365,Lukas Nmecha,Leeds,11,4,5.0,3.8393554566789145,0,1,0,3,CRY (A)
-812,Melker Ellborg,Sunderland,17,1,4.0,10.123782426976046,0,1,0,4,BHA (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+681,Benjamin Sesko,Man Utd,14,4,7.2,4.810893982143396,0.7801093182018668,73.4,Medium,3.792,5.83,0,1,0,1,AVL (H)
+603,El Hadji Malick Diouf,West Ham,19,2,4.1,4.74029919254788,0.9470549944204265,92.0,High,4.155,5.325,0,1,0,2,MCI (H)
+661,Hugo Ekitiké,Liverpool,12,4,9.0,3.9240414102492895,0.9288797950436389,63.7,Medium,2.631,5.217,0,1,0,3,TOT (H)
+366,Alisson Becker,Liverpool,12,1,5.4,3.739942237557276,0.9538651632191251,90.7,High,3.004,4.476,0,1,0,4,TOT (H)

@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-215,Zian Flemming,Burnley,3,4,5.3,9.074439323903881,0.8157397063893391,88.4,High,8.333,9.816,0,1,0,1,NFO (A) / MCI (H)
-624,Jarrod Bowen,West Ham,19,4,7.8,8.80314562514466,0.9651215476468555,67.9,Medium,7.509,10.097,0,1,0,2,CRY (A)
-606,Konstantinos Mavropanos,West Ham,19,2,4.5,8.409331296650432,0.8462867400369396,80.2,High,5.88,10.939,0,1,0,3,CRY (A)
-341,Karl Darlow,Leeds,11,1,4.0,10.575273984076052,0.960361617167893,69.7,Medium,9.346,11.805,0,1,0,4,WOL (H) / BOU (A)
+417,Rayan Cherki,Man City,13,3,6.5,6.653500270861226,0.6732904965977555,80.4,High,5.4,7.907,0,1,0,1,ARS (H) / BUR (A)
+344,Jaka Bijol,Leeds,11,2,3.9,6.539550974616818,0.8120208625698472,92.5,High,6.273,6.806,0,1,0,2,WOL (H) / BOU (A)
+136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.2,6.054829844287767,0.9216555529501274,88.2,High,5.035,7.075,0,1,0,3,FUL (H)
+679,Mads Hermansen,West Ham,19,1,4.2,5.5811670339375326,0.9607912277646911,64.2,Medium,4.088,7.075,0,1,0,4,CRY (A)

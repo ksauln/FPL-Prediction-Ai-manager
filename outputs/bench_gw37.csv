@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-344,Jaka Bijol,Leeds,11,2,3.9,3.446340105149324,0.945390392493197,92.5,High,2.95,3.943,0,1,0,1,BHA (H)
-526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.9,3.2184439147335597,0.7722727685818529,87.0,High,2.628,3.809,0,1,0,2,MUN (A)
-311,Norberto Bercique Gomes Betuncal,Everton,9,4,5.1,2.8970248059963355,0.73121523243384,89.8,High,2.651,3.143,0,1,0,3,SUN (H)
-736,Gianluigi Donnarumma,Man City,13,1,5.6,3.4566476637704815,0.9496033117407496,70.7,Medium,2.889,4.024,0,1,0,4,BOU (A)
+475,Sven Botman,Newcastle,15,2,4.9,4.904220633235477,0.8700044199167438,92.8,High,4.583,5.225,0,1,0,1,WHU (H)
+64,Ollie Watkins,Aston Villa,2,4,8.7,4.777557556164437,0.8483860220212018,84.6,High,3.535,6.02,0,1,0,2,LIV (H)
+178,Danny Welbeck,Brighton,6,4,6.3,3.8224731549759,0.8356766327735403,89.1,High,3.262,4.383,0,1,0,3,LEE (A)
+1,David Raya Martín,Arsenal,1,1,6.2,4.32419928051328,0.9509619246404584,68.8,Medium,3.517,5.131,0,1,0,4,BUR (H)

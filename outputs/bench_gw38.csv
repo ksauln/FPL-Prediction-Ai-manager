@@ -1,5 +1,5 @@
 player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-694,Nordi Mukiele,Sunderland,17,2,4.6,4.041053148649475,0.9252471747662365,95.0,High,3.807,4.275,0,1,0,1,CHE (H)
-500,William Osula,Newcastle,15,4,5.5,3.87795596832194,0.7770697462834486,85.9,High,3.123,4.633,0,1,0,2,FUL (A)
-749,Mateus Mané,Wolves,20,4,4.2,3.1624059762817245,0.7685119239930334,59.3,Medium,1.935,4.39,0,1,0,3,BUR (A)
-670,Robin Roefs,Sunderland,17,1,4.8,3.960497362676641,0.9481856704472311,98.1,High,3.896,4.025,0,1,0,4,CHE (H)
+387,Dominik Szoboszlai,Liverpool,12,3,7.1,5.52868195069321,0.957987359878122,91.8,High,4.875,6.182,0,1,0,1,BRE (H)
+318,Calvin Bassey,Fulham,10,2,4.4,4.979959554961383,0.9372781442826279,94.2,High,4.636,5.324,0,1,0,2,NEW (H)
+749,Mateus Mané,Wolves,20,4,4.2,4.866370519448987,0.8115465457533195,56.7,Medium,2.786,6.946,0,1,0,3,BUR (A)
+1,David Raya Martín,Arsenal,1,1,6.2,4.70854685537365,0.9690826939947896,68.6,Medium,3.808,5.609,0,1,0,4,CRY (A)

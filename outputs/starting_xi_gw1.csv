@@ -1,0 +1,12 @@
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,next_fixture
+341,Karl Darlow,Leeds,11,1,4.0,3.44469609042996,0.9533536987230526,69.9,Medium,2.801,4.088,1,0,0,EVE (H)
+291,James Tarkowski,Everton,9,2,5.8,3.946869178377208,0.8974767096822837,92.3,High,3.535,4.359,1,0,0,LEE (A)
+224,Marc Cucurella Saseta,Chelsea,7,2,6.1,3.798188953475355,0.8394642428860023,94.3,High,3.667,3.93,1,0,0,CRY (H)
+191,Maxime Estève,Burnley,3,2,3.8,3.5820830787321976,0.8303405948395431,91.1,High,3.221,3.943,1,0,0,TOT (A)
+807,Rayan Vitor Simplício Rocha,Bournemouth,4,3,5.4,3.8385885195125597,0.8418457255671048,65.9,Medium,3.06,4.617,1,0,0,LIV (A)
+388,Curtis Jones,Liverpool,12,3,5.4,3.754831382319713,0.8050650727930646,90.0,High,3.356,4.154,1,0,0,BOU (H)
+163,Jack Hinshelwood,Brighton,6,3,5.2,3.6193222974428503,0.8768442779523336,96.0,High,3.544,3.695,1,0,0,FUL (H)
+200,Jaidon Anthony,Burnley,3,3,5.0,3.3870357400196665,0.8601063761592316,92.8,High,3.116,3.658,1,0,0,TOT (A)
+82,Antoine Semenyo,Man City,13,3,8.0,3.318692061749176,0.8212449351052098,90.0,High,2.886,3.751,1,0,0,WOL (A)
+215,Zian Flemming,Burnley,3,4,5.3,4.003424078562128,0.8732305633724626,89.9,High,3.417,4.589,1,0,1,TOT (A)
+64,Ollie Watkins,Aston Villa,2,4,8.7,3.0019369713372166,0.7864058331110227,93.3,High,2.898,3.106,1,0,0,NEW (H)

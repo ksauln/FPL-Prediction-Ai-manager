@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-224,Marc Cucurella Saseta,Chelsea,7,2,6.0,4.16730463462326,0,1,0,1,MCI (H)
-526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.8,3.51777261603277,0,1,0,2,AVL (H)
-597,Richarlison de Andrade,Spurs,18,4,6.3,3.4850332160405,0,1,0,3,SUN (A)
-736,Gianluigi Donnarumma,Man City,13,1,5.6,3.504476259346703,0,1,0,4,CHE (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+6,William Saliba,Arsenal,1,2,6.3,3.8952691219460163,0.666847976485675,83.5,High,3.195,4.595,0,1,0,1,BOU (H)
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,3.804269861377861,0.9402368905546615,94.8,High,3.521,4.088,0,1,0,2,MCI (H)
+136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.2,3.684995685478123,0.9238193383709644,95.0,High,3.459,3.911,0,1,0,3,EVE (H)
+341,Karl Darlow,Leeds,11,1,4.0,3.923520002812344,0.9581745762911698,73.2,Medium,3.485,4.362,0,1,0,4,MUN (A)

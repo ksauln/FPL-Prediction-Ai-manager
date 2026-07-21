@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-817,Adam Armstrong,Wolves,20,4,5.4,4.411566574927542,0,1,0,1,NFO (A) / ARS (H)
-411,Nico O'Reilly,Man City,13,2,5.0,4.1912487113618,0,1,0,2,FUL (H)
-233,Josh Acheampong,Chelsea,7,2,3.7,4.175119267731547,0,1,0,3,LEE (H)
-753,John Ruddy,Newcastle,15,1,4.0,3.9151030654430756,0,1,0,4,TOT (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+47,Morgan Rogers,Aston Villa,2,3,7.3,4.845710833985812,0.9033426827736764,93.5,High,4.519,5.172,0,1,0,1,BHA (H)
+226,Trevoh Chalobah,Chelsea,7,2,5.4,4.574566140402576,0.9412144287873736,94.5,High,4.259,4.89,0,1,0,2,LEE (H)
+606,Konstantinos Mavropanos,West Ham,19,2,4.5,4.524779716988306,0.8634450501536505,95.8,High,4.451,4.599,0,1,0,3,MUN (H)
+469,Nick Pope,Newcastle,15,1,5.0,3.5753124171396826,0.9259444170499689,93.3,High,3.196,3.955,0,1,0,4,TOT (A)

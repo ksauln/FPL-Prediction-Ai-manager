@@ -28,6 +28,7 @@ models/*.joblib
 models/regressor.joblib
 models/classifier.joblib
 models/*.pkl
+outputs/season_plan_simulations.json
 #models/state.json
 #models/model_selection_summary.csv
 

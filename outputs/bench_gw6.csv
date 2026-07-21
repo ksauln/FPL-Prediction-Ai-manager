@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-683,Omar Alderete,Sunderland,17,2,4.1,2.9961839892084874,0,1,0,1,NFO (A)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.5,2.1721580686046824,0,1,0,2,BHA (H)
-430,Erling Haaland,Man City,13,4,14.7,1.920137134290406,0,1,0,3,BUR (H)
-469,Nick Pope,Newcastle,15,1,5.2,2.1204429157515907,0,1,0,4,ARS (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,5.125047844304018,0.8672538759408127,93.1,High,4.827,5.423,0,1,0,1,BHA (H)
+146,Lewis Dunk,Brighton,6,2,4.5,4.5412119706947465,0.8810487196444363,89.8,High,3.909,5.174,0,1,0,2,CHE (A)
+683,Omar Alderete,Sunderland,17,2,4.1,4.3170284867785185,0.9382878032327457,80.0,High,3.616,5.018,0,1,0,3,NFO (A)
+366,Alisson Becker,Liverpool,12,1,5.4,4.520846440261572,0.9243648476336855,94.1,High,4.204,4.837,0,1,0,4,CRY (A)

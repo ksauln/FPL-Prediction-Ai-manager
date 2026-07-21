@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-236,Pedro Lomba Neto,Chelsea,7,3,7.1,4.650065744511931,0,1,0,1,CRY (A)
-258,Tyrick Mitchell,Crystal Palace,8,2,5.0,4.16743282150356,0,1,0,2,CHE (H)
-342,Jayden Bogle,Leeds,11,2,4.4,3.984435662419639,0,1,0,3,EVE (A)
-182,James Trafford,Man City,13,1,4.5,3.7165350626743034,0,1,0,4,WOL (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+730,Brian Brobbey,Sunderland,17,4,5.3,4.442724671527442,0.8500973560737597,89.9,High,3.91,4.976,0,1,0,1,WHU (A)
+343,Pascal Struijk,Leeds,11,2,4.2,4.42318879934116,0.9098139309163653,89.4,High,3.662,5.184,0,1,0,2,EVE (A)
+691,Dominic Calvert-Lewin,Leeds,11,4,5.8,4.397293676040956,0.8574134937223576,86.0,High,3.355,5.44,0,1,0,3,EVE (A)
+628,José Malheiro de Sá,Wolves,20,1,4.2,4.007454797953624,0.9157339144109639,96.7,High,3.913,4.102,0,1,0,4,MCI (A)

@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-681,Benjamin Sesko,Man Utd,14,4,7.3,3.5787258269202384,0,1,0,1,SUN (H)
-673,João Maria Lobo Alves Palhares Costa Palhinha Gonçalves,Spurs,18,3,5.5,3.5294621035577016,0,1,0,2,LEE (A)
-293,Jake O'Brien,Everton,9,2,5.0,3.070006549188412,0,1,0,3,CRY (H)
-736,Gianluigi Donnarumma,Man City,13,1,5.7,2.129083995288772,0,1,0,4,BRE (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+291,James Tarkowski,Everton,9,2,5.8,4.725480905926533,0.9186737992512675,93.1,High,4.326,5.125,0,1,0,1,CRY (H)
+303,James Garner,Everton,9,3,5.2,4.707923876447682,0.9256132112875208,69.7,Medium,4.01,5.406,0,1,0,2,CRY (H)
+624,Jarrod Bowen,West Ham,19,4,7.8,4.634919137105835,0.9493087323287174,64.0,Medium,3.238,6.031,0,1,0,3,ARS (A)
+469,Nick Pope,Newcastle,15,1,5.0,4.272890083028624,0.894577541913506,96.1,High,4.172,4.374,0,1,0,4,NFO (H)

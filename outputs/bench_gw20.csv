@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-291,James Tarkowski,Everton,9,2,5.7,4.27268482721775,0,1,0,1,BRE (H)
-691,Dominic Calvert-Lewin,Leeds,11,4,6.0,4.079385462664301,0,1,0,2,MUN (H)
-661,Hugo Ekitiké,Liverpool,12,4,8.9,3.717153866863831,0,1,0,3,FUL (A)
-715,John Victor Maciel Furtado,Nott'm Forest,16,1,4.0,3.96536489799377,0,1,0,4,AVL (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+110,Michael Kayode,Brentford,5,2,4.6,4.685027416070575,0.89859367975341,93.2,High,4.341,5.029,0,1,0,1,EVE (A)
+661,Hugo Ekitiké,Liverpool,12,4,9.0,4.402139059442343,0.8342078096016321,65.4,Medium,3.54,5.265,0,1,0,2,FUL (A)
+624,Jarrod Bowen,West Ham,19,4,7.8,3.8892293276685272,0.965582022621848,72.6,Medium,3.398,4.38,0,1,0,3,WOL (A)
+287,Jordan Pickford,Everton,9,1,5.6,4.264217933882952,0.9415594836090432,65.2,Medium,3.102,5.426,0,1,0,4,BRE (H)

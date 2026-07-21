@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-74,Adrien Truffert,Bournemouth,4,2,4.5,5.1412821933723665,0,1,0,1,WOL (A)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.5,4.1382962344943,0,1,0,2,NFO (A)
-730,Brian Brobbey,Sunderland,17,4,5.5,4.086948738076023,0,1,0,3,BUR (H)
-753,John Ruddy,Newcastle,15,1,4.0,4.243426269211549,0,1,0,4,LIV (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+730,Brian Brobbey,Sunderland,17,4,5.3,4.521050488145324,0.8414715606198953,89.4,High,3.953,5.089,0,1,0,1,BUR (H)
+64,Ollie Watkins,Aston Villa,2,4,8.7,4.462492165652337,0.8911640823580128,91.6,High,3.993,4.932,0,1,0,2,BRE (H)
+437,Lisandro Martínez,Man Utd,14,2,4.8,4.400979124601385,0.9064786159069971,94.9,High,4.191,4.611,0,1,0,3,FUL (H)
+101,Caoimhín Kelleher,Brentford,5,1,4.8,4.246475593667437,0.9432924716742115,93.9,High,3.876,4.616,0,1,0,4,AVL (A)

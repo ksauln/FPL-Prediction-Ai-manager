@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,starting,bench,captain,bench_order,next_fixture
-82,Antoine Semenyo,Bournemouth,4,3,7.8,3.97465240439271,0,1,0,1,SUN (A)
-712,Yéremy Pino Santos,Crystal Palace,8,3,5.8,3.861084407941805,0,1,0,2,MUN (H)
-714,Nick Woltemade,Newcastle,15,4,7.4,3.5912846667144005,0,1,0,3,EVE (A)
-254,Walter Benítez,Crystal Palace,8,1,4.0,3.592991226463597,0,1,0,4,MUN (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+408,Rúben dos Santos Gato Alves Dias,Man City,13,2,5.5,4.901344101202916,0.9308265014547423,92.2,High,4.384,5.419,0,1,0,1,LEE (H)
+224,Marc Cucurella Saseta,Chelsea,7,2,6.1,4.797312878560653,0.9052361887641799,93.6,High,4.474,5.12,0,1,0,2,ARS (H)
+714,Nick Woltemade,Newcastle,15,4,6.7,4.2266996041431355,0.8761746674695357,90.8,High,3.717,4.736,0,1,0,3,EVE (A)
+314,Bernd Leno,Fulham,10,1,5.0,4.262044200037481,0.9646966909694354,71.2,Medium,3.639,4.885,0,1,0,4,TOT (A)

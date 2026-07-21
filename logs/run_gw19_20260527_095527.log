@@ -1,0 +1,105 @@
+2026-05-27 09:55:27,932 [INFO] fplmodel - Logging initialised. Writing to /Users/kyle/Documents/FPL-Prediction/logs/run_20260527_095527.log
+2026-05-27 09:55:27,932 [INFO] fplmodel - Starting pipeline run (force_refetch=False)
+2026-05-27 09:55:27,932 [INFO] fplmodel - Fetching bootstrap static data...
+2026-05-27 09:55:27,954 [INFO] fplmodel - Fetching bootstrap static data completed in 0.02s
+2026-05-27 09:55:27,954 [INFO] fplmodel - Fetching fixtures data...
+2026-05-27 09:55:28,002 [INFO] fplmodel - Fetching fixtures data completed in 0.05s
+2026-05-27 09:55:28,002 [INFO] fplmodel - Normalising bootstrap data...
+2026-05-27 09:55:28,013 [INFO] fplmodel - Normalising bootstrap data completed in 0.01s
+2026-05-27 09:55:28,013 [INFO] fplmodel - Loaded normalised frames: 841 elements, 20 teams, 38 events
+2026-05-27 09:55:28,013 [INFO] fplmodel - Gameweek override applied -> next_gw=19 | last_finished_gw=18
+2026-05-27 09:55:28,013 [INFO] fplmodel - Next gameweek: 19 | Last finished gameweek: 18
+2026-05-27 09:55:28,013 [INFO] fplmodel - Renaming log file to highlight gameweek 19
+2026-05-27 09:55:28,013 [INFO] fplmodel - Log file renamed to /Users/kyle/Documents/FPL-Prediction/logs/run_gw19_20260527_095527.log
+2026-05-27 09:55:28,013 [INFO] fplmodel - Fetching player histories for 841 players (force_refetch=False)...
+2026-05-27 09:55:28,014 [INFO] fplmodel.data_pull - Fetching player histories with 8 worker thread(s).
+2026-05-27 09:55:28,136 [INFO] fplmodel.data_pull - Player history fetch progress: 50/841 complete (0 failures).
+2026-05-27 09:55:28,247 [INFO] fplmodel.data_pull - Player history fetch progress: 100/841 complete (0 failures).
+2026-05-27 09:55:28,361 [INFO] fplmodel.data_pull - Player history fetch progress: 150/841 complete (0 failures).
+2026-05-27 09:55:28,463 [INFO] fplmodel.data_pull - Player history fetch progress: 200/841 complete (0 failures).
+2026-05-27 09:55:28,568 [INFO] fplmodel.data_pull - Player history fetch progress: 250/841 complete (0 failures).
+2026-05-27 09:55:28,675 [INFO] fplmodel.data_pull - Player history fetch progress: 300/841 complete (0 failures).
+2026-05-27 09:55:28,778 [INFO] fplmodel.data_pull - Player history fetch progress: 350/841 complete (0 failures).
+2026-05-27 09:55:28,890 [INFO] fplmodel.data_pull - Player history fetch progress: 400/841 complete (0 failures).
+2026-05-27 09:55:29,003 [INFO] fplmodel.data_pull - Player history fetch progress: 450/841 complete (0 failures).
+2026-05-27 09:55:29,110 [INFO] fplmodel.data_pull - Player history fetch progress: 500/841 complete (0 failures).
+2026-05-27 09:55:29,217 [INFO] fplmodel.data_pull - Player history fetch progress: 550/841 complete (0 failures).
+2026-05-27 09:55:29,331 [INFO] fplmodel.data_pull - Player history fetch progress: 600/841 complete (0 failures).
+2026-05-27 09:55:29,440 [INFO] fplmodel.data_pull - Player history fetch progress: 650/841 complete (0 failures).
+2026-05-27 09:55:29,545 [INFO] fplmodel.data_pull - Player history fetch progress: 700/841 complete (0 failures).
+2026-05-27 09:55:29,649 [INFO] fplmodel.data_pull - Player history fetch progress: 750/841 complete (0 failures).
+2026-05-27 09:55:29,754 [INFO] fplmodel.data_pull - Player history fetch progress: 800/841 complete (0 failures).
+2026-05-27 09:55:29,831 [INFO] fplmodel.data_pull - Player history fetch progress: 841/841 complete (0 failures).
+2026-05-27 09:55:29,871 [INFO] fplmodel - Fetching player histories for 841 players (force_refetch=False) completed in 1.86s
+2026-05-27 09:55:29,872 [INFO] fplmodel - Loading 841 player history files from /Users/kyle/Documents/FPL-Prediction/data/raw
+2026-05-27 09:55:29,872 [INFO] fplmodel - Collating player history JSON into dataframe...
+2026-05-27 09:55:30,749 [INFO] fplmodel - Collating player history JSON into dataframe completed in 0.88s
+2026-05-27 09:55:31,819 [INFO] fplmodel - Built player histories dataframe with 178482 rows
+2026-05-27 09:55:31,819 [INFO] fplmodel - Loading external history data...
+2026-05-27 09:55:32,612 [INFO] fplmodel - Loading external history data completed in 0.79s
+2026-05-27 09:55:32,652 [INFO] fplmodel - Loaded 133500 external history rows for seasons 2020-21, 2021-22, 2022-23, 2023-24, 2024-25
+2026-05-27 09:55:32,828 [INFO] fplmodel - Combined history dataset now has 296480 rows
+2026-05-27 09:55:32,828 [INFO] fplmodel - Building training and prediction feature frames...
+2026-05-27 09:55:53,267 [INFO] fplmodel - Building training and prediction feature frames completed in 20.44s
+2026-05-27 09:55:53,268 [INFO] fplmodel - Prepared features: X_train=(265224, 156), y_train=265224, X_pred=(841, 163)
+2026-05-27 09:55:53,277 [INFO] fplmodel - Training models with 156 features
+2026-05-27 09:55:53,277 [INFO] fplmodel - Training feature columns: total_points_ma5, minutes_ma5, goals_scored_ma5, assists_ma5, clean_sheets_ma5, influence_ma5, creativity_ma5, threat_ma5, ict_index_ma5, goals_conceded_ma5, own_goals_ma5, penalties_saved_ma5, penalties_missed_ma5, yellow_cards_ma5, red_cards_ma5, saves_ma5, bonus_ma5, bps_ma5, clearances_blocks_interceptions_ma5, recoveries_ma5, tackles_ma5, defensive_contribution_ma5, starts_ma5, expected_goals_ma5, expected_assists_ma5, expected_goal_involvements_ma5, expected_goals_conceded_ma5, value_ma5, transfers_balance_ma5, selected_ma5, transfers_in_ma5, transfers_out_ma5, attacking_returns_ma5, finishing_plus_minus_ma5, finishing_ratio_ma5, creation_plus_minus_ma5, creation_ratio_ma5, xgi_plus_minus_ma5, minutes_share_ma5, points_per_90_ma5, tackles_plus_interceptions_ma5, defensive_actions_ma5, total_points_lag1, minutes_lag1, goals_scored_lag1, assists_lag1, clean_sheets_lag1, influence_lag1, creativity_lag1, threat_lag1, ict_index_lag1, goals_conceded_lag1, own_goals_lag1, penalties_saved_lag1, penalties_missed_lag1, yellow_cards_lag1, red_cards_lag1, saves_lag1, bonus_lag1, bps_lag1, clearances_blocks_interceptions_lag1, recoveries_lag1, tackles_lag1, defensive_contribution_lag1, starts_lag1, expected_goals_lag1, expected_assists_lag1, expected_goal_involvements_lag1, expected_goals_conceded_lag1, value_lag1, transfers_balance_lag1, selected_lag1, transfers_in_lag1, transfers_out_lag1, attacking_returns_lag1, finishing_plus_minus_lag1, finishing_ratio_lag1, creation_plus_minus_lag1, creation_ratio_lag1, xgi_plus_minus_lag1, minutes_share_lag1, points_per_90_lag1, tackles_plus_interceptions_lag1, defensive_actions_lag1, team_goals_for_ma5, team_goals_against_ma5, team_goal_diff_ma5, team_clean_sheet_ma5, team_conceded_two_plus_ma5, team_match_points_ma5, opp_team_goals_for_ma5, opp_team_goals_against_ma5, opp_team_goal_diff_ma5, opp_team_clean_sheet_ma5, opp_team_conceded_two_plus_ma5, opp_team_match_points_ma5, was_home, team_strength_overall, team_strength_home, team_strength_away, team_attack_home, team_attack_away, team_def_home, team_def_away, team_form_rating, team_points_table, team_league_position, team_matches_played, team_wins, team_draws, team_losses, opp_strength_overall, opp_strength_home, opp_strength_away, opp_attack_home, opp_attack_away, opp_def_home, opp_def_away, opp_form_rating, opp_points_table, opp_league_position, opp_matches_played, opp_wins, opp_draws, opp_losses, form, points_per_game, value_form, value_season, selected_by_percent, expected_goals_per_90, expected_assists_per_90, expected_goal_involvements_per_90, expected_goals_conceded_per_90, goals_conceded_per_90, saves_per_90, starts_per_90, clean_sheets_per_90, defensive_contribution_per_90, availability_this_round, availability_next_round, status_availability, status_injury_flag, injury_risk_flag, corners_and_indirect_freekicks_order, direct_freekicks_order, penalties_order, has_corners_duty, primary_corners_taker, has_direct_fk_duty, primary_direct_fk_taker, has_penalty_duty, primary_penalty_taker, set_piece_duty_score, player_bias, pos_bias
+2026-05-27 09:55:53,277 [INFO] fplmodel - Training prediction models...
+2026-05-27 09:55:53,681 [INFO] fplmodel.model - Season sample weights applied: 2020-21: 0.25, 2021-22: 0.25, 2022-23: 0.34, 2023-24: 0.49, 2024-25: 0.70, 2025-26: 1.00
+2026-05-27 09:55:53,681 [INFO] fplmodel.model - Using TimeSeriesSplit with 3 folds for hyperparameter tuning.
+2026-05-27 09:55:53,682 [INFO] fplmodel.model - Using actual match minutes as classifier target (minutes >= 60).
+2026-05-27 09:55:53,688 [INFO] fplmodel.model - Model selection using most recent 60000/265224 training rows; final fits still use all rows.
+2026-05-27 09:56:22,882 [INFO] fplmodel.model - Best classifier[hist_gbdt] params from tuning: {'est__min_samples_leaf': 20, 'est__max_iter': 250, 'est__max_depth': 8, 'est__learning_rate': 0.06, 'est__l2_regularization': 0.05} (score=0.7846)
+2026-05-27 09:56:40,863 [INFO] fplmodel.model - Best regressor[hist_gbdt] params from tuning: {'est__min_samples_leaf': 30, 'est__max_iter': 250, 'est__max_depth': None, 'est__learning_rate': 0.06, 'est__l2_regularization': 0.05} (score=-1.1227)
+2026-05-27 09:56:40,863 [INFO] fplmodel.model - Candidate Histogram Gradient Boosting | classifier=0.7846 ± 0.0062 ↑ | regressor=1.1227 ± 0.0629 ↓
+2026-05-27 09:57:14,664 [INFO] fplmodel.model - Best classifier[xgboost] params from tuning: {'est__subsample': 0.9, 'est__reg_lambda': 1.5, 'est__n_estimators': 550, 'est__max_depth': 8, 'est__learning_rate': 0.05, 'est__gamma': 0.3, 'est__colsample_bytree': 0.85} (score=0.7835)
+2026-05-27 09:57:42,998 [INFO] fplmodel.model - Best regressor[xgboost] params from tuning: {'est__subsample': 0.8, 'est__reg_lambda': 1.5, 'est__n_estimators': 250, 'est__max_depth': 4, 'est__learning_rate': 0.08, 'est__gamma': 0.1, 'est__colsample_bytree': 0.7} (score=-1.1357)
+2026-05-27 09:57:42,999 [INFO] fplmodel.model - Candidate XGBoost | classifier=0.7835 ± 0.0098 ↑ | regressor=1.1357 ± 0.0752 ↓
+2026-05-27 09:57:43,000 [INFO] fplmodel.model - Saved model selection summary to /Users/kyle/Documents/FPL-Prediction/models/model_selection_summary.csv
+2026-05-27 09:57:43,000 [INFO] fplmodel.model - Selected classifier model: Histogram Gradient Boosting (balanced_accuracy=0.7846 ± 0.0062 ↑)
+2026-05-27 09:57:43,000 [INFO] fplmodel.model - Selected regressor model: Histogram Gradient Boosting (MAE=1.1227 ± 0.0629 ↓)
+2026-05-27 09:59:15,670 [INFO] fplmodel.model - Classifier (histogram gradient boosting) feature selector dropped 37 column(s): availability_next_round, bps_lag1, bps_ma5, creation_plus_minus_lag1, creation_plus_minus_ma5, defensive_actions_lag1, defensive_actions_ma5, expected_goal_involvements_ma5, expected_goal_involvements_per_90, injury_risk_flag, ... (+27 more)
+2026-05-27 09:59:15,671 [INFO] fplmodel.model - Regressor (histogram gradient boosting) feature selector dropped 37 column(s): availability_next_round, bps_lag1, bps_ma5, creation_plus_minus_lag1, creation_plus_minus_ma5, defensive_actions_lag1, defensive_actions_ma5, expected_goal_involvements_ma5, expected_goal_involvements_per_90, injury_risk_flag, ... (+27 more)
+2026-05-27 09:59:15,672 [INFO] fplmodel.model - Final model selection: classifier=Histogram Gradient Boosting | regressor=Histogram Gradient Boosting
+2026-05-27 09:59:15,742 [INFO] fplmodel - Training prediction models completed in 202.47s
+2026-05-27 09:59:15,742 [INFO] fplmodel - Estimator HistGradientBoostingRegressor for regressor does not expose feature_importances_; skipping logging.
+2026-05-27 09:59:15,743 [INFO] fplmodel - Estimator HistGradientBoostingClassifier for classifier does not expose feature_importances_; skipping logging.
+2026-05-27 09:59:15,743 [INFO] fplmodel - Model training complete; fitted 2 candidate pair(s).
+2026-05-27 09:59:15,743 [INFO] fplmodel - Generating next gameweek predictions...
+2026-05-27 09:59:15,785 [INFO] fplmodel - Generating next gameweek predictions completed in 0.04s
+2026-05-27 09:59:15,786 [INFO] fplmodel - Generated ensemble predictions for 841 players using 2 model(s): Histogram Gradient Boosting, XGBoost
+2026-05-27 09:59:15,793 [INFO] fplmodel - Applied fixture multipliers; average EP now 0.81
+2026-05-27 09:59:15,793 [INFO] fplmodel - Top 5 expected point predictions (ensemble): Florian Wirtz (6.48); Dominic Calvert-Lewin (6.12); Bukayo Saka (5.91); Ryan Gravenberch (5.47); James Tarkowski (5.38)
+2026-05-27 09:59:15,794 [INFO] fplmodel - Evaluating last finished gameweek residuals...
+2026-05-27 09:59:15,867 [INFO] fplmodel - Evaluating last finished gameweek residuals completed in 0.07s
+2026-05-27 09:59:15,867 [INFO] fplmodel - Residuals computed for 7023 players in GW 18
+2026-05-27 09:59:15,867 [INFO] fplmodel - Selecting best XI from 841 candidates
+2026-05-27 09:59:15,867 [INFO] fplmodel - Optimising best XI selection...
+2026-05-27 09:59:16,964 [INFO] fplmodel - Optimising best XI selection completed in 1.10s
+2026-05-27 09:59:16,964 [INFO] fplmodel - Selected squad: total cost 95.5M | starting cost 72.0M | bench cost 23.5M
+2026-05-27 09:59:16,964 [INFO] fplmodel - Projected points: XI 58.86 | Captain included 65.34 | Bench 16.46
+2026-05-27 09:59:16,965 [INFO] fplmodel - Captain: Florian Wirtz
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Alisson Becker (Liverpool) - 5.24 pts | 5.4M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | James Tarkowski (Everton) - 5.38 pts | 5.8M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Omar Alderete (Sunderland) - 4.96 pts | 4.1M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Matheus Nunes (Man City) - 4.56 pts | 5.3M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Joško Gvardiol (Man City) - 4.53 pts | 5.8M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Florian Wirtz (Liverpool) - 6.48 pts | 8.3M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Bukayo Saka (Arsenal) - 5.91 pts | 10.0M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Ryan Gravenberch (Liverpool) - 5.47 pts | 5.4M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Antoine Semenyo (Man City) - 5.36 pts | 8.0M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Matheus Santos Carneiro da Cunha (Man Utd) - 4.84 pts | 8.1M
+2026-05-27 09:59:16,965 [INFO] fplmodel - XI | Dominic Calvert-Lewin (Leeds) - 6.12 pts | 5.8M
+2026-05-27 09:59:16,965 [INFO] fplmodel - Bench 1 | Nordi Mukiele (Sunderland) - 4.34 pts
+2026-05-27 09:59:16,965 [INFO] fplmodel - Bench 2 | João Pedro Junqueira de Jesus (Chelsea) - 4.11 pts
+2026-05-27 09:59:16,965 [INFO] fplmodel - Bench 3 | Nick Woltemade (Newcastle) - 3.75 pts
+2026-05-27 09:59:16,965 [INFO] fplmodel - Bench 4 | Robin Roefs (Sunderland) - 4.26 pts
+2026-05-27 09:59:16,976 [INFO] fplmodel - Predictions saved to /Users/kyle/Documents/FPL-Prediction/outputs/predictions_gw19.csv
+2026-05-27 09:59:16,977 [INFO] fplmodel - Starting XI saved to /Users/kyle/Documents/FPL-Prediction/outputs/starting_xi_gw19.csv
+2026-05-27 09:59:16,977 [INFO] fplmodel - Bench saved to /Users/kyle/Documents/FPL-Prediction/outputs/bench_gw19.csv
+2026-05-27 09:59:16,978 [INFO] fplmodel - Best XI JSON saved to /Users/kyle/Documents/FPL-Prediction/outputs/best_xi_gw19.json
+2026-05-27 09:59:16,978 [INFO] fplmodel - Rendering best XI graphic...
+2026-05-27 09:59:17,116 [INFO] fplmodel - Rendering best XI graphic completed in 0.14s
+2026-05-27 09:59:17,116 [INFO] fplmodel - Best XI graphic generated at /Users/kyle/Documents/FPL-Prediction/outputs/best_xi_gw19.png
+2026-05-27 09:59:17,126 [INFO] fplmodel - Residuals saved to /Users/kyle/Documents/FPL-Prediction/outputs/residuals_gw18.csv
+2026-05-27 09:59:17,127 [INFO] fplmodel - Pipeline complete for GW 19
