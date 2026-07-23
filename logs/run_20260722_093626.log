@@ -1,0 +1,15 @@
+2026-07-22 09:36:26,675 [INFO] fplmodel - Logging initialised. Writing to /Users/kyle/Documents/FPL-Prediction/logs/run_20260722_093626.log
+2026-07-22 09:36:26,675 [INFO] fplmodel - Starting pipeline run (force_refetch=True)
+2026-07-22 09:36:26,675 [INFO] fplmodel - Fetching bootstrap static data...
+2026-07-22 09:36:27,036 [INFO] fplmodel - Fetching bootstrap static data completed in 0.36s
+2026-07-22 09:36:27,036 [INFO] fplmodel - Fetching fixtures data...
+2026-07-22 09:36:27,302 [INFO] fplmodel - Fetching fixtures data completed in 0.27s
+2026-07-22 09:36:27,302 [INFO] fplmodel - Normalising bootstrap data...
+2026-07-22 09:36:27,313 [INFO] fplmodel - Normalising bootstrap data completed in 0.01s
+2026-07-22 09:36:27,315 [ERROR] fplmodel - Pipeline execution failed
+Traceback (most recent call last):
+  File "/Users/kyle/Documents/FPL-Prediction/main.py", line 291, in run_pipeline
+    validate_season_name(current_season_name, expected_season_name)
+  File "/Users/kyle/Documents/FPL-Prediction/main.py", line 209, in validate_season_name
+    raise RuntimeError(
+RuntimeError: FPL API season mismatch: expected 2026-27, but bootstrap data is for 2025-26. The new game may not be live yet, or the cache may be stale. Retry with --force-refetch after the FPL site launches; use --expected-season only when intentionally replaying another season.

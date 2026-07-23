@@ -83,7 +83,7 @@ def _target_fixture_context(
     windows: Iterable[int],
 ) -> pd.DataFrame:
     """Build current team/opponent form values for the fixtures in ``next_gw``."""
-    columns = ["team_id", "fixture_count", "was_home"]
+    columns = ["team_id", "fixture_count", "was_home", "fixture_difficulty"]
     if fixtures_df is None or fixtures_df.empty or "event" not in fixtures_df.columns:
         return pd.DataFrame(columns=columns)
 
@@ -136,12 +136,24 @@ def _target_fixture_context(
                     )
             latest_by_team[int(team_id)] = values
 
-    fixture_map: dict[int, list[tuple[bool, int]]] = {}
+    fixture_map: dict[int, list[tuple[bool, int, float]]] = {}
     for fixture in target.to_dict(orient="records"):
         home = int(fixture["team_h"])
         away = int(fixture["team_a"])
-        fixture_map.setdefault(home, []).append((True, away))
-        fixture_map.setdefault(away, []).append((False, home))
+        home_difficulty = pd.to_numeric(
+            pd.Series([fixture.get("team_h_difficulty")]),
+            errors="coerce",
+        ).iloc[0]
+        away_difficulty = pd.to_numeric(
+            pd.Series([fixture.get("team_a_difficulty")]),
+            errors="coerce",
+        ).iloc[0]
+        fixture_map.setdefault(home, []).append(
+            (True, away, float(home_difficulty) if pd.notna(home_difficulty) else 3.0)
+        )
+        fixture_map.setdefault(away, []).append(
+            (False, home, float(away_difficulty) if pd.notna(away_difficulty) else 3.0)
+        )
 
     rows: list[dict[str, float | int]] = []
     feature_names = [f"{stat}_ma{window}" for window in windows for stat in stats]
@@ -149,12 +161,20 @@ def _target_fixture_context(
         row: dict[str, float | int] = {
             "team_id": team_id,
             "fixture_count": len(fixtures),
-            "was_home": float(np.mean([1.0 if is_home else 0.0 for is_home, _ in fixtures])),
+            "was_home": float(
+                np.mean([1.0 if is_home else 0.0 for is_home, _, _ in fixtures])
+            ),
+            "fixture_difficulty": float(
+                np.mean([difficulty for _, _, difficulty in fixtures])
+            ),
         }
         own = latest_by_team.get(team_id, {})
         for feature in feature_names:
             row[feature] = float(own.get(feature, 0.0))
-            opponent_values = [latest_by_team.get(opponent, {}).get(feature, 0.0) for _, opponent in fixtures]
+            opponent_values = [
+                latest_by_team.get(opponent, {}).get(feature, 0.0)
+                for _, opponent, _ in fixtures
+            ]
             opponent_feature = feature.replace("team_", "opp_team_", 1)
             row[opponent_feature] = float(np.mean(opponent_values)) if opponent_values else 0.0
         rows.append(row)
@@ -179,6 +199,8 @@ def _prepare_player_static_features(elements_df: pd.DataFrame) -> pd.DataFrame:
         "starts_per_90",
         "clean_sheets_per_90",
         "defensive_contribution_per_90",
+        "ep_next",
+        "price_change_percent",
     ]
     for col in numeric_cols:
         if col in df.columns:
@@ -188,6 +210,13 @@ def _prepare_player_static_features(elements_df: pd.DataFrame) -> pd.DataFrame:
         df["season_minutes"] = pd.to_numeric(df["minutes"], errors="coerce").fillna(0.0)
     else:
         df["season_minutes"] = 0.0
+
+    if "ep_next" in df.columns:
+        df["official_ep_next"] = pd.to_numeric(df["ep_next"], errors="coerce")
+    else:
+        df["official_ep_next"] = np.nan
+    if "price_change_percent" not in df.columns:
+        df["price_change_percent"] = np.nan
 
     score_components = []
     for order_col, prefix in SET_PIECE_ORDER_MAP.items():
@@ -505,6 +534,7 @@ def build_training_and_pred_frames(
     state: ModelState,
     fixtures_df: pd.DataFrame | None = None,
     current_season_name: str | None = None,
+    official_next_gw: int | None = None,
 ) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.DataFrame]:
     """
     Returns:
@@ -535,6 +565,37 @@ def build_training_and_pred_frames(
     elif "team_current" in base.columns:
         base["team"] = base["team"].fillna(base["team_current"])
         base = base.drop(columns=["team_current"])
+
+    # External rows retain the player's position in that historical season.
+    # Current API rows have no position column, so fill only those gaps from the
+    # current bootstrap rather than relabelling old points after a reclassification.
+    if "element_type_current" in base.columns:
+        if "element_type" not in base.columns:
+            base = base.rename(columns={"element_type_current": "element_type"})
+        else:
+            base["element_type"] = pd.to_numeric(
+                base["element_type"],
+                errors="coerce",
+            ).fillna(
+                pd.to_numeric(base["element_type_current"], errors="coerce")
+            )
+            base = base.drop(columns=["element_type_current"])
+
+    if "fixture_difficulty" not in base.columns and "difficulty" in base.columns:
+        base["fixture_difficulty"] = pd.to_numeric(base["difficulty"], errors="coerce")
+    elif "fixture_difficulty" in base.columns:
+        base["fixture_difficulty"] = pd.to_numeric(
+            base["fixture_difficulty"],
+            errors="coerce",
+        )
+    else:
+        base["fixture_difficulty"] = np.nan
+    base["fixture_difficulty"] = base["fixture_difficulty"].fillna(3.0)
+
+    element_type_numeric = pd.to_numeric(base.get("element_type"), errors="coerce")
+    for code, label in ((1, "gk"), (2, "def"), (3, "mid"), (4, "fwd")):
+        base[f"position_{label}"] = (element_type_numeric == code).astype(float)
+
     base = _rolling_feats(base, windows=tuple(ROLLING_WINDOWS))
 
     rolling_feature_cols = [
@@ -544,7 +605,14 @@ def build_training_and_pred_frames(
     ]
     # Snapshot fields from bootstrap are current information and must not be
     # copied onto old training targets. Keep the model inputs historical.
-    manual_features = ["was_home"]
+    manual_features = [
+        "was_home",
+        "fixture_difficulty",
+        "position_gk",
+        "position_def",
+        "position_mid",
+        "position_fwd",
+    ]
     manual_feature_cols = [c for c in manual_features if c in base.columns]
     feature_cols = rolling_feature_cols + manual_feature_cols
 
@@ -594,6 +662,8 @@ def build_training_and_pred_frames(
         "status_availability",
         "status_injury_flag",
         "injury_risk_flag",
+        "official_ep_next",
+        "price_change_percent",
     ]
     meta_cols = [col for col in meta_cols if col in elements_with_team.columns]
     X_pred = elements_with_team[meta_cols].drop_duplicates("player_id").merge(
@@ -601,6 +671,14 @@ def build_training_and_pred_frames(
         on="player_id",
         how="left",
     )
+
+    use_official_next = official_next_gw is None or int(next_gw) == int(official_next_gw)
+    if "official_ep_next" in X_pred.columns and not use_official_next:
+        X_pred["official_ep_next"] = np.nan
+
+    prediction_element_type = pd.to_numeric(X_pred["element_type"], errors="coerce")
+    for code, label in ((1, "gk"), (2, "def"), (3, "mid"), (4, "fwd")):
+        X_pred[f"position_{label}"] = (prediction_element_type == code).astype(float)
 
     history_counts = base.groupby("player_id").size().rename("history_match_count")
     X_pred = X_pred.merge(history_counts, on="player_id", how="left")
@@ -632,7 +710,7 @@ def build_training_and_pred_frames(
     )
     if not fixture_context.empty:
         X_pred = X_pred.merge(fixture_context, on="team_id", how="left", suffixes=("", "_target"))
-        target_columns = ["was_home"] + [
+        target_columns = ["was_home", "fixture_difficulty"] + [
             col for col in feature_cols if col.startswith("team_") or col.startswith("opp_team_")
         ]
         for col in target_columns:

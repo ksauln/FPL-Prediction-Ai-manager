@@ -26,6 +26,7 @@ from fplmodel.state import ModelState
 from main import (
     _combine_ensemble_expected_points,
     add_prediction_confidence,
+    blend_official_expected_points,
     infer_season_name,
     list_current_player_history_files,
     remap_external_histories_to_current_players,
@@ -46,6 +47,8 @@ def _elements_df() -> pd.DataFrame:
                 "now_cost_millions": 7.5,
                 "minutes": 0,
                 "status": "a",
+                "ep_next": "6.4",
+                "price_change_percent": "87",
             },
             {
                 "player_id": 2,
@@ -56,6 +59,8 @@ def _elements_df() -> pd.DataFrame:
                 "now_cost_millions": 8.0,
                 "minutes": 0,
                 "status": "a",
+                "ep_next": "2.1",
+                "price_change_percent": "-42",
             },
         ]
     )
@@ -228,6 +233,76 @@ class FeatureWorkflowTests(unittest.TestCase):
         pred = X_pred.set_index("player_id")
         self.assertEqual(float(pred.loc[1, "was_home"]), 1.0)
         self.assertEqual(float(pred.loc[2, "was_home"]), 0.0)
+
+    def test_current_position_fdr_and_live_signals_reach_prediction(self) -> None:
+        rows = [
+            {
+                **_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2),
+                "element_type": 4,
+                "official_expected_points": float(round_number) + 0.5,
+                "fixture_difficulty": 4,
+            }
+            for round_number in range(1, 5)
+        ]
+        fixtures = pd.DataFrame(
+            [
+                {
+                    "event": 5,
+                    "team_h": 1,
+                    "team_a": 2,
+                    "team_h_difficulty": 2,
+                    "team_a_difficulty": 4,
+                }
+            ]
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            X_train, _, X_pred, train_metadata = build_training_and_pred_frames(
+                _elements_df().iloc[[0]].copy(),
+                _teams_df(),
+                pd.DataFrame(rows),
+                next_gw=5,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+            )
+
+        self.assertNotIn("official_expected_points", X_train.columns)
+        self.assertIn("fixture_difficulty", X_train.columns)
+        self.assertEqual(float(X_train.iloc[-1]["position_fwd"]), 1.0)
+        self.assertEqual(int(train_metadata.iloc[-1]["element_type"]), 4)
+
+        prediction = X_pred.iloc[0]
+        self.assertAlmostEqual(float(prediction["official_ep_next"]), 6.4)
+        self.assertEqual(float(prediction["fixture_difficulty"]), 2.0)
+        self.assertEqual(float(prediction["position_mid"]), 1.0)
+        self.assertEqual(float(prediction["position_fwd"]), 0.0)
+        self.assertEqual(float(prediction["price_change_percent"]), 87.0)
+
+    def test_future_replay_does_not_reuse_ep_next_for_the_wrong_gameweek(self) -> None:
+        rows = [
+            {
+                **_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2),
+                "official_expected_points": float(round_number) + 0.5,
+            }
+            for round_number in range(1, 5)
+        ]
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                _elements_df().iloc[[0]].copy(),
+                _teams_df(),
+                pd.DataFrame(rows),
+                next_gw=6,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        self.assertTrue(pd.isna(X_pred.iloc[0]["official_ep_next"]))
+        self.assertNotIn("official_expected_points", X_pred.columns)
 
     def test_blank_gameweek_players_receive_zero_fixture_multiplier(self) -> None:
         predictions = pd.DataFrame({"player_id": [1, 2], "team_id": [1, 2]})
@@ -485,6 +560,23 @@ class FeatureWorkflowTests(unittest.TestCase):
         self.assertAlmostEqual(out.loc[0, "expected_points_raw"], 0.1, places=6)
         self.assertAlmostEqual(out.loc[0, "expected_points"], 0.2, places=6)
 
+    def test_live_official_ep_is_a_bounded_next_gameweek_ensemble_input(self) -> None:
+        predictions = pd.DataFrame(
+            {
+                "player_id": [1, 2],
+                "expected_points": [8.0, 4.0],
+                "official_ep_next": [4.0, np.nan],
+            }
+        )
+
+        out = blend_official_expected_points(predictions, weight=0.35)
+
+        self.assertAlmostEqual(out.loc[0, "expected_points"], 6.6)
+        self.assertAlmostEqual(out.loc[0, "model_expected_points"], 8.0)
+        self.assertAlmostEqual(out.loc[0, "official_ep_blend_weight"], 0.35)
+        self.assertAlmostEqual(out.loc[1, "expected_points"], 4.0)
+        self.assertAlmostEqual(out.loc[1, "official_ep_blend_weight"], 0.0)
+
     def test_player_history_file_listing_ignores_stale_player_caches(self) -> None:
         with TemporaryDirectory() as tmpdir:
             raw_dir = Path(tmpdir)
@@ -507,6 +599,7 @@ class FeatureWorkflowTests(unittest.TestCase):
                 "player_id": [777, 888],
                 "player_code": [1001, 9999],
                 "season_name": ["2025-26", "2025-26"],
+                "element_type": [4, 2],
             }
         )
 
@@ -514,6 +607,9 @@ class FeatureWorkflowTests(unittest.TestCase):
 
         self.assertEqual(remapped["player_id"].tolist(), [1])
         self.assertEqual(remapped["player_code"].tolist(), [1001])
+        self.assertEqual(remapped["element_type"].tolist(), [4])
+        self.assertEqual(remapped["current_element_type"].tolist(), [3])
+        self.assertTrue(bool(remapped["position_changed"].iloc[0]))
 
     def test_season_validation_rejects_stale_api_data(self) -> None:
         events = pd.DataFrame({"deadline_time": ["2025-08-15T17:30:00Z"]})

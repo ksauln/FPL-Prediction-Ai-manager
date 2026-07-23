@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-541,Reinildo Mandava,Sunderland,17,2,3.8,4.485650815299918,0.943225317894747,91.7,High,3.893,5.078,0,1,0,1,CRY (A)
-430,Erling Haaland,Man City,13,4,14.7,4.461329595230451,0.8701007686231145,88.7,High,3.738,5.184,0,1,0,2,MUN (H)
-408,Rúben dos Santos Gato Alves Dias,Man City,13,2,5.5,4.089646873948937,0.8133399189310442,89.7,High,3.632,4.548,0,1,0,3,MUN (H)
-469,Nick Pope,Newcastle,15,1,5.0,4.230271161526305,0.8175048590642517,93.1,High,4.044,4.416,0,1,0,4,WOL (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+88,Michael Kayode,Brentford,4,2,4.5,3.7802152500173074,0.8697886611073495,0.9279822556794279,,,1.0,1.0,0.8903559127439724,90.0,High,3.219,4.342,0,1,0,1,BOU (A)
+79,Francisco Evanilson de Lima Barbosa,Bournemouth,3,4,6.0,3.5185335669133204,0.7663752119219936,0.9085456700415848,,,1.0,1.0,1.6344725111441307,86.1,High,2.84,4.197,0,1,0,2,BRE (H)
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.502324530335869,0.9165639117223041,0.9676551020302164,,,1.0,1.0,1.6344725111441307,93.1,High,3.133,3.872,0,1,0,3,NEW (H)
+301,Alex Palmer,Ipswich Town,12,1,4.0,2.8319272801854236,0.8838652275361951,0.8962857463645925,,,1.0,1.0,0.5,95.9,High,2.749,2.914,0,1,0,4,CRY (A)

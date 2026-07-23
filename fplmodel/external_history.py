@@ -4,12 +4,14 @@ import logging
 from pathlib import Path
 from typing import Iterable, Sequence
 
+import numpy as np
 import pandas as pd
 
 from .config import EXTERNAL_HISTORY_DIR
 
 logger = logging.getLogger(__name__)
 
+POSITION_CODE_MAP = {"GK": 1, "GKP": 1, "DEF": 2, "MID": 3, "FWD": 4}
 
 HISTORY_COLS_DEFAULTS = {
     "clearances_blocks_interceptions": 0.0,
@@ -55,7 +57,32 @@ def _load_player_code_map(season: str) -> dict[int, int]:
     return dict(zip(ids[valid].astype(int), codes[valid].astype(int)))
 
 
-def _normalise_frame(df: pd.DataFrame, season: str, team_map: dict[str, int]) -> pd.DataFrame:
+def _load_fixture_difficulties(season: str) -> pd.DataFrame:
+    fixtures_path = _season_dir(season) / "fixtures.csv"
+    if not fixtures_path.exists():
+        logger.warning("Missing fixtures.csv for season %s at %s", season, fixtures_path)
+        return pd.DataFrame()
+    fixtures = pd.read_csv(
+        fixtures_path,
+        usecols=lambda col: col
+        in {"id", "team_h_difficulty", "team_a_difficulty"},
+    )
+    required = {"id", "team_h_difficulty", "team_a_difficulty"}
+    if not required.issubset(fixtures.columns):
+        logger.warning("fixtures.csv for season %s lacks FDR columns", season)
+        return pd.DataFrame()
+    fixtures = fixtures.rename(columns={"id": "fixture"})
+    for col in ("fixture", "team_h_difficulty", "team_a_difficulty"):
+        fixtures[col] = pd.to_numeric(fixtures[col], errors="coerce")
+    return fixtures.dropna(subset=["fixture"]).drop_duplicates("fixture")
+
+
+def _normalise_frame(
+    df: pd.DataFrame,
+    season: str,
+    team_map: dict[str, int],
+    fixture_difficulties: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     rename_map = {
         "element": "player_id",
     }
@@ -95,6 +122,9 @@ def _normalise_frame(df: pd.DataFrame, season: str, team_map: dict[str, int]) ->
         "transfers_in",
         "transfers_out",
         "starts",
+        "xP",
+        "difficulty",
+        "fixture_difficulty",
     ]
     for col in numeric_cols:
         if col in df.columns:
@@ -108,6 +138,46 @@ def _normalise_frame(df: pd.DataFrame, season: str, team_map: dict[str, int]) ->
 
     if "modified" in df.columns:
         df["modified"] = df["modified"].astype(bool)
+
+    if "element_type" not in df.columns and "position" in df.columns:
+        position = df["position"].fillna("").astype(str).str.upper()
+        df["element_type"] = position.map(POSITION_CODE_MAP)
+    if "element_type" in df.columns:
+        df["element_type"] = pd.to_numeric(df["element_type"], errors="coerce")
+
+    if "official_expected_points" not in df.columns and "xP" in df.columns:
+        df["official_expected_points"] = pd.to_numeric(df["xP"], errors="coerce")
+    elif "official_expected_points" in df.columns:
+        df["official_expected_points"] = pd.to_numeric(
+            df["official_expected_points"],
+            errors="coerce",
+        )
+
+    if "fixture_difficulty" not in df.columns and "difficulty" in df.columns:
+        df["fixture_difficulty"] = pd.to_numeric(df["difficulty"], errors="coerce")
+    if (
+        (fixture_difficulties is not None)
+        and not fixture_difficulties.empty
+        and "fixture" in df.columns
+        and "was_home" in df.columns
+    ):
+        df = df.merge(fixture_difficulties, on="fixture", how="left")
+        calculated_difficulty = np.where(
+            df["was_home"].astype(bool),
+            df["team_h_difficulty"],
+            df["team_a_difficulty"],
+        )
+        if "fixture_difficulty" in df.columns:
+            df["fixture_difficulty"] = pd.to_numeric(
+                df["fixture_difficulty"],
+                errors="coerce",
+            ).fillna(pd.Series(calculated_difficulty, index=df.index))
+        else:
+            df["fixture_difficulty"] = calculated_difficulty
+        df = df.drop(
+            columns=["team_h_difficulty", "team_a_difficulty"],
+            errors="ignore",
+        )
 
     # Map team names to ids where available
     if "team" in df.columns:
@@ -135,6 +205,9 @@ def _normalise_frame(df: pd.DataFrame, season: str, team_map: dict[str, int]) ->
             "ict_index",
             "season_name",
             "team",
+            "element_type",
+            "official_expected_points",
+            "fixture_difficulty",
         }
     )
     existing_cols = set(df.columns)
@@ -169,6 +242,7 @@ def load_external_histories(
             continue
         team_map = _load_team_map(season)
         player_code_map = _load_player_code_map(season)
+        fixture_difficulties = _load_fixture_difficulties(season)
         season_frames = []
         for path in gw_files:
             try:
@@ -176,7 +250,12 @@ def load_external_histories(
             except Exception as exc:  # pragma: no cover - defensive read
                 logger.warning("Failed to load %s: %s", path, exc)
                 continue
-            gw_df = _normalise_frame(gw_df, season, team_map)
+            gw_df = _normalise_frame(
+                gw_df,
+                season,
+                team_map,
+                fixture_difficulties=fixture_difficulties,
+            )
             if gw_df.empty:
                 continue
             gw_df["player_code"] = gw_df["player_id"].map(player_code_map)

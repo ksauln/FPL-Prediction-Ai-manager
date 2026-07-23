@@ -25,7 +25,9 @@ def get_current_and_last_finished_gw(events_df: pd.DataFrame) -> Tuple[int, int]
     if id_col not in events_df.columns:
         raise KeyError("Neither 'event_id' nor 'id' found in events dataframe.")
 
-    # 'finished' indicates if GW is finished; 'is_next' indicates next GW
+    # `finished` can become true while Opta review is still provisional. Since
+    # 2026/27 final scoring locks at 09:00 UK time after the final match, require
+    # `data_checked` as well when the API exposes it.
     next_rows = events_df[events_df["is_next"] == True]
     if len(next_rows):
         next_gw = int(next_rows.iloc[0][id_col])
@@ -33,7 +35,10 @@ def get_current_and_last_finished_gw(events_df: pd.DataFrame) -> Tuple[int, int]
         # If season completed, pick last+1 to indicate no next GW
         next_gw = int(events_df[id_col].max()) + 1
 
-    finished = events_df[events_df["finished"] == True]
+    finished_mask = events_df["finished"].fillna(False).astype(bool)
+    if "data_checked" in events_df.columns:
+        finished_mask &= events_df["data_checked"].fillna(False).astype(bool)
+    finished = events_df[finished_mask]
     last_finished_gw = int(finished[id_col].max()) if len(finished) else 0
     return next_gw, last_finished_gw
 

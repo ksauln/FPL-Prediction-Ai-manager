@@ -87,9 +87,14 @@ result = run_repeated_season_simulations(
 save_season_simulation_artifact(result, Path("outputs/season_plan_simulations.json"))
 ```
 
-## Notes For Next Season
+## 2026/27 Rules
 
-The engine is intentionally rule-configurable. FPL chip and transfer rules can change by season, so verify `SeasonRules` against the official rules before using it for a live 2026/27 team. The special 2025/26 AFCON top-up is represented by `free_transfer_topups={16: 5}` when replaying that season; it is not assumed for later seasons.
+The engine is intentionally rule-configurable. The live pipeline now validates
+`SeasonRules` against the official bootstrap configuration before it trains.
+See [the 2026/27 audit](season-2026-27-update.md) for the confirmed changes and
+data sources. The special 2025/26 AFCON top-up is represented by
+`free_transfer_topups={16: 5}` when replaying that season; it does not apply in
+2026/27.
 
 The point model keeps rotation concepts separate: one classifier estimates 60-minute probability, another estimates any appearance, and the regressor estimates points conditional on reaching 60 minutes. Historical position-level cameo points fill the gap between those probabilities. Monte Carlo autosubs use only any-appearance probability.
 

@@ -195,6 +195,16 @@ def _team_frame(
                 "Expected pts": round(float(player.get("expected_points", 0.0)), 2),
                 "Start %": round(float(player.get("start_probability", 0.0)) * 100.0),
                 "Confidence": player.get("confidence_level", ""),
+                "Official xP": (
+                    round(float(player["official_ep_next"]), 2)
+                    if pd.notna(player.get("official_ep_next"))
+                    else None
+                ),
+                "Price predictor %": (
+                    round(float(player["price_change_percent"]), 1)
+                    if pd.notna(player.get("price_change_percent"))
+                    else None
+                ),
             }
         )
     return pd.DataFrame(rows)
@@ -213,6 +223,11 @@ def _transfer_frame(decision: dict[str, object]) -> pd.DataFrame:
                 "Buy price (£m)": round(float(transfer.get("in_purchase_price", 0.0)), 1),
                 "Projected gain": round(
                     float(transfer.get("expected_points_delta", 0.0)), 2
+                ),
+                "Buy price predictor %": (
+                    round(float(incoming["price_change_percent"]), 1)
+                    if pd.notna(incoming.get("price_change_percent"))
+                    else None
                 ),
             }
         )

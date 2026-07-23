@@ -8,6 +8,22 @@ from fplmodel.state import ModelState
 
 
 class ModelStateTests(unittest.TestCase):
+    def test_reset_biases_clears_and_persists_residual_state(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "state.json"
+            state = ModelState(path=path, season_name="2026-27")
+            state.player_bias["1"] = 2.0
+            state.position_bias["3"] = 1.0
+            state.last_evaluated_gw = 3
+            state.save()
+
+            state.reset_biases()
+            reloaded = ModelState(path=path, season_name="2026-27")
+
+        self.assertEqual(reloaded.player_bias, {})
+        self.assertEqual(reloaded.position_bias, {})
+        self.assertEqual(reloaded.last_evaluated_gw, 0)
+
     def test_state_resets_player_ids_when_season_changes(self) -> None:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "state.json"

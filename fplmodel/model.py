@@ -43,6 +43,7 @@ from .config import (
     HYPERPARAM_TUNING_ITER,
     HYPERPARAM_TUNING_CV,
     MODEL_SELECTION_MAX_SAMPLES,
+    MODEL_TRAINING_N_JOBS,
     SEASON_WEIGHT_DECAY,
     SEASON_WEIGHT_MIN,
     REG_PARAM_DISTRIBUTIONS,
@@ -378,7 +379,7 @@ def _fit_with_optional_tuning(
                 cv=cv if cv is not None else min(HYPERPARAM_TUNING_CV, len(y)),
                 scoring=scoring,
                 random_state=RANDOM_SEED,
-                n_jobs=-1,
+                n_jobs=MODEL_TRAINING_N_JOBS,
                 refit=True,
                 error_score="raise",
             )
@@ -436,7 +437,7 @@ def _tune_and_score(
                     cv=cv_splits,
                     scoring=scoring,
                     random_state=RANDOM_SEED,
-                    n_jobs=-1,
+                    n_jobs=MODEL_TRAINING_N_JOBS,
                     refit=True,
                     error_score="raise",
                     return_train_score=False,
@@ -619,7 +620,7 @@ def _build_model_candidates() -> list[ModelCandidate]:
                     n_estimators=400,
                     max_depth=None,
                     min_samples_leaf=3,
-                    n_jobs=-1,
+                n_jobs=MODEL_TRAINING_N_JOBS,
                     random_state=RANDOM_SEED,
                     class_weight="balanced_subsample",
                 )
@@ -631,7 +632,7 @@ def _build_model_candidates() -> list[ModelCandidate]:
                     n_estimators=400,
                     max_depth=None,
                     min_samples_leaf=2,
-                    n_jobs=-1,
+                n_jobs=MODEL_TRAINING_N_JOBS,
                     random_state=RANDOM_SEED,
                 )
             )
@@ -1381,6 +1382,8 @@ def predict_expected_points(
         "status_injury_flag",
         "injury_risk_flag",
         "fixture_count",
+        "official_ep_next",
+        "price_change_percent",
     )
     optional_meta_cols = [col for col in optional_meta_names if col in X_meta_and_feats.columns]
     meta_cols = base_meta_cols + optional_meta_cols

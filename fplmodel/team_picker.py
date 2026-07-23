@@ -178,6 +178,8 @@ def _solve_for_formation(
         "confidence_level",
         "expected_points_lower_80",
         "expected_points_upper_80",
+        "official_ep_next",
+        "price_change_percent",
     ]
     base_columns.extend(col for col in optional_columns if col in df.columns)
     selected = df[base_columns].copy()

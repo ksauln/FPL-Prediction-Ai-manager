@@ -11,9 +11,39 @@ from unittest.mock import patch
 import pandas as pd
 
 from fplmodel import data_pull, external_history
+from fplmodel.utils import get_current_and_last_finished_gw
 
 
 class DataPullTests(unittest.TestCase):
+    def test_provisional_gameweek_is_not_treated_as_final(self) -> None:
+        events = pd.DataFrame(
+            [
+                {
+                    "id": 1,
+                    "finished": True,
+                    "data_checked": True,
+                    "is_next": False,
+                },
+                {
+                    "id": 2,
+                    "finished": True,
+                    "data_checked": False,
+                    "is_next": False,
+                },
+                {
+                    "id": 3,
+                    "finished": False,
+                    "data_checked": False,
+                    "is_next": True,
+                },
+            ]
+        )
+
+        next_gameweek, last_finished = get_current_and_last_finished_gw(events)
+
+        self.assertEqual(next_gameweek, 3)
+        self.assertEqual(last_finished, 1)
+
     def test_player_history_fetches_only_current_season_and_versions_cache(self) -> None:
         payload = {
             "history": [
@@ -69,13 +99,28 @@ class DataPullTests(unittest.TestCase):
             pd.DataFrame(
                 [
                     {
+                        "id": 1,
+                        "event": 1,
+                        "team_h": 1,
+                        "team_a": 2,
+                        "team_h_difficulty": 2,
+                        "team_a_difficulty": 4,
+                    }
+                ]
+            ).to_csv(season_dir / "fixtures.csv", index=False)
+            pd.DataFrame(
+                [
+                    {
                         "element": 77,
                         "name": "Historical Player",
+                        "position": "DEF",
                         "team": "Alpha",
                         "round": 1,
                         "fixture": 1,
                         "total_points": 6,
                         "minutes": 90,
+                        "was_home": True,
+                        "xP": 3.7,
                     }
                 ]
             ).to_csv(gw_dir / "gw1.csv", index=False)
@@ -84,6 +129,9 @@ class DataPullTests(unittest.TestCase):
                 result = external_history.load_external_histories(["2024-25"])
 
         self.assertEqual(result.loc[0, "player_code"], 999001)
+        self.assertEqual(result.loc[0, "element_type"], 2)
+        self.assertAlmostEqual(float(result.loc[0, "official_expected_points"]), 3.7)
+        self.assertEqual(float(result.loc[0, "fixture_difficulty"]), 2.0)
 
     def test_bootstrap_metadata_refetches_when_cache_is_stale(self) -> None:
         with TemporaryDirectory() as tmpdir:

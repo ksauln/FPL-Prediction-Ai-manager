@@ -53,6 +53,10 @@ MIN_MATCHES_FOR_FEATURES = 3  # min previous matches required to generate a trai
 # Bias-correction (EMA) applied after each finished GW
 EMA_ALPHA = 0.15  # smooth bias correction across ~3 GWs to damp one-off spikes
 
+# Treat live FPL ep_next as one bounded ensemble input for the official next GW.
+# It is not reused for later planning replays because it is gameweek-specific.
+OFFICIAL_EP_BLEND_WEIGHT = 0.35
+
 # Feature selection
 FEATURE_CORRELATION_THRESHOLD = 0.90
 FEATURE_MIN_VARIANCE = 1e-6  # drop features with (near) zero variance
@@ -63,6 +67,10 @@ HYPERPARAM_TUNING_MIN_SAMPLES = 300
 HYPERPARAM_TUNING_ITER = 12
 HYPERPARAM_TUNING_CV = 3
 MODEL_SELECTION_MAX_SAMPLES = 60000
+# Keep CV/tuning in-process. This avoids macOS worker/semaphore failures and
+# makes a failed candidate surface as a real model error rather than a joblib
+# process-launch problem.
+MODEL_TRAINING_N_JOBS = 1
 
 # Sample weighting across seasons (newest season weight=1.0, prior seasons decay)
 SEASON_WEIGHT_DECAY = 0.7

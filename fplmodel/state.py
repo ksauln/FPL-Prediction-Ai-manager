@@ -64,6 +64,13 @@ class ModelState:
         # pos_code: 1 GK, 2 DEF, 3 MID, 4 FWD
         return float(self.position_bias.get(str(pos_code), 0.0))
 
+    def reset_biases(self):
+        """Clear residual corrections while keeping the active season identity."""
+        self.player_bias = {}
+        self.position_bias = {}
+        self.last_evaluated_gw = 0
+        self.save()
+
     def update_from_residuals(self, df_residuals):
         """
         df_residuals columns expected:

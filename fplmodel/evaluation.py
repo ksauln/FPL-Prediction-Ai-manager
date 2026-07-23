@@ -14,6 +14,7 @@ def evaluate_last_finished_gw_and_update_state(
     histories_df: pd.DataFrame,
     last_finished_gw: int,
     state: ModelState,
+    current_season_name: str | None = None,
 ) -> pd.DataFrame:
     """
     Build a held-out style prediction for last_finished_gw using features from gw-1,
@@ -21,7 +22,17 @@ def evaluate_last_finished_gw_and_update_state(
     Returns residuals df used for update.
     """
     # We need rows where 'round' == last_finished_gw; features must be from previous match (already lagged in build).
-    eval_rows = histories_df[histories_df["round"] == last_finished_gw].copy()
+    eval_mask = pd.to_numeric(
+        histories_df["round"],
+        errors="coerce",
+    ).eq(int(last_finished_gw))
+    if current_season_name is not None:
+        if "season_name" not in histories_df.columns:
+            return pd.DataFrame()
+        eval_mask &= histories_df["season_name"].astype(str).eq(
+            str(current_season_name)
+        )
+    eval_rows = histories_df[eval_mask].copy()
     if eval_rows.empty:
         return pd.DataFrame()
 

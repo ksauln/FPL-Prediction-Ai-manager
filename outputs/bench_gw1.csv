@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-344,Jaka Bijol,Leeds,11,2,3.9,2.9378971242606484,0.9020976085323916,89.2,High,2.214,3.661,0,1,0,1,EVE (H)
-295,Michael Keane,Everton,9,2,4.5,2.8713048260451215,0.6536443314286104,86.8,High,2.545,3.197,0,1,0,2,LEE (A)
-791,Valentín Castellanos,West Ham,19,4,5.5,2.5778740219106764,0.8518722115155366,69.2,Medium,2.146,3.009,0,1,0,3,SUN (A)
-314,Bernd Leno,Fulham,10,1,5.0,2.808413535025596,0.9093220497211536,69.2,Medium,2.249,3.367,0,1,0,4,BHA (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+112,Jan Paul van Hecke,Spurs,19,2,5.0,3.394469834420711,0.8491212866666094,0.9100274854811345,,,1.0,1.0,0.8766570605187319,92.9,High,3.146,3.643,2.2,0,0,1,0,1,BRE (A)
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.373707991704049,0.9225083250385477,0.9712978200884855,,,1.0,1.0,1.6201438848920864,91.9,High,2.878,3.869,2.0,0,0,1,0,2,NFO (A)
+527,Richarlison de Andrade,Spurs,19,4,6.0,3.0110800092866477,0.8603204538941638,0.9488996128521177,,,1.0,1.0,1.6201438848920864,92.0,High,2.681,3.341,2.0,0,0,1,0,3,BRE (A)
+109,Bart Verbruggen,Brighton,5,1,4.5,2.78064498202807,0.9372843229920518,0.9640944244183571,,,1.0,1.0,0.5,92.9,High,2.356,3.205,2.0,0,0,1,0,4,AVL (H)

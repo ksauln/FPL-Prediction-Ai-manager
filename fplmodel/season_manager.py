@@ -200,6 +200,9 @@ def _normalise_predictions(predictions: pd.DataFrame) -> pd.DataFrame:
     if "confidence_score" not in out.columns:
         out["confidence_score"] = 70.0
     out["confidence_score"] = pd.to_numeric(out["confidence_score"], errors="coerce").fillna(70.0)
+    for signal in ("official_ep_next", "price_change_percent"):
+        if signal in out.columns:
+            out[signal] = pd.to_numeric(out[signal], errors="coerce")
     if "expected_points_lower_80" not in out.columns:
         out["expected_points_lower_80"] = (out["expected_points"] - 1.0).clip(lower=0.0)
     if "expected_points_upper_80" not in out.columns:
@@ -258,6 +261,11 @@ def _aggregate_projection_for_gameweek(
         "team_id",
         "element_type",
         "now_cost_millions",
+        "official_ep_next",
+        "price_change_percent",
+    ]
+    current_meta_cols = [
+        col for col in current_meta_cols if col in predictions_by_gw[current_gw].columns
     ]
     current_meta = predictions_by_gw[current_gw][current_meta_cols].copy()
     point_cols = ["player_id"] + [
@@ -458,6 +466,8 @@ def _pick_lineup_from_owned_squad(
         "confidence_level",
         "expected_points_lower_80",
         "expected_points_upper_80",
+        "official_ep_next",
+        "price_change_percent",
     ]
     selected_columns = base_columns + [col for col in optional_columns if col in frame.columns]
     frame = frame[selected_columns + ["pos_name"]].copy()
@@ -725,7 +735,7 @@ def _transfer_candidate(
 
 def _player_record(player_lookup: pd.DataFrame, player_id: int) -> dict[str, object]:
     row = player_lookup.loc[int(player_id)]
-    return {
+    record = {
         "player_id": int(player_id),
         "full_name": str(row["full_name"]),
         "team_name": str(row["team_name"]),
@@ -734,6 +744,10 @@ def _player_record(player_lookup: pd.DataFrame, player_id: int) -> dict[str, obj
         "now_cost_millions": float(row["now_cost_millions"]),
         "expected_points": float(row["expected_points"]),
     }
+    for signal in ("official_ep_next", "price_change_percent"):
+        if signal in row.index and pd.notna(row[signal]):
+            record[signal] = float(row[signal])
+    return record
 
 
 def _apply_transfers(state: ManagerState, transfers: list[dict[str, object]]) -> None:
@@ -1355,6 +1369,8 @@ def _rebase_policy_run(
         "cameo_points",
         "confidence_score",
         "confidence_level",
+        "official_ep_next",
+        "price_change_percent",
     }
     for decision in rebased["decisions"]:
         gameweek = int(decision["gameweek"])

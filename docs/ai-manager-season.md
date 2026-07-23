@@ -40,9 +40,12 @@ The official player-history endpoint only contains the current season. A preseas
 
 ## 2. Confirm The Rules
 
-Check the official [FPL Help and Rules](https://fantasy.premierleague.com/help/) and [Game Updates](https://fantasy.premierleague.com/help/new) pages after 2026/27 launches.
+See the repository's [2026/27 rule and data-source audit](season-2026-27-update.md)
+and the linked official Premier League announcements.
 
-`SeasonRules()` currently models the confirmed 2025/26 structure of one Wildcard, Free Hit, Bench Boost, and Triple Captain in each half. The special 2025/26 AFCON transfer top-up is intentionally not a default because it may not return.
+`SeasonRules()` models the confirmed 2026/27 structure of one Wildcard, Free
+Hit, Bench Boost, and Triple Captain in each half. The 2025/26 AFCON transfer
+top-up does not return and is intentionally not a default.
 
 For a 2025/26 replay, configure it explicitly:
 
@@ -51,7 +54,9 @@ rules = SeasonRules(free_transfer_topups={16: 5})
 config = SeasonManagerConfig(rules=rules)
 ```
 
-Update `chips_by_half`, `first_half_end_gw`, transfer limits, or top-ups in the notebook if the 2026/27 rules differ.
+Every live pipeline run validates the rule surface exposed by the official FPL
+API. A mismatch in budget, squad shape, transfers, chip windows, positions, or
+scoring stops the run before model training.
 
 ## 3. Build Predictions
 

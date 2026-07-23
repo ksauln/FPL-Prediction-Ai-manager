@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-698,Noah Okafor,Leeds,11,3,5.5,2.134765095241022,0.6276524874780527,61.3,Medium,1.579,2.69,0,1,0,1,ARS (A)
-295,Michael Keane,Everton,9,2,4.5,1.3179538815655634,0.2535844508119789,78.6,High,0.0,3.082,0,1,0,2,BHA (H)
-713,Álex Jiménez Sánchez,Bournemouth,4,2,4.5,1.110498564696558,0.5970839148545992,85.8,High,0.879,1.342,0,1,0,3,WOL (H)
-733,Senne Lammens,Man Utd,14,1,5.1,2.3726981901578608,0.9258840563934552,71.4,Medium,1.976,2.769,0,1,0,4,FUL (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
+79,Francisco Evanilson de Lima Barbosa,Bournemouth,3,4,6.0,4.142426483716348,0.7663752119219936,0.9085456700415848,,,1.0,1.0,1.6344725111441307,85.6,High,3.38,4.905,0,1,0,1,EVE (H)
+423,Luke Shaw,Man Utd,16,2,4.5,3.5897110181636487,0.8474038165401621,0.9431644187128758,,,1.0,1.0,0.8903559127439724,90.6,High,3.147,4.032,0,1,0,2,IPS (H)
+332,James Justin,Leeds,13,2,4.5,3.5278137300304433,0.8928056265306914,0.9560113886198359,,,1.0,1.0,0.8903559127439724,89.9,High,2.9,4.156,0,1,0,3,BRE (H)
+109,Bart Verbruggen,Brighton,5,1,4.5,3.3483543092898937,0.9269300191519241,0.9682082679338297,,,1.0,1.0,0.5,90.6,High,2.701,3.996,0,1,0,4,CHE (A)

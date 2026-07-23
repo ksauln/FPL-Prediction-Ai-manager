@@ -170,7 +170,9 @@ When it is time to run the actual new season:
    no longer overwrites the manager's access to an older one. Only seasons with
    generated prediction files are selectable.
 
-4. Check `SeasonRules` in `fplmodel/season_manager.py` before trusting a live run. FPL chip and free-transfer rules can change by season.
+4. Review the [2026/27 rule and data-source audit](docs/season-2026-27-update.md).
+   The live pipeline now validates the official budget, squad, transfer, chip,
+   position, and scoring configuration before training and stops on drift.
 
 5. Run the manager and review:
    - simulation summary
@@ -198,7 +200,11 @@ When it is time to run the actual new season:
    - Files cached under `data/raw/player_<id>.json`.
 
 4. **External history ingestion** (`external_history.load_external_histories`)  
-   Attaches vaastav CSV seasons listed in `EXTERNAL_HISTORY_SEASONS`. Historical element IDs are season-specific, so rows are mapped to current players through stable player codes.
+   Attaches vaastav CSV seasons listed in `EXTERNAL_HISTORY_SEASONS`. Historical
+   element IDs are season-specific, so rows are mapped to current players
+   through stable player codes. Historical position and fixture difficulty are
+   retained for training. Archived `xP` is retained for audit but is not treated
+   as a reliable pre-match feature.
 
 ### 4.3 Data Cleaning
 - `data_cleaning.normalize_bootstrap` normalises bootstrap structures into pandas DataFrames (`elements`, `teams`, `events`).
@@ -208,6 +214,9 @@ When it is time to run the actual new season:
 - `features.build_training_and_pred_frames` produces:
   - Lagged + rolling windows for goals, assists, clean sheets, expected metrics.
   - Opponent strength metrics (team and opponent rolling form, expected goals conceded, set-piece roles).
+  - Historical/current position flags and target home/away Fixture Difficulty
+    Rating. Live `ep_next` is added later as a bounded next-Gameweek ensemble
+    input and is never reused for the wrong future Gameweek.
   - Bias features (player- and position-level residual signals).
   - Binary indicators for availability, home/away, double/blank weeks.
   - Training metadata (season/gameweek timestamps) for time-aware CV & weighting.

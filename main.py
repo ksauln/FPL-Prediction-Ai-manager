@@ -15,6 +15,7 @@ from fplmodel.config import (
     MAX_TRAIN_GW,
     USE_EXTERNAL_HISTORY,
     EXTERNAL_HISTORY_SEASONS,
+    OFFICIAL_EP_BLEND_WEIGHT,
 )
 from fplmodel.data_pull import fetch_bootstrap_static, fetch_fixtures_all, bulk_fetch_player_histories
 from fplmodel.data_cleaning import normalize_bootstrap
@@ -29,6 +30,7 @@ from fplmodel.state import ModelState
 from fplmodel.utils import get_current_and_last_finished_gw
 from fplmodel.logging_utils import configure_run_logger, update_log_filename_for_gameweek, log_timed_step
 from fplmodel.external_history import load_external_histories
+from fplmodel.live_rules import validate_live_fpl_configuration
 from fplmodel.prediction_artifacts import archive_prediction_file
 
 from fplmodel.team_picker import pick_best_xi
@@ -165,6 +167,33 @@ def _combine_ensemble_expected_points(
     return out
 
 
+def blend_official_expected_points(
+    predictions: pd.DataFrame,
+    *,
+    weight: float = OFFICIAL_EP_BLEND_WEIGHT,
+) -> pd.DataFrame:
+    """Blend live ``ep_next`` into the custom model only where it is available."""
+
+    if not 0.0 <= float(weight) <= 1.0:
+        raise ValueError("Official EP blend weight must be between 0 and 1")
+    out = predictions.copy()
+    model_ep = pd.to_numeric(out["expected_points"], errors="coerce").fillna(0.0)
+    official_ep = pd.to_numeric(
+        out.get("official_ep_next", pd.Series(pd.NA, index=out.index)),
+        errors="coerce",
+    ).clip(lower=0.0)
+    available = official_ep.notna()
+    applied_weight = pd.Series(0.0, index=out.index)
+    applied_weight.loc[available] = float(weight)
+    out["model_expected_points"] = model_ep
+    out["official_ep_blend_weight"] = applied_weight
+    out["expected_points"] = (
+        (1.0 - applied_weight) * model_ep
+        + applied_weight * official_ep.fillna(model_ep)
+    ).clip(lower=0.0)
+    return out
+
+
 def list_current_player_history_files(raw_dir, player_ids: list[int]) -> list[str]:
     """Return cached player history files that match the current bootstrap player list."""
     current_ids = {int(player_id) for player_id in player_ids}
@@ -251,18 +280,42 @@ def remap_external_histories_to_current_players(
         return pd.DataFrame()
     if "player_code" not in external_histories.columns or "code" not in elements_df.columns:
         return pd.DataFrame()
-    current = elements_df[["player_id", "code"]].copy()
+    current_columns = ["player_id", "code"]
+    if "element_type" in elements_df.columns:
+        current_columns.append("element_type")
+    current = elements_df[current_columns].copy()
     current["player_code"] = pd.to_numeric(current["code"], errors="coerce")
     current = current.dropna(subset=["player_code"]).drop_duplicates("player_code")
     current["player_code"] = current["player_code"].astype(int)
-    current = current[["player_code", "player_id"]].rename(
-        columns={"player_id": "current_player_id"}
+    current = current.drop(columns=["code"])
+    current = current.rename(
+        columns={
+            "player_id": "current_player_id",
+            "element_type": "current_element_type",
+        }
     )
     remapped = external_histories.merge(current, on="player_code", how="inner")
     remapped = remapped.drop(columns=["player_id"], errors="ignore").rename(
         columns={"current_player_id": "player_id"}
     )
     remapped["player_id"] = remapped["player_id"].astype(int)
+    if "current_element_type" in remapped.columns:
+        remapped["current_element_type"] = pd.to_numeric(
+            remapped["current_element_type"],
+            errors="coerce",
+        )
+        if "element_type" not in remapped.columns:
+            remapped["element_type"] = remapped["current_element_type"]
+        else:
+            remapped["element_type"] = pd.to_numeric(
+                remapped["element_type"],
+                errors="coerce",
+            ).fillna(remapped["current_element_type"])
+        remapped["position_changed"] = (
+            remapped["element_type"].notna()
+            & remapped["current_element_type"].notna()
+            & remapped["element_type"].ne(remapped["current_element_type"])
+        )
     return remapped
 
 
@@ -289,15 +342,25 @@ def run_pipeline(
         fixtures_df = pd.DataFrame(fixtures)
         current_season_name = infer_season_name(events_df)
         validate_season_name(current_season_name, expected_season_name)
+        live_rules = validate_live_fpl_configuration(bootstrap)
         logger.info(
             "Loaded normalised frames: %d elements, %d teams, %d events",
             len(elements_df),
             len(teams_df),
             len(events_df),
         )
+        logger.info(
+            "Validated live FPL rules: £%.1fm budget, %d max free transfers, "
+            "first chip half through GW%d",
+            live_rules.budget_m,
+            live_rules.max_free_transfers,
+            live_rules.first_half_end_gw,
+        )
 
         # Which GW?
         next_gw, last_finished_gw = get_current_and_last_finished_gw(events_df)
+        official_next_gw = next_gw
+        official_last_finished_gw = last_finished_gw
         if MAX_TRAIN_GW is not None:
             capped = min(last_finished_gw, int(MAX_TRAIN_GW))
             if capped != last_finished_gw:
@@ -376,6 +439,27 @@ def run_pipeline(
                     external_histories,
                     elements_df,
                 )
+                if (
+                    "position_changed" in external_histories.columns
+                    and current_season_name is not None
+                ):
+                    prior_season = previous_season_name(current_season_name)
+                    changed = external_histories[
+                        external_histories["season_name"].eq(prior_season)
+                        & external_histories["position_changed"].fillna(False)
+                    ][
+                        [
+                            "player_code",
+                            "element_type",
+                            "current_element_type",
+                        ]
+                    ].drop_duplicates("player_code")
+                    logger.info(
+                        "Detected %d mapped player position change(s) from %s to %s.",
+                        len(changed),
+                        prior_season,
+                        current_season_name,
+                    )
                 logger.info(
                     "Loaded %d external history rows for seasons %s",
                     len(external_histories),
@@ -403,6 +487,15 @@ def run_pipeline(
 
         # 4) Build training and next-gw prediction frames
         state = ModelState(season_name=current_season_name)
+        if state.last_evaluated_gw > official_last_finished_gw:
+            logger.warning(
+                "Resetting model bias state evaluated through GW%d because the "
+                "official %s season is final only through GW%d.",
+                state.last_evaluated_gw,
+                current_season_name,
+                official_last_finished_gw,
+            )
+            state.reset_biases()
         with log_timed_step(logger, "Building training and prediction feature frames"):
             X_train, y_train, X_pred, train_metadata = build_training_and_pred_frames(
                 elements_df,
@@ -413,6 +506,7 @@ def run_pipeline(
                 state,
                 fixtures_df=fixtures_df,
                 current_season_name=current_season_name,
+                official_next_gw=official_next_gw,
             )
         logger.info(
             "Prepared features: X_train=%s, y_train=%d, X_pred=%s",
@@ -469,6 +563,8 @@ def run_pipeline(
                 "status_availability",
                 "status_injury_flag",
                 "injury_risk_flag",
+                "official_ep_next",
+                "price_change_percent",
             )
             if col in X_pred.columns
         )
@@ -546,6 +642,7 @@ def run_pipeline(
             predictions["cameo_points"] = (
                 predictions["cameo_points"] * predictions["fixture_multiplier"]
             )
+        predictions = blend_official_expected_points(predictions)
         predictions = add_prediction_confidence(
             predictions,
             per_model_corrected_cols=per_model_corrected_cols,
@@ -576,6 +673,7 @@ def run_pipeline(
                 histories_df,
                 last_finished_gw,
                 state,
+                current_season_name=current_season_name,
             )
         if res_df is not None and len(res_df):
             logger.info("Residuals computed for %d players in GW %s", len(res_df), last_finished_gw)
@@ -603,6 +701,8 @@ def run_pipeline(
             "confidence_level",
             "expected_points_lower_80",
             "expected_points_upper_80",
+            "official_ep_next",
+            "price_change_percent",
         ]
         picker_cols = [col for col in picker_cols if col in predictions.columns]
         with log_timed_step(logger, "Optimising best XI selection"):

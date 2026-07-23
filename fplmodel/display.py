@@ -3,6 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence
 
+import matplotlib
+
+# Artifact generation runs from CLI jobs and Streamlit background workers.
+# Force a non-interactive backend before importing pyplot so macOS does not try
+# to initialise an AppKit window and abort a headless pipeline process.
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
