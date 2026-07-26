@@ -79,9 +79,11 @@ will include him automatically if he enters the live pool.
   squad, and transfer records and displayed by the AI Manager. It is a team
   value/timing signal, not an FPL points component, so it does not overwrite
   expected points or force a transfer.
-- **Current availability and set pieces:** the existing bootstrap ingestion
-  continues to refresh availability, status, set-piece order, transfers,
-  ownership, expected metrics, and defensive-contribution data.
+- **Current availability metadata:** status and availability fields adjust
+  confidence and player forecasts. Set-piece order, aggregate ownership,
+  transfers, and additional expected-stat fields are present in the refreshed
+  bootstrap data, but they are not currently training features and do not
+  silently change the optimizer's expected-points objective.
 
 The price signal is expected to remain zero until after the GW1 deadline while
 prices are locked. FPL describes it as guidance rather than a guaranteed price
@@ -101,6 +103,11 @@ anchors a cold start under the new positions and BPS rules.
 - Exact 2026/27 BPS backcasting would require Opta event fields for times
   tackled, save location, and big-chance saves. Those fields are not available
   from the FPL history endpoints, so no invented proxy is used.
+- Preseason results and aggregate ownership were reviewed as cold-start
+  context. They are not yet automatic predictors: friendly strength and player
+  minutes need a consistent auditable feed, while ownership reflects manager
+  popularity rather than future points. A bounded new-player role/availability
+  prior is the recommended integration after backtesting.
 
 ## Sources
 
@@ -110,3 +117,5 @@ anchors a cold start under the new positions and BPS rules.
 - [2026/27 chip rules](https://www.premierleague.com/en/news/4679879/whats-happening-with-fpl-chips-in-202627)
 - [Official Price Change Predictor](https://www.premierleague.com/en/news/4680462/whats-new-in-202627-fantasy-price-change-predictor)
 - [Official 2026/27 Fixture Difficulty Ratings](https://www.premierleague.com/en/news/4675493/get-the-fixture-difficulty-ratings-for-202627-fpl-season)
+- [Official 2026 preseason fixtures and results](https://www.premierleague.com/en/news/4606700/premier-league-clubs-summer-2026-friendlies-and-tours)
+- [Official FPL preseason scouting guide](https://www.premierleague.com/en/news/4679613/what-to-look-out-for-in-pre-season-ahead-of-202627-fantasy)

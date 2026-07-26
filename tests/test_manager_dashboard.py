@@ -7,12 +7,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 
 pytest.importorskip("jinja2", minversion="3.0.0")
 pytest.importorskip("streamlit")
 
 from fplmodel.manager_dashboard import (
+    _build_fixture_card_context,
     _decision_frame,
     _default_season_name,
     _format_duration,
@@ -24,6 +26,53 @@ from fplmodel.prediction_artifacts import PredictionSeasonSource
 
 
 class ManagerDashboardTests(unittest.TestCase):
+    def test_fixture_card_context_includes_opponent_venue_and_difficulty(self) -> None:
+        fixtures = pd.DataFrame(
+            [
+                {
+                    "event": 4,
+                    "team_h": 1,
+                    "team_a": 2,
+                    "team_h_difficulty": 2,
+                    "team_a_difficulty": 4,
+                },
+                {
+                    "event": 4,
+                    "team_h": 3,
+                    "team_a": 1,
+                    "team_h_difficulty": 3,
+                    "team_a_difficulty": 5,
+                },
+            ]
+        )
+        teams = pd.DataFrame(
+            [
+                {"id": 1, "short_name": "AAA"},
+                {"id": 2, "short_name": "BBB"},
+                {"id": 3, "short_name": "CCC"},
+                {"id": 4, "short_name": "DDD"},
+            ]
+        )
+
+        context = _build_fixture_card_context(fixtures, teams, gameweek=4)
+
+        self.assertEqual(
+            context[1],
+            {
+                "opponent": "BBB / CCC",
+                "venue": "H / A",
+                "difficulty": "2 / 5",
+            },
+        )
+        self.assertEqual(
+            context[2],
+            {"opponent": "AAA", "venue": "A", "difficulty": "4"},
+        )
+        self.assertEqual(
+            context[4],
+            {"opponent": "No fixture", "venue": "—", "difficulty": "—"},
+        )
+
     def test_default_season_changes_in_july(self) -> None:
         missing = Path("/path/that/does/not/exist/bootstrap.json")
         self.assertEqual(
@@ -121,6 +170,7 @@ class ManagerDashboardTests(unittest.TestCase):
                             else f"Player {player_id}"
                         ),
                         "team_name": f"Club {player_id}",
+                        "team_id": player_id,
                         "expected_points": 5.0 + player_id / 10,
                         "now_cost_millions": 5.0 + player_id / 10,
                     }
@@ -132,6 +182,7 @@ class ManagerDashboardTests(unittest.TestCase):
                 "element_type": element_type,
                 "full_name": f"Bench {index + 1}",
                 "team_name": f"Club {player_id + index}",
+                "team_id": player_id + index,
                 "expected_points": 2.0,
                 "now_cost_millions": 4.5,
                 "bench_order": index + 1,
@@ -148,7 +199,21 @@ class ManagerDashboardTests(unittest.TestCase):
             "team": {"squad": starters, "bench": bench},
         }
 
-        rendered = _team_pitch_html(decision)
+        rendered = _team_pitch_html(
+            decision,
+            fixture_context_by_team={
+                1: {
+                    "opponent": "Rivals <FC>",
+                    "venue": "H",
+                    "difficulty": "2",
+                },
+                2: {
+                    "opponent": "United",
+                    "venue": "A",
+                    "difficulty": "4",
+                },
+            },
+        )
 
         self.assertIn("GW1", rendered)
         self.assertIn("4-4-2", rendered)
@@ -158,6 +223,11 @@ class ManagerDashboardTests(unittest.TestCase):
         self.assertIn("<strong>3</strong>", rendered)
         self.assertIn("£5.1m", rendered)
         self.assertIn("£4.5m", rendered)
+        self.assertIn("vs Rivals &lt;FC&gt;", rendered)
+        self.assertIn('aria-label="Venue Home">H</span>', rendered)
+        self.assertIn("FDR 2", rendered)
+        self.assertIn('aria-label="Venue Away">A</span>', rendered)
+        self.assertIn("FDR 4", rendered)
         self.assertEqual(rendered.count('class="ai-player-card ai-player-card--starter"'), 11)
         self.assertEqual(rendered.count('class="ai-player-card ai-player-card--bench"'), 4)
         self.assertIn('aria-label="Captain"', rendered)

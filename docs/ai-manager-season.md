@@ -107,7 +107,9 @@ In **Review results**, select the completed run and use the **Recommended season
 Selecting a gameweek displays a responsive matchday graphic above the detailed
 tables. The pitch groups the starting XI by position and highlights the captain,
 vice-captain, formation, projected points, player prices, free transfers, active
-chip, and ordered bench.
+chip, and ordered bench. Each player card also shows the upcoming opponent,
+home/away venue, and official Fixture Difficulty Rating. Double Gameweeks list
+each opponent, venue, and FDR; Blank Gameweeks show **No fixture**.
 
 The confirmation writes `outputs/manager_state_2026-27.json`. It does not submit changes to the FPL website.
 
@@ -139,7 +141,15 @@ Enter the 15 players from **First Gameweek Squad**, then apply its starter roles
 
 Assume the next deadline is GW8.
 
-For the normal dashboard workflow, launch Streamlit and click **Update data & predictions** under the sidebar navigation. The button force-refreshes live FPL data, rebuilds GW8, and generates the remaining four-gameweek planning horizon through GW11. It does not change the committed live-manager state. Use the commands below when you need a custom horizon or want to run the refresh outside Streamlit.
+For the normal dashboard workflow, launch Streamlit, choose the inclusive target
+under **Build predictions through**, and click **Update data & predictions**.
+Choosing GW11 force-refreshes live FPL data, rebuilds GW8, and generates GW9
+through GW11. The new season-tagged files are used by subsequent AI Manager
+simulations; the update does not change completed runs or the committed
+live-manager state. Use the commands below to run the same process outside
+Streamlit. If live and cached event metadata are temporarily unavailable, the
+dashboard uses a relative next-N-Gameweeks selector and lets the refresh
+discover the official start. The button is disabled after GW38.
 
 1. Refresh current players, prices, status, history, and fixtures:
 

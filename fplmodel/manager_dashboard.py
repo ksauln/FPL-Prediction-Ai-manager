@@ -250,6 +250,41 @@ TEAM_PITCH_STYLE = """
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.ai-player-card__fixture {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-width: 0;
+    margin-top: 0.34rem;
+    color: #dbeafe;
+    font-size: 0.52rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.ai-player-card__opponent {
+    min-width: 0;
+    overflow: hidden;
+    color: #e2e8f0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ai-player-card__venue,
+.ai-player-card__fdr {
+    flex: 0 0 auto;
+    padding: 0.2rem 0.3rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.ai-player-card__venue {
+    background: rgba(20, 184, 166, 0.2);
+    color: #ccfbf1;
+}
+.ai-player-card__fdr {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fef3c7;
+}
 .ai-player-card__points {
     margin-top: 0.42rem;
     color: #ccfbf1;
@@ -313,6 +348,14 @@ TEAM_PITCH_STYLE = """
     }
     .ai-player-card__club {
         display: none;
+    }
+    .ai-player-card__fixture {
+        gap: 0.14rem;
+        font-size: 0.47rem;
+    }
+    .ai-player-card__venue,
+    .ai-player-card__fdr {
+        padding: 0.18rem 0.24rem;
     }
     .ai-player-card__role {
         top: 0.42rem;
@@ -471,12 +514,165 @@ def _safe_player_id(value: object) -> Optional[int]:
         return None
 
 
+def _format_fixture_difficulty(value: object) -> str:
+    numeric = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(numeric):
+        return "—"
+    numeric_value = float(numeric)
+    return (
+        str(int(numeric_value))
+        if numeric_value.is_integer()
+        else f"{numeric_value:.1f}"
+    )
+
+
+def _build_fixture_card_context(
+    fixtures_df: pd.DataFrame,
+    teams_df: pd.DataFrame,
+    *,
+    gameweek: int,
+) -> dict[int, dict[str, str]]:
+    """Map each team to compact opponent, venue, and FDR card labels."""
+
+    team_id_col = "team_id" if "team_id" in teams_df.columns else "id"
+    if team_id_col not in teams_df.columns:
+        return {}
+    team_name_col = "short_name" if "short_name" in teams_df.columns else "name"
+    if team_name_col not in teams_df.columns:
+        return {}
+
+    team_names = {
+        int(team_id): str(team_name)
+        for team_id, team_name in zip(
+            teams_df[team_id_col],
+            teams_df[team_name_col],
+        )
+        if pd.notna(team_id) and pd.notna(team_name)
+    }
+    context_parts: dict[int, list[tuple[str, str, str]]] = {
+        team_id: [] for team_id in team_names
+    }
+    required_fixture_columns = {"event", "team_h", "team_a"}
+    if required_fixture_columns.issubset(fixtures_df.columns):
+        target = fixtures_df[
+            pd.to_numeric(fixtures_df["event"], errors="coerce") == int(gameweek)
+        ]
+        for fixture in target.to_dict(orient="records"):
+            home_id = _safe_player_id(fixture.get("team_h"))
+            away_id = _safe_player_id(fixture.get("team_a"))
+            if home_id is None or away_id is None:
+                continue
+            if away_id in team_names and home_id in context_parts:
+                context_parts[home_id].append(
+                    (
+                        team_names[away_id],
+                        "H",
+                        _format_fixture_difficulty(
+                            fixture.get("team_h_difficulty")
+                        ),
+                    )
+                )
+            if home_id in team_names and away_id in context_parts:
+                context_parts[away_id].append(
+                    (
+                        team_names[home_id],
+                        "A",
+                        _format_fixture_difficulty(
+                            fixture.get("team_a_difficulty")
+                        ),
+                    )
+                )
+
+    context: dict[int, dict[str, str]] = {}
+    for team_id, fixtures in context_parts.items():
+        if not fixtures:
+            context[team_id] = {
+                "opponent": "No fixture",
+                "venue": "—",
+                "difficulty": "—",
+            }
+            continue
+        context[team_id] = {
+            "opponent": " / ".join(item[0] for item in fixtures),
+            "venue": " / ".join(item[1] for item in fixtures),
+            "difficulty": " / ".join(item[2] for item in fixtures),
+        }
+    return context
+
+
+def _load_fixture_card_context(
+    season_name: str,
+    gameweek: int,
+    *,
+    bootstrap_path: Path = RAW_DIR / "bootstrap-static.json",
+    fixtures_path: Path = RAW_DIR / "fixtures-all.json",
+) -> dict[int, dict[str, str]]:
+    """Load current-season fixture labels without mislabelling archived seasons."""
+
+    if not bootstrap_path.exists() or not fixtures_path.exists():
+        return {}
+    try:
+        if infer_bootstrap_season_name(bootstrap_path) != season_name:
+            return {}
+        with open(bootstrap_path, "r", encoding="utf-8") as handle:
+            bootstrap = json.load(handle)
+        with open(fixtures_path, "r", encoding="utf-8") as handle:
+            fixtures = json.load(handle)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return {}
+
+    teams = pd.DataFrame(bootstrap.get("teams", []))
+    fixtures_df = pd.DataFrame(fixtures)
+    if teams.empty:
+        return {}
+    return _build_fixture_card_context(
+        fixtures_df,
+        teams,
+        gameweek=gameweek,
+    )
+
+
+def _fixture_card_html(context: Optional[dict[str, str]]) -> str:
+    if not context:
+        return ""
+    opponent_value = str(context.get("opponent") or "Unknown opponent")
+    venue_value = str(context.get("venue") or "—")
+    difficulty_value = str(context.get("difficulty") or "—")
+    opponent = escape(opponent_value)
+    venue = escape(venue_value)
+    difficulty = escape(difficulty_value)
+    venue_label = " / ".join(
+        {"H": "Home", "A": "Away"}.get(part, "Unavailable")
+        for part in venue_value.split(" / ")
+    )
+    opponent_label = (
+        opponent_value if opponent_value == "No fixture" else f"vs {opponent_value}"
+    )
+    title = escape(
+        f"{opponent_label} · {venue_label} · FDR {difficulty_value}",
+        quote=True,
+    )
+    opponent_label = (
+        opponent if opponent_value == "No fixture" else f"vs {opponent}"
+    )
+    return (
+        f'<div class="ai-player-card__fixture" title="{title}">'
+        f'<span class="ai-player-card__opponent">{opponent_label}</span>'
+        f'<span class="ai-player-card__venue" aria-label="Venue {venue_label}">'
+        f"{venue}</span>"
+        f'<span class="ai-player-card__fdr" '
+        f'aria-label="Fixture difficulty {difficulty}">FDR {difficulty}</span>'
+        "</div>"
+    )
+
+
 def _player_card_html(
     player: dict[str, object],
     *,
     captain_id: Optional[int],
     vice_captain_id: Optional[int],
     bench: bool,
+    fixture_context: Optional[dict[str, str]] = None,
 ) -> str:
     player_id = _safe_player_id(player.get("player_id"))
     try:
@@ -495,6 +691,7 @@ def _player_card_html(
         player_cost = f"£{float(player.get('now_cost_millions')):.1f}m"
     except (TypeError, ValueError):
         player_cost = "£—"
+    fixture_html = _fixture_card_html(fixture_context)
 
     role = ""
     if player_id is not None and player_id == captain_id:
@@ -514,6 +711,7 @@ def _player_card_html(
         "</div>"
         f'<div class="ai-player-card__name" title="{name}">{name}</div>'
         f'<div class="ai-player-card__club" title="{club}">{club}</div>'
+        f"{fixture_html}"
         f'<div class="ai-player-card__points">{expected_points}'
         f' <span aria-hidden="true">·</span> '
         f'<span class="ai-player-card__cost">{player_cost}</span></div>'
@@ -521,7 +719,11 @@ def _player_card_html(
     )
 
 
-def _team_pitch_html(decision: dict[str, object]) -> str:
+def _team_pitch_html(
+    decision: dict[str, object],
+    *,
+    fixture_context_by_team: Optional[dict[int, dict[str, str]]] = None,
+) -> str:
     """Build a responsive pitch graphic for one AI Manager gameweek."""
     team = dict(decision.get("team", {}))
     starters = [dict(player) for player in team.get("squad", [])]
@@ -565,6 +767,13 @@ def _team_pitch_html(decision: dict[str, object]) -> str:
                 captain_id=captain_id,
                 vice_captain_id=vice_captain_id,
                 bench=False,
+                fixture_context=(
+                    fixture_context_by_team.get(
+                        _safe_player_id(player.get("team_id"))
+                    )
+                    if fixture_context_by_team is not None
+                    else None
+                ),
             )
             for player in players
         )
@@ -585,6 +794,13 @@ def _team_pitch_html(decision: dict[str, object]) -> str:
             captain_id=captain_id,
             vice_captain_id=vice_captain_id,
             bench=True,
+            fixture_context=(
+                fixture_context_by_team.get(
+                    _safe_player_id(player.get("team_id"))
+                )
+                if fixture_context_by_team is not None
+                else None
+            ),
         )
         for player in sorted(bench, key=bench_order)
     )
@@ -1081,7 +1297,11 @@ def _render_policy_comparison(result: dict[str, object]) -> None:
         )
 
 
-def _render_gameweek_decision(decision: dict[str, object]) -> None:
+def _render_gameweek_decision(
+    decision: dict[str, object],
+    *,
+    fixture_context_by_team: Optional[dict[int, dict[str, str]]] = None,
+) -> None:
     is_free_hit = decision.get("team_context") == "free_hit" or decision.get("chip") == "free_hit"
     columns = st.columns(6 if is_free_hit else 5)
     columns[0].metric("Expected points", f"{float(decision.get('expected_points', 0.0)):.1f}")
@@ -1108,7 +1328,10 @@ def _render_gameweek_decision(decision: dict[str, object]) -> None:
     )
 
     team = dict(decision.get("team", {}))
-    pitch_html = _team_pitch_html(decision)
+    pitch_html = _team_pitch_html(
+        decision,
+        fixture_context_by_team=fixture_context_by_team,
+    )
     if pitch_html:
         st.markdown(pitch_html, unsafe_allow_html=True)
     starter_column, bench_column = st.columns([2.2, 1])
@@ -1245,7 +1468,14 @@ def _render_results_view(season_name: str) -> None:
         decision = next(
             item for item in decisions if int(item["gameweek"]) == selected_gw
         )
-        _render_gameweek_decision(decision)
+        fixture_context = _load_fixture_card_context(
+            season_name,
+            selected_gw,
+        )
+        _render_gameweek_decision(
+            decision,
+            fixture_context_by_team=fixture_context or None,
+        )
     _render_state_commit(job, result)
 
 
@@ -1338,6 +1568,7 @@ def render_ai_manager_page() -> None:
 
 
 __all__ = [
+    "_build_fixture_card_context",
     "_decision_frame",
     "_default_season_name",
     "_format_duration",

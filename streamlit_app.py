@@ -25,7 +25,10 @@ from fplmodel.team_performance_display import (
     render_team_performance_page,
 )
 from fplmodel.manager_dashboard import render_ai_manager_page
-from fplmodel.dashboard_updates import refresh_dashboard_data
+from fplmodel.dashboard_updates import (
+    build_update_control_state,
+    refresh_dashboard_data,
+)
 from fplmodel.utils import get_current_and_last_finished_gw
 
 
@@ -1830,13 +1833,60 @@ def _render_sidebar_update_control() -> None:
     with st.sidebar:
         st.divider()
         st.subheader("Updates")
-        st.caption(
-            "Pull current FPL data and rebuild predictions for the next four gameweeks."
-        )
+        next_gameweek = None
+        try:
+            events_df = _load_bootstrap_events()
+            next_gameweek, _ = get_current_and_last_finished_gw(events_df)
+        except (FileNotFoundError, KeyError, TypeError, ValueError):
+            pass
+
+        control_state = build_update_control_state(next_gameweek)
+        control_mode = str(control_state["mode"])
+        selected_value = control_state["default"]
+        if control_mode == "through_gameweek":
+            options = list(control_state["options"])
+            selected_value = st.selectbox(
+                "Build predictions through",
+                options=options,
+                index=options.index(selected_value),
+                format_func=lambda gameweek: f"GW{gameweek}",
+                help=(
+                    "The refresh always starts at the official next Gameweek. Longer "
+                    "ranges take more time and should be refreshed again as new data arrives."
+                ),
+            )
+            st.caption(
+                f"Pull current FPL data and rebuild season-tagged predictions from "
+                f"GW{int(next_gameweek)} through the selected target."
+            )
+        elif control_mode == "horizon":
+            options = list(control_state["options"])
+            selected_value = st.selectbox(
+                "Build predictions for",
+                options=options,
+                index=options.index(selected_value),
+                format_func=lambda horizon: (
+                    f"Next {horizon} Gameweek{'s' if horizon != 1 else ''}"
+                ),
+                help=(
+                    "Live and cached event metadata is unavailable. The refresh will "
+                    "determine the official next Gameweek before building this many files."
+                ),
+            )
+            st.caption(
+                "The official next Gameweek is unavailable. The refresh will determine "
+                "it from live data and then build the selected relative horizon."
+            )
+        else:
+            st.info(
+                "The official season is complete; there is no upcoming Gameweek to update."
+            )
+
         update_requested = st.button(
             "Update data & predictions",
             type="primary",
             width="stretch",
+            disabled=control_mode == "season_complete",
         )
         if update_requested:
             with st.status(
@@ -1844,10 +1894,12 @@ def _render_sidebar_update_control() -> None:
                 expanded=True,
             ) as update_status:
                 try:
-                    result = refresh_dashboard_data(
-                        horizon=4,
-                        progress_callback=update_status.write,
-                    )
+                    update_kwargs = {"progress_callback": update_status.write}
+                    if control_mode == "through_gameweek":
+                        update_kwargs["through_gameweek"] = int(selected_value)
+                    else:
+                        update_kwargs["horizon"] = int(selected_value)
+                    result = refresh_dashboard_data(**update_kwargs)
                 except Exception as exc:  # noqa: BLE001
                     message = f"Update failed: {exc}"
                     st.session_state[SESSION_UPDATE_RESULT_KEY] = {
