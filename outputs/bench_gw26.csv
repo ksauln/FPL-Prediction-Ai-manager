@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-47,Morgan Rogers,Aston Villa,2,3,7.3,4.845710833985812,0.9033426827736764,93.5,High,4.519,5.172,0,1,0,1,BHA (H)
-226,Trevoh Chalobah,Chelsea,7,2,5.4,4.574566140402576,0.9412144287873736,94.5,High,4.259,4.89,0,1,0,2,LEE (H)
-606,Konstantinos Mavropanos,West Ham,19,2,4.5,4.524779716988306,0.8634450501536505,95.8,High,4.451,4.599,0,1,0,3,MUN (H)
-469,Nick Pope,Newcastle,15,1,5.0,3.5753124171396826,0.9259444170499689,93.3,High,3.196,3.955,0,1,0,4,TOT (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+112,Jan Paul van Hecke,Spurs,19,2,5.0,4.037645899108786,0.8491212866666094,0.9100274854811345,,,1.0,1.0,0.8766570605187319,92.9,High,3.777,4.298,,0,0,1,0,1,BHA (A)
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.9686474327415233,0.9251146275383189,0.9712978200884855,,,1.0,1.0,1.6201438848920864,92.8,High,3.54,4.398,,0,0,1,0,2,AVL (H)
+153,Axel Disasi,Chelsea,6,2,4.5,3.7495307141351204,0.8394737343806002,0.89417102015302,,,1.0,1.0,0.8766570605187319,92.3,High,3.466,4.033,,0,0,1,0,3,IPS (H)
+109,Bart Verbruggen,Brighton,5,1,4.5,3.2009922800431845,0.9372843229920518,0.9640944244183571,,,1.0,1.0,0.5,92.9,High,2.769,3.633,,0,0,1,0,4,TOT (H)

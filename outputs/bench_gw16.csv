@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-714,Nick Woltemade,Newcastle,15,4,6.7,4.623259666873707,0.9176682101990019,90.3,High,3.939,5.307,0,1,0,1,SUN (A)
-684,Malick Thiaw,Newcastle,15,2,4.9,4.485561198256448,0.9381904189781936,67.8,Medium,3.603,5.368,0,1,0,2,SUN (A)
-526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.9,3.9805710246244392,0.806653948100106,93.5,High,3.844,4.117,0,1,0,3,TOT (H)
-220,Robert Lynch Sánchez,Chelsea,7,1,4.8,3.841086858965695,0.9167216764479482,94.3,High,3.569,4.113,0,1,0,4,EVE (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,4.539821952064032,0.9261553079599643,0.9712978200884855,,,1.0,1.0,1.6201438848920864,90.0,High,3.797,5.283,,0,0,1,0,1,FUL (H)
+60,James Hill,Bournemouth,3,2,5.5,4.286317229611303,0.9104394754164771,0.9157142093566397,,,1.0,1.0,0.8766570605187319,96.7,High,4.2,4.373,,0,0,1,0,2,COV (H)
+61,Adrien Truffert,Bournemouth,3,2,5.5,4.2859320865468575,0.868133972383061,0.9581084434331733,,,1.0,1.0,0.8766570605187319,94.4,High,4.107,4.465,,0,0,1,0,3,COV (H)
+226,Jordan Pickford,Everton,9,1,5.5,3.4305654191116393,0.9777148246138256,0.9811776160566967,,,1.0,1.0,0.5,98.7,High,3.366,3.495,,0,0,1,0,4,NFO (A)

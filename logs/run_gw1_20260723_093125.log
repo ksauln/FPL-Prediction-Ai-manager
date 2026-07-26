@@ -49,3 +49,57 @@
 2026-07-23 09:34:33,343 [INFO] fplmodel.model - Best regressor[hist_gbdt] params from tuning: {'est__min_samples_leaf': 20, 'est__max_iter': 400, 'est__max_depth': 4, 'est__learning_rate': 0.04, 'est__l2_regularization': 0.1} (score=-2.4679)
 2026-07-23 09:34:33,343 [INFO] fplmodel.model - Candidate Histogram Gradient Boosting | starter classifier=0.8381 ± 0.0078 ↑ | appearance classifier=0.8469 ± 0.0042 ↑ | regressor=2.4679 ± 0.0449 ↓
 2026-07-23 09:35:59,017 [INFO] fplmodel.model - Best classifier[xgboost] params from tuning: {'est__subsample': 1.0, 'est__reg_lambda': 1.0, 'est__n_estimators': 550, 'est__max_depth': 4, 'est__learning_rate': 0.05, 'est__gamma': 0.3, 'est__colsample_bytree': 0.85} (score=0.8361)
+2026-07-23 09:37:23,311 [INFO] fplmodel.model - Best appearance_classifier[xgboost] params from tuning: {'est__subsample': 1.0, 'est__reg_lambda': 1.0, 'est__n_estimators': 550, 'est__max_depth': 4, 'est__learning_rate': 0.05, 'est__gamma': 0.3, 'est__colsample_bytree': 0.85} (score=0.8474)
+2026-07-23 09:38:29,480 [INFO] fplmodel.model - Best regressor[xgboost] params from tuning: {'est__subsample': 1.0, 'est__reg_lambda': 1.0, 'est__n_estimators': 550, 'est__max_depth': 4, 'est__learning_rate': 0.05, 'est__gamma': 0.3, 'est__colsample_bytree': 0.85} (score=-2.4964)
+2026-07-23 09:38:29,480 [INFO] fplmodel.model - Candidate XGBoost | starter classifier=0.8361 ± 0.0067 ↑ | appearance classifier=0.8474 ± 0.0040 ↑ | regressor=2.4964 ± 0.0642 ↓
+2026-07-23 09:38:29,481 [INFO] fplmodel.model - Saved model selection summary to /Users/kyle/Documents/FPL-Prediction/models/model_selection_summary.csv
+2026-07-23 09:38:29,481 [INFO] fplmodel.model - Selected classifier model: Histogram Gradient Boosting (balanced_accuracy=0.8381 ± 0.0078 ↑)
+2026-07-23 09:38:29,481 [INFO] fplmodel.model - Selected appearance classifier model: XGBoost (balanced_accuracy=0.8474 ± 0.0040 ↑)
+2026-07-23 09:38:29,481 [INFO] fplmodel.model - Selected regressor model: Histogram Gradient Boosting (MAE=2.4679 ± 0.0449 ↓)
+2026-07-23 09:38:46,750 [INFO] fplmodel.model - Classifier (histogram gradient boosting) feature selector dropped 13 column(s): bps_lag1, bps_ma5, creation_plus_minus_lag1, defensive_actions_lag1, defensive_actions_ma5, expected_goal_involvements_ma5, expected_goals_conceded_ma5, minutes_share_lag1, minutes_share_ma5, selected_lag1, ... (+3 more)
+2026-07-23 09:38:46,750 [INFO] fplmodel.model - Appearance classifier (xgboost) feature selector dropped 13 column(s): bps_lag1, bps_ma5, creation_plus_minus_lag1, defensive_actions_lag1, defensive_actions_ma5, expected_goal_involvements_ma5, expected_goals_conceded_ma5, minutes_share_lag1, minutes_share_ma5, selected_lag1, ... (+3 more)
+2026-07-23 09:38:46,750 [INFO] fplmodel.model - Regressor (histogram gradient boosting) feature selector dropped 11 column(s): creation_plus_minus_lag1, defensive_actions_lag1, defensive_actions_ma5, expected_goal_involvements_ma5, minutes_share_lag1, minutes_share_ma5, position_gk, selected_lag1, tackles_plus_interceptions_lag1, tackles_plus_interceptions_ma5, ... (+1 more)
+2026-07-23 09:38:46,750 [INFO] fplmodel.model - Final model selection: starter classifier=Histogram Gradient Boosting | appearance classifier=XGBoost | regressor=Histogram Gradient Boosting
+2026-07-23 09:38:46,786 [INFO] fplmodel - Training prediction models completed in 418.27s
+2026-07-23 09:38:46,786 [INFO] fplmodel - Estimator HistGradientBoostingRegressor for regressor does not expose feature_importances_; skipping logging.
+2026-07-23 09:38:46,786 [INFO] fplmodel - Estimator HistGradientBoostingClassifier for classifier does not expose feature_importances_; skipping logging.
+2026-07-23 09:38:46,786 [INFO] fplmodel - Top feature weights for appearance classifier: minutes_lag1: 0.4694, ict_index_lag1: 0.1116, total_points_lag1: 0.0736, minutes_ma5: 0.0371, total_points_ma5: 0.0257, creativity_ma5: 0.0251, influence_ma5: 0.0144, position_gk: 0.0113, red_cards_lag1: 0.0111, ict_index_ma5: 0.0097, transfers_in_lag1: 0.0096, position_def: 0.0095, value_ma5: 0.0069, starts_lag1: 0.0068, expected_goals_ma5: 0.0045
+2026-07-23 09:38:46,786 [INFO] fplmodel - Model training complete; fitted 2 candidate pair(s).
+2026-07-23 09:38:46,786 [INFO] fplmodel - Generating next gameweek predictions...
+2026-07-23 09:38:46,825 [INFO] fplmodel - Generating next gameweek predictions completed in 0.04s
+2026-07-23 09:38:46,827 [INFO] fplmodel - Generated ensemble predictions for 555 players using 2 model(s): Histogram Gradient Boosting, XGBoost
+2026-07-23 09:38:46,833 [INFO] fplmodel - Applied fixture multipliers; average EP now 1.49
+2026-07-23 09:38:46,833 [INFO] fplmodel - Top 5 expected point predictions (ensemble): Bruno Borges Fernandes (7.31); Ollie Watkins (6.62); Erling Haaland (4.87); Bryan Mbeumo (4.70); Morgan Gibbs-White (4.55)
+2026-07-23 09:38:46,833 [INFO] fplmodel - Evaluating last finished gameweek residuals...
+2026-07-23 09:38:46,836 [INFO] fplmodel - Evaluating last finished gameweek residuals completed in 0.00s
+2026-07-23 09:38:46,836 [INFO] fplmodel - No residuals available for GW 0
+2026-07-23 09:38:46,836 [INFO] fplmodel - Selecting best XI from 555 candidates
+2026-07-23 09:38:46,836 [INFO] fplmodel - Optimising best XI selection...
+2026-07-23 09:38:47,839 [INFO] fplmodel - Optimising best XI selection completed in 1.00s
+2026-07-23 09:38:47,839 [INFO] fplmodel - Selected squad: total cost 100.0M | starting cost 78.5M | bench cost 21.5M
+2026-07-23 09:38:47,840 [INFO] fplmodel - Projected points: XI 50.14 | Captain included 57.45 | Bench 12.56
+2026-07-23 09:38:47,840 [INFO] fplmodel - Captain: Bruno Borges Fernandes
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | David Raya Martín (Arsenal) - 3.54 pts | 6.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Virgil van Dijk (Liverpool) - 4.25 pts | 6.5M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Harry Maguire (Man Utd) - 3.68 pts | 5.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | James Tarkowski (Everton) - 3.61 pts | 6.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Nordi Mukiele (Sunderland) - 3.53 pts | 5.5M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Bruno Borges Fernandes (Man Utd) - 7.31 pts | 12.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Bryan Mbeumo (Man Utd) - 4.70 pts | 8.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Morgan Gibbs-White (Nott'm Forest) - 4.55 pts | 8.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Dominik Szoboszlai (Liverpool) - 4.42 pts | 7.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Dango Ouattara (Brentford) - 3.92 pts | 6.5M
+2026-07-23 09:38:47,840 [INFO] fplmodel - XI | Ollie Watkins (Aston Villa) - 6.62 pts | 8.0M
+2026-07-23 09:38:47,840 [INFO] fplmodel - Bench 1 | Jan Paul van Hecke (Spurs) - 3.39 pts
+2026-07-23 09:38:47,840 [INFO] fplmodel - Bench 2 | Dominic Calvert-Lewin (Leeds) - 3.37 pts
+2026-07-23 09:38:47,840 [INFO] fplmodel - Bench 3 | Richarlison de Andrade (Spurs) - 3.01 pts
+2026-07-23 09:38:47,853 [INFO] fplmodel - Bench 4 | Bart Verbruggen (Brighton) - 2.78 pts
+2026-07-23 09:38:47,865 [INFO] fplmodel - Predictions saved to /Users/kyle/Documents/FPL-Prediction/outputs/predictions_gw1.csv
+2026-07-23 09:38:47,902 [INFO] fplmodel - Season prediction archive saved to /Users/kyle/Documents/FPL-Prediction/outputs/seasons/2026-27/predictions_gw1.csv
+2026-07-23 09:38:47,903 [INFO] fplmodel - Starting XI saved to /Users/kyle/Documents/FPL-Prediction/outputs/starting_xi_gw1.csv
+2026-07-23 09:38:47,903 [INFO] fplmodel - Bench saved to /Users/kyle/Documents/FPL-Prediction/outputs/bench_gw1.csv
+2026-07-23 09:38:47,904 [INFO] fplmodel - Best XI JSON saved to /Users/kyle/Documents/FPL-Prediction/outputs/best_xi_gw1.json
+2026-07-23 09:38:47,904 [INFO] fplmodel - Rendering best XI graphic...
+2026-07-23 09:38:48,034 [INFO] fplmodel - Rendering best XI graphic completed in 0.13s
+2026-07-23 09:38:48,034 [INFO] fplmodel - Best XI graphic generated at /Users/kyle/Documents/FPL-Prediction/outputs/best_xi_gw1.png
+2026-07-23 09:38:48,034 [INFO] fplmodel - Pipeline complete for GW 1

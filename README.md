@@ -293,7 +293,7 @@ Transfer recommender setup showing the official next-gameweek horizon and missin
 ### 5.2 AI Manager Page
 - **Update data & predictions** in the sidebar refreshes live FPL inputs and rebuilds the next four gameweeks of prediction artifacts. Progress and any failure are shown in the sidebar.
 - **Run simulations** configures planning or live mode, gameweek range, simulation count, policy refresh interval, uncertainty, strategy thresholds, and season rules. The manager still chooses the squad, transfers, chips, lineup, bench, captain, and vice-captain itself.
-- **Review results** compares policy blocks and simulation totals, shows the recommended policy by gameweek, and displays the selected starting XI, bench, transfers, captaincy, chip, bank, and team value.
+- **Review results** compares policy blocks and simulation totals, shows the recommended policy by gameweek, and displays a responsive pitch graphic for the selected XI alongside player prices, the bench, formation, projected points, free transfers, captaincy, chip, transfers, bank, and team value.
 - **Manager state** shows the committed live squad, purchase prices, bank, free transfers, chip usage, and decision history.
 - Only one background run is started from the UI at a time. It can be canceled from the active-run panel.
 - Live state advances only after you select the completed run, confirm that its first decision was applied on the FPL website, and press **Save state through GW<N>**.

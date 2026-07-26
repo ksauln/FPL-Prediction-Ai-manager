@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-694,Nordi Mukiele,Sunderland,17,2,4.6,4.335934534867409,0.9626071890944186,97.9,High,4.253,4.419,0,1,0,1,MCI (H)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,4.114691108610311,0.7687608286801761,81.1,High,2.651,5.578,0,1,0,2,BOU (H)
-714,Nick Woltemade,Newcastle,15,4,6.7,3.7464086685218914,0.9079659538076887,94.6,High,3.518,3.975,0,1,0,3,BUR (A)
-670,Robin Roefs,Sunderland,17,1,4.8,4.260398164725487,0.9499000271615563,94.2,High,3.905,4.616,0,1,0,4,MCI (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.9686474327415233,0.9251146275383189,0.9712978200884855,,,1.0,1.0,1.6201438848920864,92.8,High,3.54,4.398,,0,0,1,0,1,EVE (H)
+153,Axel Disasi,Chelsea,6,2,4.5,3.7495307141351204,0.8394737343806002,0.89417102015302,,,1.0,1.0,0.8766570605187319,92.3,High,3.466,4.033,,0,0,1,0,2,NEW (H)
+233,Vitalii Mykolenko,Everton,9,2,4.5,3.558255503348297,0.8676441864632667,0.9163197530492021,,,1.0,1.0,0.8766570605187319,87.7,High,2.743,4.373,,0,0,1,0,3,LEE (A)
+57,Đorđe Petrović,Bournemouth,3,1,4.5,3.0783889496609262,0.9014977497926789,0.9295148529008181,,,1.0,1.0,0.5,90.0,High,2.442,3.714,,0,0,1,0,4,AVL (H)

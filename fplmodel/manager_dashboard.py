@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from html import escape
 import json
 from pathlib import Path
 import re
@@ -37,6 +38,303 @@ SIMULATION_MODE_LABELS = {
     "periodic_reoptimization": "Periodic reoptimization",
     "fixed_policy": "Fixed policy",
     "full_reoptimization": "Full reoptimization",
+}
+TEAM_PITCH_STYLE = """
+<style>
+.ai-team-board {
+    --board-ink: #f8fafc;
+    --board-muted: #a8b6c8;
+    margin: 1.1rem 0 1.5rem;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 10% 0%, rgba(45, 212, 191, 0.13), transparent 30%),
+        linear-gradient(145deg, #07111f 0%, #0b1d2d 52%, #10293b 100%);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+    color: var(--board-ink);
+}
+.ai-team-board * {
+    box-sizing: border-box;
+}
+.ai-team-board__header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.5rem 1.2rem;
+}
+.ai-team-board__eyebrow {
+    margin-bottom: 0.25rem;
+    color: #5eead4;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.ai-team-board__title {
+    margin: 0;
+    color: #ffffff;
+    font-size: clamp(1.2rem, 2.8vw, 1.75rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+}
+.ai-team-board__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.45rem;
+}
+.ai-team-board__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    padding: 0.36rem 0.68rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.52);
+    color: #dbeafe;
+    font-size: 0.76rem;
+    font-weight: 700;
+    backdrop-filter: blur(10px);
+}
+.ai-team-board__pill strong {
+    color: #ffffff;
+}
+.ai-pitch {
+    position: relative;
+    display: grid;
+    grid-template-rows: repeat(4, minmax(122px, auto));
+    gap: 0.35rem;
+    min-height: 560px;
+    margin: 0 1.1rem;
+    padding: 1.15rem 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(236, 253, 245, 0.46);
+    border-radius: 22px;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.025) 0,
+            rgba(255, 255, 255, 0.025) 10%,
+            transparent 10%,
+            transparent 20%
+        ),
+        linear-gradient(180deg, #087f5b 0%, #087452 48%, #066649 100%);
+    box-shadow: inset 0 0 60px rgba(3, 34, 25, 0.34);
+}
+.ai-pitch::before {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: rgba(236, 253, 245, 0.48);
+    content: "";
+}
+.ai-pitch::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 112px;
+    height: 112px;
+    border: 1px solid rgba(236, 253, 245, 0.48);
+    border-radius: 50%;
+    content: "";
+    transform: translate(-50%, -50%);
+}
+.ai-pitch__box {
+    position: absolute;
+    left: 50%;
+    width: 43%;
+    height: 78px;
+    border: 1px solid rgba(236, 253, 245, 0.42);
+    transform: translateX(-50%);
+}
+.ai-pitch__box--north {
+    top: -1px;
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+}
+.ai-pitch__box--south {
+    bottom: -1px;
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+}
+.ai-pitch__row {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(var(--players), minmax(0, 1fr));
+    align-items: center;
+    justify-items: center;
+    gap: clamp(0.3rem, 1.4vw, 0.85rem);
+}
+.ai-player-card {
+    position: relative;
+    width: min(100%, 146px);
+    min-width: 0;
+    padding: 0.72rem 0.55rem 0.62rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    background: linear-gradient(155deg, rgba(7, 17, 31, 0.94), rgba(15, 38, 54, 0.9));
+    box-shadow: 0 9px 22px rgba(3, 20, 16, 0.26);
+    color: #f8fafc;
+    text-align: center;
+    backdrop-filter: blur(8px);
+}
+.ai-player-card::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 3px;
+    background: var(--position-accent);
+    content: "";
+}
+.ai-player-card__topline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.5rem;
+    margin-bottom: 0.22rem;
+}
+.ai-player-card__position {
+    display: inline-grid;
+    width: 1.55rem;
+    height: 1.55rem;
+    place-items: center;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--position-accent) 28%, transparent);
+    color: #ffffff;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+}
+.ai-player-card__role {
+    position: absolute;
+    top: 0.56rem;
+    right: 0.55rem;
+    display: inline-grid;
+    width: 1.42rem;
+    height: 1.42rem;
+    place-items: center;
+    border-radius: 50%;
+    background: #facc15;
+    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
+    color: #1e293b;
+    font-size: 0.67rem;
+    font-weight: 950;
+}
+.ai-player-card__role--vice {
+    background: #99f6e4;
+    box-shadow: 0 0 0 3px rgba(153, 246, 228, 0.16);
+}
+.ai-player-card__name {
+    overflow: hidden;
+    color: #ffffff;
+    font-size: clamp(0.69rem, 1.25vw, 0.83rem);
+    font-weight: 800;
+    line-height: 1.16;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ai-player-card__club {
+    margin-top: 0.18rem;
+    overflow: hidden;
+    color: var(--board-muted);
+    font-size: 0.61rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ai-player-card__points {
+    margin-top: 0.42rem;
+    color: #ccfbf1;
+    font-size: clamp(0.58rem, 1.05vw, 0.7rem);
+    font-weight: 800;
+    white-space: nowrap;
+}
+.ai-player-card__cost {
+    color: #dbeafe;
+    font-weight: 700;
+}
+.ai-player-card--bench {
+    width: 100%;
+    max-width: none;
+    background: rgba(15, 23, 42, 0.64);
+    box-shadow: none;
+}
+.ai-bench {
+    padding: 1.1rem 1.1rem 1.25rem;
+}
+.ai-bench__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 0.62rem;
+    color: #dbeafe;
+    font-size: 0.74rem;
+    font-weight: 850;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.ai-bench__rail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+@media (max-width: 760px) {
+    .ai-team-board {
+        border-radius: 20px;
+    }
+    .ai-team-board__header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 1rem;
+    }
+    .ai-team-board__meta {
+        justify-content: flex-start;
+    }
+    .ai-pitch {
+        grid-template-rows: repeat(4, minmax(105px, auto));
+        min-height: 490px;
+        margin: 0 0.65rem;
+        padding: 0.8rem 0.45rem;
+    }
+    .ai-pitch__row {
+        gap: 0.25rem;
+    }
+    .ai-player-card {
+        padding: 0.62rem 0.3rem 0.52rem;
+        border-radius: 12px;
+    }
+    .ai-player-card__club {
+        display: none;
+    }
+    .ai-player-card__role {
+        top: 0.42rem;
+        right: 0.35rem;
+        width: 1.2rem;
+        height: 1.2rem;
+        font-size: 0.58rem;
+    }
+    .ai-bench {
+        padding: 0.9rem 0.65rem 1rem;
+    }
+    .ai-bench__rail {
+        gap: 0.35rem;
+    }
+}
+</style>
+"""
+POSITION_ACCENTS = {
+    1: "#f59e0b",
+    2: "#38bdf8",
+    3: "#a78bfa",
+    4: "#fb7185",
 }
 
 
@@ -164,6 +462,170 @@ def _decision_frame(decisions: list[dict[str, object]]) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def _safe_player_id(value: object) -> Optional[int]:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _player_card_html(
+    player: dict[str, object],
+    *,
+    captain_id: Optional[int],
+    vice_captain_id: Optional[int],
+    bench: bool,
+) -> str:
+    player_id = _safe_player_id(player.get("player_id"))
+    try:
+        element_type = int(player.get("element_type", 0))
+    except (TypeError, ValueError):
+        element_type = 0
+    position = POSITION_LABELS.get(element_type, "—")
+    accent = POSITION_ACCENTS.get(element_type, "#94a3b8")
+    name = escape(str(player.get("full_name") or "Unknown player"))
+    club = escape(str(player.get("team_name") or "Unknown club"))
+    try:
+        expected_points = f"{float(player.get('expected_points', 0.0)):.1f} pts"
+    except (TypeError, ValueError):
+        expected_points = "— pts"
+    try:
+        player_cost = f"£{float(player.get('now_cost_millions')):.1f}m"
+    except (TypeError, ValueError):
+        player_cost = "£—"
+
+    role = ""
+    if player_id is not None and player_id == captain_id:
+        role = '<span class="ai-player-card__role" aria-label="Captain">C</span>'
+    elif player_id is not None and player_id == vice_captain_id:
+        role = (
+            '<span class="ai-player-card__role ai-player-card__role--vice" '
+            'aria-label="Vice-captain">V</span>'
+        )
+    card_type = "bench" if bench else "starter"
+    return (
+        f'<div class="ai-player-card ai-player-card--{card_type}" '
+        f'style="--position-accent: {accent};">'
+        '<div class="ai-player-card__topline">'
+        f'<span class="ai-player-card__position" aria-hidden="true">{position}</span>'
+        f"{role}"
+        "</div>"
+        f'<div class="ai-player-card__name" title="{name}">{name}</div>'
+        f'<div class="ai-player-card__club" title="{club}">{club}</div>'
+        f'<div class="ai-player-card__points">{expected_points}'
+        f' <span aria-hidden="true">·</span> '
+        f'<span class="ai-player-card__cost">{player_cost}</span></div>'
+        "</div>"
+    )
+
+
+def _team_pitch_html(decision: dict[str, object]) -> str:
+    """Build a responsive pitch graphic for one AI Manager gameweek."""
+    team = dict(decision.get("team", {}))
+    starters = [dict(player) for player in team.get("squad", [])]
+    bench = [dict(player) for player in team.get("bench", [])]
+    if not starters:
+        return ""
+
+    captain_id = _safe_player_id(decision.get("captain_id"))
+    vice_captain_id = _safe_player_id(decision.get("vice_captain_id"))
+    position_groups = {
+        element_type: [
+            player
+            for player in starters
+            if _safe_player_id(player.get("element_type")) == element_type
+        ]
+        for element_type in (4, 3, 2, 1)
+    }
+    formation = "-".join(
+        str(len(position_groups[element_type])) for element_type in (2, 3, 4)
+    )
+    gameweek = _safe_player_id(decision.get("gameweek"))
+    gameweek_label = f"GW{gameweek}" if gameweek is not None else "Gameweek"
+    chip = str(decision.get("chip") or "No chip").replace("_", " ").title()
+    try:
+        expected_points = f"{float(decision.get('expected_points', 0.0)):.1f}"
+    except (TypeError, ValueError):
+        expected_points = "—"
+    try:
+        free_transfers = str(int(decision.get("free_transfers_after")))
+    except (TypeError, ValueError):
+        free_transfers = "—"
+
+    pitch_rows = []
+    for element_type in (4, 3, 2, 1):
+        players = position_groups[element_type]
+        if not players:
+            continue
+        cards = "".join(
+            _player_card_html(
+                player,
+                captain_id=captain_id,
+                vice_captain_id=vice_captain_id,
+                bench=False,
+            )
+            for player in players
+        )
+        pitch_rows.append(
+            f'<div class="ai-pitch__row" style="--players: {len(players)};">'
+            f"{cards}</div>"
+        )
+
+    def bench_order(player: dict[str, object]) -> int:
+        try:
+            return int(player.get("bench_order", 99))
+        except (TypeError, ValueError):
+            return 99
+
+    bench_cards = "".join(
+        _player_card_html(
+            player,
+            captain_id=captain_id,
+            vice_captain_id=vice_captain_id,
+            bench=True,
+        )
+        for player in sorted(bench, key=bench_order)
+    )
+    bench_section = ""
+    if bench_cards:
+        bench_section = (
+            '<div class="ai-bench">'
+            '<div class="ai-bench__heading">'
+            "<span>Bench</span><span>Substitution order</span>"
+            "</div>"
+            f'<div class="ai-bench__rail">{bench_cards}</div>'
+            "</div>"
+        )
+
+    aria_label = escape(
+        f"{gameweek_label} recommended FPL team, formation {formation}",
+        quote=True,
+    )
+    return (
+        TEAM_PITCH_STYLE
+        + f'<section class="ai-team-board" role="img" aria-label="{aria_label}">'
+        '<header class="ai-team-board__header">'
+        "<div>"
+        '<div class="ai-team-board__eyebrow">AI Manager selection</div>'
+        f'<h3 class="ai-team-board__title">{gameweek_label} Matchday Squad</h3>'
+        "</div>"
+        '<div class="ai-team-board__meta">'
+        f'<span class="ai-team-board__pill">Formation <strong>{formation}</strong></span>'
+        f'<span class="ai-team-board__pill">Projected <strong>{expected_points}</strong></span>'
+        f'<span class="ai-team-board__pill">Free transfers <strong>{free_transfers}</strong></span>'
+        f'<span class="ai-team-board__pill">Chip <strong>{escape(chip)}</strong></span>'
+        "</div>"
+        "</header>"
+        '<div class="ai-pitch">'
+        '<span class="ai-pitch__box ai-pitch__box--north" aria-hidden="true"></span>'
+        '<span class="ai-pitch__box ai-pitch__box--south" aria-hidden="true"></span>'
+        + "".join(pitch_rows)
+        + "</div>"
+        + bench_section
+        + "</section>"
+    )
 
 
 def _team_frame(
@@ -646,6 +1108,9 @@ def _render_gameweek_decision(decision: dict[str, object]) -> None:
     )
 
     team = dict(decision.get("team", {}))
+    pitch_html = _team_pitch_html(decision)
+    if pitch_html:
+        st.markdown(pitch_html, unsafe_allow_html=True)
     starter_column, bench_column = st.columns([2.2, 1])
     with starter_column:
         st.subheader("Free Hit starting XI" if is_free_hit else "Starting XI")
@@ -878,5 +1343,6 @@ __all__ = [
     "_format_duration",
     "_parse_topups",
     "_select_season_source",
+    "_team_pitch_html",
     "render_ai_manager_page",
 ]

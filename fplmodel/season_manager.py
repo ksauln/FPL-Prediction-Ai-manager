@@ -2288,6 +2288,17 @@ def save_season_simulation_artifact(
     return _save_json_artifact(result, output_path)
 
 
+def _json_default(value: object) -> object:
+    """Convert NumPy values produced by pandas into JSON-native values."""
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    raise TypeError(
+        f"Object of type {value.__class__.__name__} is not JSON serializable"
+    )
+
+
 def _save_json_artifact(payload: dict[str, object], output_path: Path) -> Path:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2302,7 +2313,7 @@ def _save_json_artifact(payload: dict[str, object], output_path: Path) -> Path:
             delete=False,
         ) as handle:
             temporary_path = Path(handle.name)
-            json.dump(payload, handle, indent=2)
+            json.dump(payload, handle, indent=2, default=_json_default)
         os.replace(temporary_path, output_path)
     finally:
         if temporary_path is not None and temporary_path.exists():

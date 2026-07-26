@@ -18,6 +18,7 @@ from fplmodel.manager_dashboard import (
     _format_duration,
     _parse_topups,
     _select_season_source,
+    _team_pitch_html,
 )
 from fplmodel.prediction_artifacts import PredictionSeasonSource
 
@@ -104,6 +105,65 @@ class ManagerDashboardTests(unittest.TestCase):
         self.assertEqual(season_name, "2024-25")
         self.assertIs(source, previous)
         self.assertEqual(container.selectbox.call_args.kwargs["index"], 0)
+
+    def test_team_pitch_html_renders_formation_roles_and_escaped_names(self) -> None:
+        starters = []
+        player_id = 1
+        for element_type, count in ((1, 1), (2, 4), (3, 4), (4, 2)):
+            for _ in range(count):
+                starters.append(
+                    {
+                        "player_id": player_id,
+                        "element_type": element_type,
+                        "full_name": (
+                            "<script>Captain</script>"
+                            if player_id == 1
+                            else f"Player {player_id}"
+                        ),
+                        "team_name": f"Club {player_id}",
+                        "expected_points": 5.0 + player_id / 10,
+                        "now_cost_millions": 5.0 + player_id / 10,
+                    }
+                )
+                player_id += 1
+        bench = [
+            {
+                "player_id": player_id + index,
+                "element_type": element_type,
+                "full_name": f"Bench {index + 1}",
+                "team_name": f"Club {player_id + index}",
+                "expected_points": 2.0,
+                "now_cost_millions": 4.5,
+                "bench_order": index + 1,
+            }
+            for index, element_type in enumerate((1, 2, 3, 4))
+        ]
+        decision = {
+            "gameweek": 1,
+            "expected_points": 71.4,
+            "captain_id": 1,
+            "vice_captain_id": 2,
+            "chip": "bench_boost",
+            "free_transfers_after": 3,
+            "team": {"squad": starters, "bench": bench},
+        }
+
+        rendered = _team_pitch_html(decision)
+
+        self.assertIn("GW1", rendered)
+        self.assertIn("4-4-2", rendered)
+        self.assertIn("Bench Boost", rendered)
+        self.assertIn("71.4", rendered)
+        self.assertIn("Free transfers", rendered)
+        self.assertIn("<strong>3</strong>", rendered)
+        self.assertIn("£5.1m", rendered)
+        self.assertIn("£4.5m", rendered)
+        self.assertEqual(rendered.count('class="ai-player-card ai-player-card--starter"'), 11)
+        self.assertEqual(rendered.count('class="ai-player-card ai-player-card--bench"'), 4)
+        self.assertIn('aria-label="Captain"', rendered)
+        self.assertIn('aria-label="Vice-captain"', rendered)
+        self.assertIn("&lt;script&gt;Captain&lt;/script&gt;", rendered)
+        self.assertNotIn("<script>Captain</script>", rendered)
 
 
 if __name__ == "__main__":

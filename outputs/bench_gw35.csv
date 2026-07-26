@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-783,Pascal Groß,Brighton,6,3,5.6,4.946868335100209,0.9467599470883752,65.5,Medium,3.739,6.155,0,1,0,1,NEW (A)
-508,Neco Williams,Nott'm Forest,16,2,4.8,4.9119977671845785,0.8829817650059257,94.9,High,4.732,5.092,0,1,0,2,CHE (A)
-526,Igor Jesus Maciel da Cruz,Nott'm Forest,16,4,5.9,3.8933971259917377,0.7577177944933184,86.7,High,3.282,4.505,0,1,0,3,CHE (A)
-679,Mads Hermansen,West Ham,19,1,4.2,4.32532420899617,0.9756018934140567,71.2,Medium,3.681,4.969,0,1,0,4,BRE (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+106,Igor Thiago Nascimento Rodrigues,Brentford,4,4,8.0,4.027945925782897,0.8834029683527163,0.9710845277262736,,,1.0,1.0,1.6201438848920864,92.7,High,3.689,4.367,,0,0,1,0,1,AVL (H)
+445,Malick Thiaw,Newcastle,17,2,5.0,3.690895048179522,0.8927547117042166,0.955257541612091,,,1.0,1.0,0.8766570605187319,93.8,High,3.43,3.952,,0,0,1,0,2,COV (H)
+113,Ferdi Kadıoğlu,Brighton,5,2,4.5,3.682963911065301,0.8747117251735499,0.9448207671322828,,,1.0,1.0,0.8766570605187319,95.3,High,3.563,3.803,,0,0,1,0,3,SUN (H)
+109,Bart Verbruggen,Brighton,5,1,4.5,3.4767391940315306,0.9392865907945505,0.9640944244183571,,,1.0,1.0,0.5,91.9,High,2.937,4.017,,0,0,1,0,4,SUN (H)

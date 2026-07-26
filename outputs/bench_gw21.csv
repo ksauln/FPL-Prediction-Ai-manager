@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-575,Micky van de Ven,Spurs,18,2,4.4,4.897816911199612,0.9324022245495194,97.0,High,4.792,5.003,0,1,0,1,BOU (A)
-683,Omar Alderete,Sunderland,17,2,4.1,4.711142759445872,0.957034313819457,77.8,High,3.682,5.74,0,1,0,2,BRE (A)
-283,Jean-Philippe Mateta,Crystal Palace,8,4,7.6,4.660171336789249,0.8943168237453916,93.9,High,4.385,4.935,0,1,0,3,AVL (H)
-670,Robin Roefs,Sunderland,17,1,4.8,3.8767239000809983,0.9596710238599195,94.5,High,3.531,4.222,0,1,0,4,BRE (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+84,Nathan Collins,Brentford,4,2,5.5,4.319676143421504,0.8779683537721609,0.9394252770582954,,,1.0,1.0,0.8766570605187319,89.7,High,3.685,4.955,,0,0,1,0,1,BHA (H)
+233,Vitalii Mykolenko,Everton,9,2,4.5,4.15180525668294,0.8691432884552917,0.9164729369862749,,,1.0,1.0,0.8766570605187319,88.1,High,3.36,4.943,,0,0,1,0,2,COV (A)
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,4.113396910313922,0.9225083250385477,0.9712978200884855,,,1.0,1.0,1.6201438848920864,91.9,High,3.603,4.624,,0,0,1,0,3,TOT (A)
+57,Đorđe Petrović,Bournemouth,3,1,4.5,3.413406235253561,0.9037813064319322,0.9295148529008181,,,1.0,1.0,0.5,89.5,High,2.709,4.118,,0,0,1,0,4,IPS (H)

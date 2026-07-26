@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-224,Marc Cucurella Saseta,Chelsea,7,2,6.1,4.4341910264149025,0.8669849437394774,90.0,High,3.86,5.008,0,1,0,1,TOT (A)
-249,João Pedro Junqueira de Jesus,Chelsea,7,4,7.4,4.17537593058686,0.8741377255515961,90.5,High,3.643,4.708,0,1,0,2,TOT (A)
-681,Benjamin Sesko,Man Utd,14,4,7.2,4.042972917407182,0.7131937881931967,70.0,Medium,2.865,5.221,0,1,0,3,NFO (A)
-670,Robin Roefs,Sunderland,17,1,4.8,3.59630930528977,0.9076488733321342,94.6,High,3.366,3.826,0,1,0,4,EVE (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+231,Michael Keane,Everton,9,2,5.0,4.27734655617549,0.8530211058588673,0.9133140116477085,,,1.0,1.0,0.8766570605187319,88.4,High,3.576,4.979,,0,0,1,0,1,COV (H)
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.9686474327415233,0.9251146275383189,0.9712978200884855,,,1.0,1.0,1.6201438848920864,92.8,High,3.54,4.398,,0,0,1,0,2,TOT (H)
+465,William Osula,Newcastle,17,4,6.0,3.844484827304477,0.9402509763064917,0.9622764925105493,,,1.0,1.0,1.6201438848920864,95.5,High,3.624,4.065,,0,0,1,0,3,FUL (A)
+57,Đorđe Petrović,Bournemouth,3,1,4.5,3.5301673162782388,0.9023532089454362,0.9295148529008181,,,1.0,1.0,0.5,89.5,High,2.822,4.238,,0,0,1,0,4,IPS (A)

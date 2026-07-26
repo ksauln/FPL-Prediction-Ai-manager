@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-730,Brian Brobbey,Sunderland,17,4,5.3,4.442724671527442,0.8500973560737597,89.9,High,3.91,4.976,0,1,0,1,WHU (A)
-343,Pascal Struijk,Leeds,11,2,4.2,4.42318879934116,0.9098139309163653,89.4,High,3.662,5.184,0,1,0,2,EVE (A)
-691,Dominic Calvert-Lewin,Leeds,11,4,5.8,4.397293676040956,0.8574134937223576,86.0,High,3.355,5.44,0,1,0,3,EVE (A)
-628,José Malheiro de Sá,Wolves,20,1,4.2,4.007454797953624,0.9157339144109639,96.7,High,3.913,4.102,0,1,0,4,MCI (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+203,Jaydee Canvot,Crystal Palace,8,2,5.0,4.484942229878722,0.7899064181964636,0.8195343098920906,,,1.0,1.0,0.8766570605187319,87.5,High,3.853,5.117,,0,0,1,0,1,HUL (A)
+498,Marcos Senesi Barón,Spurs,19,2,6.0,4.376458602045739,0.8596510192482267,0.9182595412406809,,,1.0,1.0,0.8766570605187319,93.9,High,4.171,4.581,,0,0,1,0,2,SUN (H)
+465,William Osula,Newcastle,17,4,6.0,4.049662492676339,0.9402529100338064,0.9625072220904748,,,1.0,1.0,1.6201438848920864,92.2,High,3.52,4.58,,0,0,1,0,3,BHA (H)
+57,Đorđe Petrović,Bournemouth,3,1,4.5,3.413406235253561,0.9037813064319322,0.9295148529008181,,,1.0,1.0,0.5,89.5,High,2.709,4.118,,0,0,1,0,4,FUL (H)

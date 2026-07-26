@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-119,Bryan Mbeumo,Man Utd,14,3,8.3,4.738552161048681,0.8659645365564728,91.9,High,4.352,5.125,0,1,0,1,CRY (H)
-21,Declan Rice,Arsenal,1,3,7.2,4.690445009542421,0.9344300220333461,94.9,High,4.423,4.958,0,1,0,2,CHE (H)
-730,Brian Brobbey,Sunderland,17,4,5.3,3.773677433984739,0.8616545675446755,91.8,High,3.405,4.142,0,1,0,3,BOU (A)
-253,Dean Henderson,Crystal Palace,8,1,5.1,4.723472376839324,0.9745267979069605,72.1,Medium,4.123,5.324,0,1,0,4,MUN (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,4.539821952064032,0.9261553079599643,0.9712978200884855,,,1.0,1.0,1.6201438848920864,90.0,High,3.797,5.283,,0,0,1,0,1,HUL (H)
+112,Jan Paul van Hecke,Spurs,19,2,5.0,4.037645899108786,0.8491212866666094,0.9100274854811345,,,1.0,1.0,0.8766570605187319,92.9,High,3.777,4.298,,0,0,1,0,2,BOU (A)
+153,Axel Disasi,Chelsea,6,2,4.5,3.7495307141351204,0.8394737343806002,0.89417102015302,,,1.0,1.0,0.8766570605187319,92.3,High,3.466,4.033,,0,0,1,0,3,COV (H)
+226,Jordan Pickford,Everton,9,1,5.5,3.3245809677616647,0.9774678761745166,0.9808884377265643,,,1.0,1.0,0.5,97.8,High,3.21,3.439,,0,0,1,0,4,MCI (A)

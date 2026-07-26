@@ -104,6 +104,11 @@ kept when the live root prediction files are replaced by a newer season.
 
 In **Review results**, select the completed run and use the **Recommended season policy**. Do not select the single highest-scoring sampled outcome. Enter the GW1 squad on the FPL website, including the starting XI, bench order, captain, and vice-captain. Then confirm the action and press **Save state through GW1**.
 
+Selecting a gameweek displays a responsive matchday graphic above the detailed
+tables. The pitch groups the starting XI by position and highlights the captain,
+vice-captain, formation, projected points, player prices, free transfers, active
+chip, and ordered bench.
+
 The confirmation writes `outputs/manager_state_2026-27.json`. It does not submit changes to the FPL website.
 
 ### Notebook Alternative

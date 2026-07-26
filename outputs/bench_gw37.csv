@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-475,Sven Botman,Newcastle,15,2,4.9,4.904220633235477,0.8700044199167438,92.8,High,4.583,5.225,0,1,0,1,WHU (H)
-64,Ollie Watkins,Aston Villa,2,4,8.7,4.777557556164437,0.8483860220212018,84.6,High,3.535,6.02,0,1,0,2,LIV (H)
-178,Danny Welbeck,Brighton,6,4,6.3,3.8224731549759,0.8356766327735403,89.1,High,3.262,4.383,0,1,0,3,LEE (A)
-1,David Raya Martín,Arsenal,1,1,6.2,4.32419928051328,0.9509619246404584,68.8,Medium,3.517,5.131,0,1,0,4,BUR (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,4.539821952064032,0.9261553079599643,0.9712978200884855,,,1.0,1.0,1.6201438848920864,90.0,High,3.797,5.283,,0,0,1,0,1,SUN (H)
+203,Jaydee Canvot,Crystal Palace,8,2,5.0,3.6510460343432714,0.7873120322405555,0.8204624138158882,,,1.0,1.0,0.8766570605187319,89.1,High,3.206,4.096,,0,0,1,0,2,NEW (A)
+254,Antonee Robinson,Fulham,10,2,4.5,3.5541652467654927,0.8053665606874474,0.8596543813674067,,,1.0,1.0,0.8766570605187319,88.2,High,2.983,4.126,,0,0,1,0,3,COV (H)
+226,Jordan Pickford,Everton,9,1,5.5,3.264586358344861,0.978362452485628,0.9812354559684466,,,1.0,1.0,0.5,96.7,High,3.069,3.46,,0,0,1,0,4,ARS (H)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -25,6 +26,7 @@ from fplmodel.season_manager import (
     load_manager_state,
     run_repeated_season_simulations,
     save_manager_state,
+    save_season_simulation_artifact,
     simulate_season,
 )
 
@@ -440,6 +442,29 @@ class SeasonManagerTests(unittest.TestCase):
         self.assertEqual(recommended_block, max(policy_means, key=policy_means.get))
         self.assertEqual(result["best_run"]["policy_block"], recommended_block)
         self.assertIn("best_outcome_run", result)
+
+    def test_periodic_result_with_numpy_price_signal_saves_as_json(self) -> None:
+        predictions = _prediction_frames()
+        for frame in predictions.values():
+            frame["price_change_percent"] = np.zeros(len(frame), dtype=np.int64)
+        result = run_repeated_season_simulations(
+            predictions,
+            gameweeks=[1],
+            simulations=1,
+            config=SeasonManagerConfig(enable_chips=False, initial_horizon=1),
+            random_seed=7,
+            simulation_mode="periodic_reoptimization",
+            policy_refresh_interval=1,
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "result.json"
+            save_season_simulation_artifact(result, path)
+            saved = json.loads(path.read_text(encoding="utf-8"))
+
+        player = saved["policy_runs"][0]["decisions"][0]["team"]["squad"][0]
+        self.assertEqual(player["price_change_percent"], 0)
+        self.assertIs(type(player["price_change_percent"]), int)
 
     def test_periodic_policy_is_evaluated_on_common_base_predictions(self) -> None:
         base = _prediction_frames()

@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-84,Marcus Tavernier,Bournemouth,4,3,5.3,4.607878899786467,0.9549874565227029,90.7,High,3.85,5.366,0,1,0,1,
-120,Kevin Schade,Brentford,5,3,6.8,4.582448872729801,0.8758716968904704,92.9,High,4.261,4.904,0,1,0,2,MUN (A)
-136,Igor Thiago Nascimento Rodrigues,Brentford,5,4,7.2,4.246030999234476,0.9607693720555189,92.5,High,3.696,4.796,0,1,0,3,MUN (A)
-679,Mads Hermansen,West Ham,19,1,4.2,4.429566962824637,0.9344630008740822,72.8,Medium,3.966,4.893,0,1,0,4,EVE (H)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+356,Virgil van Dijk,Liverpool,14,2,6.5,4.372330153737961,0.9433469020098098,0.9539297460874292,,,1.0,1.0,0.8766570605187319,91.7,High,3.777,4.968,,0,0,1,0,1,CHE (H)
+61,Adrien Truffert,Bournemouth,3,2,5.5,4.326962765117972,0.8676685495143324,0.9581084434331733,,,1.0,1.0,0.8766570605187319,93.2,High,4.056,4.598,,0,0,1,0,2,HUL (A)
+465,William Osula,Newcastle,17,4,6.0,3.844484827304477,0.9402509763064917,0.9622764925105493,,,1.0,1.0,1.6201438848920864,95.5,High,3.624,4.065,,0,0,1,0,3,SUN (A)
+529,Robin Roefs,Sunderland,20,1,5.0,3.431941440761431,0.9101929302137164,0.9401065100518146,,,1.0,1.0,0.5,91.9,High,2.965,3.899,,0,0,1,0,4,NEW (H)

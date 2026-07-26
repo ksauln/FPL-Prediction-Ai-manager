@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-106,Nathan Collins,Brentford,5,2,4.9,5.552487180724645,0.9384687266219718,67.6,Medium,4.557,6.548,0,1,0,1,MCI (A)
-666,Viktor Gyökeres,Arsenal,1,4,9.1,4.133357935149913,0.721969084204946,82.9,High,3.179,5.087,0,1,0,2,WHU (A)
-691,Dominic Calvert-Lewin,Leeds,11,4,5.8,4.130375703613355,0.8926314729713543,96.8,High,4.066,4.194,0,1,0,3,TOT (A)
-341,Karl Darlow,Leeds,11,1,4.0,4.241889088128033,0.9680860520154928,68.2,Medium,3.344,5.14,0,1,0,4,TOT (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+203,Jaydee Canvot,Crystal Palace,8,2,5.0,4.370526316487564,0.7899064181964636,0.8195343098920906,,,1.0,1.0,0.8766570605187319,87.4,High,3.734,5.007,,0,0,1,0,1,BHA (H)
+527,Richarlison de Andrade,Spurs,19,4,6.0,3.9458353152634817,0.8589328644581565,0.9488996128521177,,,1.0,1.0,1.6201438848920864,92.3,High,3.619,4.273,,0,0,1,0,2,COV (A)
+106,Igor Thiago Nascimento Rodrigues,Brentford,4,4,8.0,3.7949059391155044,0.8778715679105928,0.9710845277262736,,,1.0,1.0,1.6201438848920864,93.5,High,3.536,4.054,,0,0,1,0,3,LIV (A)
+250,Bernd Leno,Fulham,10,1,4.5,3.391147596864922,0.9547519862004517,0.9657867118019857,,,1.0,1.0,0.5,96.9,High,3.255,3.528,,0,0,1,0,4,HUL (A)

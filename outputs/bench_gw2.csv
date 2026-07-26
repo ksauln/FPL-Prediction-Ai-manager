@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-79,Francisco Evanilson de Lima Barbosa,Bournemouth,3,4,6.0,4.142426483716348,0.7663752119219936,0.9085456700415848,,,1.0,1.0,1.6344725111441307,85.6,High,3.38,4.905,0,1,0,1,EVE (H)
-423,Luke Shaw,Man Utd,16,2,4.5,3.5897110181636487,0.8474038165401621,0.9431644187128758,,,1.0,1.0,0.8903559127439724,90.6,High,3.147,4.032,0,1,0,2,IPS (H)
-332,James Justin,Leeds,13,2,4.5,3.5278137300304433,0.8928056265306914,0.9560113886198359,,,1.0,1.0,0.8903559127439724,89.9,High,2.9,4.156,0,1,0,3,BRE (H)
-109,Bart Verbruggen,Brighton,5,1,4.5,3.3483543092898937,0.9269300191519241,0.9682082679338297,,,1.0,1.0,0.5,90.6,High,2.701,3.996,0,1,0,4,CHE (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+533,Nordi Mukiele,Sunderland,20,2,5.5,4.052575205229088,0.8826792937004925,0.9457637757344793,,,1.0,1.0,0.8766570605187319,94.3,High,3.845,4.26,,0,0,1,0,1,FUL (H)
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.9686474327415233,0.9251146275383189,0.9712978200884855,,,1.0,1.0,1.6201438848920864,92.8,High,3.54,4.398,,0,0,1,0,2,BRE (H)
+527,Richarlison de Andrade,Spurs,19,4,6.0,3.898422538180043,0.8602556703396568,0.9488996128521177,,,1.0,1.0,1.6201438848920864,93.5,High,3.669,4.127,,0,0,1,0,3,NEW (H)
+226,Jordan Pickford,Everton,9,1,5.5,3.4305654191116393,0.9777148246138256,0.9811776160566967,,,1.0,1.0,0.5,98.7,High,3.366,3.495,,0,0,1,0,4,BOU (A)

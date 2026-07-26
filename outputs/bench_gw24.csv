@@ -1,5 +1,5 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order,next_fixture
-730,Brian Brobbey,Sunderland,17,4,5.3,4.521050488145324,0.8414715606198953,89.4,High,3.953,5.089,0,1,0,1,BUR (H)
-64,Ollie Watkins,Aston Villa,2,4,8.7,4.462492165652337,0.8911640823580128,91.6,High,3.993,4.932,0,1,0,2,BRE (H)
-437,Lisandro Martínez,Man Utd,14,2,4.8,4.400979124601385,0.9064786159069971,94.9,High,4.191,4.611,0,1,0,3,FUL (H)
-101,Caoimhín Kelleher,Brentford,5,1,4.8,4.246475593667437,0.9432924716742115,93.9,High,3.876,4.616,0,1,0,4,AVL (A)
+player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
+203,Jaydee Canvot,Crystal Palace,8,2,5.0,4.370526316487564,0.7899064181964636,0.8195343098920906,,,1.0,1.0,0.8766570605187319,87.4,High,3.734,5.007,,0,0,1,0,1,COV (H)
+106,Igor Thiago Nascimento Rodrigues,Brentford,4,4,8.0,4.043024807676092,0.8819804439005068,0.9710845277262736,,,1.0,1.0,1.6201438848920864,93.7,High,3.787,4.299,,0,0,1,0,2,NFO (A)
+346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.9686474327415233,0.9251146275383189,0.9712978200884855,,,1.0,1.0,1.6201438848920864,92.8,High,3.54,4.398,,0,0,1,0,3,BOU (H)
+198,Dean Henderson,Crystal Palace,8,1,5.0,3.5465353155581565,0.843539493447079,0.8878067946787358,,,1.0,1.0,0.5,92.6,High,3.285,3.808,,0,0,1,0,4,COV (H)
