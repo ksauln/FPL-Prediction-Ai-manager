@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-112,Jan Paul van Hecke,Spurs,19,2,5.0,4.037645899108786,0.8491212866666094,0.9100274854811345,,,1.0,1.0,0.8766570605187319,92.9,High,3.777,4.298,,0,0,1,0,1,SUN (A)
-229,James Tarkowski,Everton,9,2,6.0,3.9350071589049813,0.922688680165302,0.9636040425513819,,,1.0,1.0,0.8766570605187319,97.2,High,3.868,4.003,,0,0,1,0,2,LIV (H)
-465,William Osula,Newcastle,17,4,6.0,3.844484827304477,0.9402509763064917,0.9622764925105493,,,1.0,1.0,1.6201438848920864,95.5,High,3.624,4.065,,0,0,1,0,3,BHA (A)
-109,Bart Verbruggen,Brighton,5,1,4.5,3.4767391940315306,0.9392865907945505,0.9640944244183571,,,1.0,1.0,0.5,91.9,High,2.937,4.017,,0,0,1,0,4,NEW (H)

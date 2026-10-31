@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import re
 import shutil
+from typing import Any, Mapping
 
 import pandas as pd
 
@@ -60,6 +62,51 @@ def infer_bootstrap_season_name(bootstrap_path: Path) -> str | None:
         return None
     start_year = int(valid_deadlines.min().year)
     return f"{start_year}-{str(start_year + 1)[-2:]}"
+
+
+def load_archived_gameweek_inputs(
+    *,
+    output_root: Path,
+    season_name: str,
+    gameweek: int,
+) -> tuple[dict[str, Any], list[dict[str, Any]], Path, Path]:
+    """Load the as-of bootstrap and fixture inputs required for a replay.
+
+    Backdated runs must never silently substitute today's live player status,
+    club, position, or set-piece metadata.  Both artifacts are therefore
+    mandatory and the archived bootstrap must identify the requested season.
+    """
+    if not SEASON_NAME_PATTERN.fullmatch(str(season_name)):
+        raise ValueError("season_name must use YYYY-YY format")
+    if not 1 <= int(gameweek) <= 38:
+        raise ValueError("gameweek must be between 1 and 38")
+    archive_dir = Path(output_root) / "seasons" / str(season_name)
+    bootstrap_path = archive_dir / f"bootstrap_gw{int(gameweek)}.json"
+    fixtures_path = archive_dir / f"fixtures_gw{int(gameweek)}.json"
+    missing = [path.name for path in (bootstrap_path, fixtures_path) if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"GW{int(gameweek)} replay metadata is incomplete; missing "
+            + ", ".join(missing)
+        )
+    try:
+        bootstrap = json.loads(bootstrap_path.read_text(encoding="utf-8"))
+        fixtures = json.loads(fixtures_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"GW{int(gameweek)} replay metadata is not valid JSON"
+        ) from exc
+    if not isinstance(bootstrap, dict) or not isinstance(fixtures, list):
+        raise ValueError(
+            f"GW{int(gameweek)} replay metadata has invalid bootstrap/fixture shapes"
+        )
+    archived_season = infer_bootstrap_season_name(bootstrap_path)
+    if archived_season != str(season_name):
+        raise ValueError(
+            f"GW{int(gameweek)} replay bootstrap is for {archived_season}, "
+            f"not {season_name}"
+        )
+    return bootstrap, fixtures, bootstrap_path, fixtures_path
 
 
 def _prediction_files(output_dir: Path) -> list[tuple[int, Path]]:
@@ -326,6 +373,9 @@ def archive_prediction_file(
     bootstrap_path: Path,
     season_name: str,
     gameweek: int,
+    fixtures_path: Path | None = None,
+    context_manifest: Mapping[str, Any] | None = None,
+    reproducibility_files: Mapping[str, Path] | None = None,
 ) -> Path:
     """Copy one validated prediction file into its durable season archive."""
     if not SEASON_NAME_PATTERN.fullmatch(str(season_name)):
@@ -358,19 +408,69 @@ def archive_prediction_file(
     archive_dir.mkdir(parents=True, exist_ok=True)
     archived_bootstrap = archive_dir / "bootstrap-static.json"
     gameweek_bootstrap = archive_dir / f"bootstrap_gw{int(gameweek)}.json"
+    gameweek_fixtures = archive_dir / f"fixtures_gw{int(gameweek)}.json"
+    gameweek_context = archive_dir / f"context_gw{int(gameweek)}.json"
     archived_predictions = archive_dir / f"predictions_gw{int(gameweek)}.csv"
-    copies = (
+    copies = [
         (Path(bootstrap_path), archived_bootstrap),
         (Path(bootstrap_path), gameweek_bootstrap),
         (predictions_path, archived_predictions),
-    )
+    ]
+    if fixtures_path is not None:
+        fixtures_source = Path(fixtures_path)
+        if not fixtures_source.is_file():
+            raise FileNotFoundError(f"Missing fixtures snapshot: {fixtures_source}")
+        copies.append((fixtures_source, gameweek_fixtures))
+    reproducibility_records: dict[str, dict[str, Any]] = {}
+    if reproducibility_files:
+        reproducibility_dir = archive_dir / f"reproducibility_gw{int(gameweek)}"
+        reproducibility_dir.mkdir(parents=True, exist_ok=True)
+        for name, source_path in sorted(reproducibility_files.items()):
+            safe_name = str(name).strip()
+            if not safe_name or Path(safe_name).name != safe_name:
+                raise ValueError(
+                    "reproducibility file names must be simple basenames"
+                )
+            source = Path(source_path)
+            if not source.is_file():
+                raise FileNotFoundError(
+                    f"Missing reproducibility artifact: {source}"
+                )
+            payload = source.read_bytes()
+            reproducibility_records[safe_name] = {
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "size_bytes": len(payload),
+                "archive_path": f"reproducibility_gw{int(gameweek)}/{safe_name}",
+            }
+            copies.append((source, reproducibility_dir / safe_name))
     temporary_paths: list[Path] = []
     try:
         for source, destination in copies:
+            destination.parent.mkdir(parents=True, exist_ok=True)
             temporary = destination.with_name(f".{destination.name}.archive.tmp")
             shutil.copy2(source, temporary)
             temporary_paths.append(temporary)
             temporary.replace(destination)
+        if context_manifest is not None or reproducibility_records:
+            context_payload = dict(context_manifest or {})
+            context_payload.setdefault("season_name", season_name)
+            context_payload.setdefault("gameweek", int(gameweek))
+            if reproducibility_records:
+                reproducibility = dict(context_payload.get("reproducibility", {}))
+                files = dict(reproducibility.get("files", {}))
+                files.update(reproducibility_records)
+                reproducibility["files"] = files
+                context_payload["reproducibility"] = reproducibility
+            encoded = (
+                json.dumps(context_payload, indent=2, sort_keys=True, ensure_ascii=False)
+                + "\n"
+            ).encode("utf-8")
+            temporary = gameweek_context.with_name(
+                f".{gameweek_context.name}.archive.tmp"
+            )
+            temporary.write_bytes(encoded)
+            temporary_paths.append(temporary)
+            temporary.replace(gameweek_context)
     finally:
         for temporary in temporary_paths:
             temporary.unlink(missing_ok=True)
@@ -501,5 +601,6 @@ __all__ = [
     "infer_bootstrap_season_name",
     "inspect_prediction_artifacts",
     "legacy_prediction_gameweeks",
+    "load_archived_gameweek_inputs",
     "migrate_legacy_prediction_files",
 ]

@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-203,Jaydee Canvot,Crystal Palace,8,2,5.0,4.370526316487564,0.7899064181964636,0.8195343098920906,,,1.0,1.0,0.8766570605187319,87.4,High,3.734,5.007,,0,0,1,0,1,BHA (H)
-527,Richarlison de Andrade,Spurs,19,4,6.0,3.9458353152634817,0.8589328644581565,0.9488996128521177,,,1.0,1.0,1.6201438848920864,92.3,High,3.619,4.273,,0,0,1,0,2,COV (A)
-106,Igor Thiago Nascimento Rodrigues,Brentford,4,4,8.0,3.7949059391155044,0.8778715679105928,0.9710845277262736,,,1.0,1.0,1.6201438848920864,93.5,High,3.536,4.054,,0,0,1,0,3,LIV (A)
-250,Bernd Leno,Fulham,10,1,4.5,3.391147596864922,0.9547519862004517,0.9657867118019857,,,1.0,1.0,0.5,96.9,High,3.255,3.528,,0,0,1,0,4,HUL (A)

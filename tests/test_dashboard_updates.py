@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from fplmodel.dashboard_updates import (
     build_update_control_state,
     refresh_dashboard_data,
+    refresh_dashboard_data_and_continue_manager,
 )
 
 
@@ -157,6 +158,62 @@ class DashboardUpdateTests(unittest.TestCase):
             )
 
         replay_gameweeks.assert_not_called()
+
+    def test_refresh_continues_saved_ai_manager_with_new_prediction_range(self) -> None:
+        run_pipeline = Mock(
+            return_value={
+                "season_name": "2026-27",
+                "next_gw": 8,
+                "predictions_archive_csv": (
+                    "/tmp/outputs/seasons/2026-27/predictions_gw8.csv"
+                ),
+            }
+        )
+        replay_gameweeks = Mock(
+            return_value=[
+                {"season_name": "2026-27", "next_gw": gameweek}
+                for gameweek in (9, 10, 11)
+            ]
+        )
+        continue_manager = Mock(
+            return_value={"action": "started", "job_id": "manager-job"}
+        )
+
+        result = refresh_dashboard_data_and_continue_manager(
+            horizon=4,
+            run_pipeline_fn=run_pipeline,
+            replay_gameweeks_fn=replay_gameweeks,
+            manager_continuation_fn=continue_manager,
+        )
+
+        continue_manager.assert_called_once_with(
+            season_name="2026-27",
+            start_gw=8,
+            end_gw=11,
+            output_dir="/tmp/outputs/seasons/2026-27",
+            manager_state_path="/tmp/outputs/manager_state_2026-27.json",
+        )
+        self.assertEqual(
+            result["manager_continuation"],
+            {"action": "started", "job_id": "manager-job"},
+        )
+
+    def test_manager_continuation_failure_does_not_erase_refresh_success(self) -> None:
+        run_pipeline = Mock(
+            return_value={"season_name": "2026-27", "next_gw": 8}
+        )
+        continue_manager = Mock(side_effect=ValueError("state expects GW7"))
+
+        result = refresh_dashboard_data_and_continue_manager(
+            horizon=1,
+            run_pipeline_fn=run_pipeline,
+            replay_gameweeks_fn=Mock(),
+            manager_continuation_fn=continue_manager,
+        )
+
+        self.assertEqual(result["gameweeks"], [8])
+        self.assertEqual(result["manager_continuation"]["action"], "error")
+        self.assertIn("state expects GW7", result["manager_continuation"]["message"])
 
 
 if __name__ == "__main__":

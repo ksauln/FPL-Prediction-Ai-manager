@@ -90,7 +90,12 @@ class DataPullTests(unittest.TestCase):
             season_dir = root / "2024-25"
             gw_dir = season_dir / "gws"
             gw_dir.mkdir(parents=True)
-            pd.DataFrame([{"id": 1, "name": "Alpha"}, {"id": 2, "name": "Beta"}]).to_csv(
+            pd.DataFrame(
+                [
+                    {"id": 1, "code": 101, "name": "Alpha"},
+                    {"id": 2, "code": 202, "name": "Beta"},
+                ]
+            ).to_csv(
                 season_dir / "teams.csv", index=False
             )
             pd.DataFrame([{"id": 77, "code": 999001}]).to_csv(
@@ -115,6 +120,7 @@ class DataPullTests(unittest.TestCase):
                         "name": "Historical Player",
                         "position": "DEF",
                         "team": "Alpha",
+                        "opponent_team": 2,
                         "round": 1,
                         "fixture": 1,
                         "total_points": 6,
@@ -130,6 +136,8 @@ class DataPullTests(unittest.TestCase):
 
         self.assertEqual(result.loc[0, "player_code"], 999001)
         self.assertEqual(result.loc[0, "element_type"], 2)
+        self.assertEqual(result.loc[0, "team_code"], 101)
+        self.assertEqual(result.loc[0, "opponent_team_code"], 202)
         self.assertAlmostEqual(float(result.loc[0, "official_expected_points"]), 3.7)
         self.assertEqual(float(result.loc[0, "fixture_difficulty"]), 2.0)
 

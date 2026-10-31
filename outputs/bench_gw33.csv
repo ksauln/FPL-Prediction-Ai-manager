@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-465,William Osula,Newcastle,17,4,6.0,4.049662492676339,0.9402529100338064,0.9625072220904748,,,1.0,1.0,1.6201438848920864,92.2,High,3.52,4.58,,0,0,1,0,1,IPS (H)
-233,Vitalii Mykolenko,Everton,9,2,4.5,4.041167777580148,0.8695493749001464,0.9164729369862749,,,1.0,1.0,0.8766570605187319,88.1,High,3.251,4.831,,0,0,1,0,2,BHA (H)
-88,Michael Kayode,Brentford,4,2,4.5,3.4889861862606986,0.8502833272860169,0.9306152549508975,,,1.0,1.0,0.8766570605187319,88.3,High,2.808,4.17,,0,0,1,0,3,FUL (H)
-109,Bart Verbruggen,Brighton,5,1,4.5,3.325035370602495,0.9365277910382401,0.9640944244183571,,,1.0,1.0,0.5,92.8,High,2.881,3.769,,0,0,1,0,4,EVE (A)

@@ -1,4 +1,4 @@
-"""Prompt templates for the local FPL assistant."""
+"""Grounding prompts for the FPL assistant."""
 
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ Rules:
 - Cite URLs when you use online research.
 - Prefer concrete, actionable advice tied to the numbers in context.
 - When recommending transfers or captaincy, explain the expected-points logic.
+- Respect financial_context: use saved bank, transfer hits, and chip usage when present; otherwise explicitly say transfer affordability is unverified.
+- A committed gameweek has already been applied. Do not tell the user to repeat those transfers or reuse a spent chip.
 - If model confidence is low or players have risk flags, mention that explicitly.
 - Keep the answer concise and useful.
 """

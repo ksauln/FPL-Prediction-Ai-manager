@@ -12,6 +12,7 @@ from fplmodel.prediction_artifacts import (
     discover_prediction_season_sources,
     infer_bootstrap_season_name,
     inspect_prediction_artifacts,
+    load_archived_gameweek_inputs,
     migrate_legacy_prediction_files,
 )
 
@@ -52,6 +53,41 @@ def _legacy_predictions() -> pd.DataFrame:
 
 
 class PredictionArtifactTests(unittest.TestCase):
+    def test_loads_archived_bootstrap_and_fixtures_for_a_replay(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            output_root = Path(tmpdir)
+            archive = output_root / "seasons" / "2025-26"
+            archive.mkdir(parents=True)
+            bootstrap_path = archive / "bootstrap_gw4.json"
+            fixtures_path = archive / "fixtures_gw4.json"
+            _write_bootstrap(bootstrap_path)
+            fixtures_path.write_text(
+                json.dumps([{"id": 40, "event": 4, "team_h": 1, "team_a": 2}]),
+                encoding="utf-8",
+            )
+
+            bootstrap, fixtures, resolved_bootstrap, resolved_fixtures = (
+                load_archived_gameweek_inputs(
+                    output_root=output_root,
+                    season_name="2025-26",
+                    gameweek=4,
+                )
+            )
+
+        self.assertEqual(bootstrap["teams"][0]["name"], "Arsenal")
+        self.assertEqual(fixtures[0]["event"], 4)
+        self.assertEqual(resolved_bootstrap.name, "bootstrap_gw4.json")
+        self.assertEqual(resolved_fixtures.name, "fixtures_gw4.json")
+
+    def test_replay_input_loading_fails_closed_without_archived_metadata(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            with self.assertRaisesRegex(FileNotFoundError, "GW4 replay metadata"):
+                load_archived_gameweek_inputs(
+                    output_root=Path(tmpdir),
+                    season_name="2025-26",
+                    gameweek=4,
+                )
+
     def test_infers_season_from_bootstrap_deadlines(self) -> None:
         with TemporaryDirectory() as tmpdir:
             bootstrap_path = Path(tmpdir) / "bootstrap.json"
@@ -214,6 +250,52 @@ class PredictionArtifactTests(unittest.TestCase):
             )
             self.assertEqual(sources["2025-26"].predictions_dir, archived_path.parent)
             self.assertTrue(sources["2025-26"].archived)
+
+    def test_archives_fixtures_and_enrichment_context_when_supplied(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            output_dir = root / "outputs"
+            output_dir.mkdir()
+            bootstrap_path = root / "bootstrap.json"
+            fixtures_path = root / "fixtures.json"
+            ensemble_path = root / "ensemble_models.joblib"
+            _write_bootstrap(bootstrap_path)
+            fixtures_path.write_text('[{"id": 1, "event": 1}]', encoding="utf-8")
+            ensemble_path.write_bytes(b"model-bytes")
+            predictions_path = output_dir / "predictions_gw1.csv"
+            frame = _legacy_predictions()
+            frame["season_name"] = "2025-26"
+            frame["gameweek"] = 1
+            frame.to_csv(predictions_path, index=False)
+
+            archived_path = archive_prediction_file(
+                predictions_path=predictions_path,
+                output_root=output_dir,
+                bootstrap_path=bootstrap_path,
+                season_name="2025-26",
+                gameweek=1,
+                fixtures_path=fixtures_path,
+                context_manifest={"snapshot_mode": "auto", "snapshots": [{"topic": "team_priors"}]},
+                reproducibility_files={"ensemble_models.joblib": ensemble_path},
+            )
+
+            archive_dir = archived_path.parent
+            self.assertEqual(
+                (archive_dir / "fixtures_gw1.json").read_bytes(),
+                fixtures_path.read_bytes(),
+            )
+            context = json.loads((archive_dir / "context_gw1.json").read_text(encoding="utf-8"))
+            self.assertEqual(context["season_name"], "2025-26")
+            self.assertEqual(context["gameweek"], 1)
+            self.assertEqual(context["snapshots"][0]["topic"], "team_priors")
+            archived_model = (
+                archive_dir / "reproducibility_gw1" / "ensemble_models.joblib"
+            )
+            self.assertEqual(archived_model.read_bytes(), b"model-bytes")
+            self.assertEqual(
+                context["reproducibility"]["files"]["ensemble_models.joblib"]["sha256"],
+                "357e5d6fafa34d27360fec24b4326d3534905e33c6acdee60198fb078b7b79e5",
+            )
 
     def test_discovers_root_and_archived_prediction_seasons(self) -> None:
         with TemporaryDirectory() as tmpdir:

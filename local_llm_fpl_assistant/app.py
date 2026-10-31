@@ -1,4 +1,4 @@
-"""Separate Streamlit app for answering FPL questions with a local LLM."""
+"""Separate Streamlit app for answering FPL questions with GPT-6 Astra."""
 
 from __future__ import annotations
 
@@ -17,21 +17,24 @@ from local_llm_fpl_assistant.analytics import build_analysis_context
 from local_llm_fpl_assistant.data_access import (
     enrich_user_team,
     fetch_fpl_team_from_api,
-    load_next_predictions,
     load_predictions_for_horizon,
     load_team_from_csv,
+    load_saved_manager_team,
+    discover_prediction_files,
     validate_user_team,
 )
 from local_llm_fpl_assistant.llm_client import (
-    LocalLLMError,
-    OllamaSettings,
-    stream_chat_with_local_llm,
+    LLMError,
+    AstraSettings,
+    REASONING_EFFORTS,
+    api_key_available,
+    stream_chat_with_llm,
 )
 from local_llm_fpl_assistant.prompts import SYSTEM_PROMPT, build_user_prompt
 from local_llm_fpl_assistant.web_search import SearchSettings, build_online_research
 
 
-st.set_page_config(page_title="FPL Local LLM Assistant", layout="wide")
+st.set_page_config(page_title="FPL Astra Assistant", layout="wide")
 
 
 APP_STYLE = """
@@ -81,6 +84,7 @@ APP_STYLE = """
 SESSION_ANALYSIS_KEY = "local_llm_analysis_context"
 SESSION_TEAM_KEY = "local_llm_user_team"
 SESSION_CHAT_KEY = "local_llm_chat_history"
+SESSION_INPUT_KEY = "local_llm_input_team"
 
 
 def _apply_style() -> None:
@@ -94,13 +98,14 @@ def _format_float(value: object, digits: int = 1) -> str:
 
 
 def _build_sidebar_settings() -> Dict[str, object]:
-    st.sidebar.header("Local Model")
-    base_url = st.sidebar.text_input("Base URL", value="http://localhost:11434")
-    model = st.sidebar.text_input("Model", value="llama3.1:8b")
+    st.sidebar.header("GPT-6 Astra")
+    reasoning_effort = st.sidebar.selectbox("Reasoning effort", options=REASONING_EFFORTS)
     timeout_seconds = st.sidebar.number_input(
         "Timeout (seconds)", min_value=10, max_value=600, value=120, step=10
     )
-    temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.05)
+    st.sidebar.caption("Your question, squad analysis, and optional search snippets are sent to OpenAI.")
+    if not api_key_available():
+        st.sidebar.warning("Set OPENAI_API_KEY in the server environment to enable answers.")
 
     st.sidebar.header("Planning Horizon")
     horizon = st.sidebar.slider("Gameweeks", min_value=1, max_value=6, value=3, step=1)
@@ -126,11 +131,9 @@ def _build_sidebar_settings() -> Dict[str, object]:
     )
 
     return {
-        "ollama": OllamaSettings(
-            base_url=base_url,
-            model=model,
+        "astra": AstraSettings(
+            reasoning_effort=reasoning_effort,
             timeout_seconds=int(timeout_seconds),
-            temperature=float(temperature),
         ),
         "horizon": int(horizon),
         "free_transfers": int(free_transfers),
@@ -181,6 +184,14 @@ def _render_team_table(team_df: pd.DataFrame) -> None:
 def _render_transfer_preview(context: Dict[str, object]) -> None:
     plan = context["transfer_plan"]
     st.subheader("Transfer Preview")
+    finance = context.get("financial_context", {})
+    if finance.get("mode") == "estimate":
+        st.warning(str(finance["note"]))
+    elif finance.get("mode") == "saved_manager_state":
+        st.caption(
+            f"Saved bank: £{finance['bank_m']:.1f}m · Free transfers: {finance['free_transfers']} · "
+            f"Proposed hits: {finance['transfer_hit_cost']} pts"
+        )
     if not plan["recommendations"]:
         st.info("No transfers suggested for the selected constraints and horizon.")
         return
@@ -220,10 +231,14 @@ def _analyse_team(
     max_transfers: int,
 ) -> Tuple[pd.DataFrame, Dict[str, object]]:
     validate_user_team(user_team)
-    next_gw, _, current_predictions = load_next_predictions()
-    loaded_gws, predictions_by_gw, missing_gws = load_predictions_for_horizon(horizon)
-    if loaded_gws and loaded_gws[0] != next_gw:
-        next_gw = loaded_gws[0]
+    manager_state = user_team.attrs.get("manager_state")
+    saved_args = {}
+    if manager_state is not None:
+        saved_args = {"start_gameweek": manager_state.last_processed_gameweek + 1,
+                      "season_name": manager_state.season_name}
+    loaded_gws, predictions_by_gw, missing_gws = load_predictions_for_horizon(horizon, **saved_args)
+    next_gw = loaded_gws[0]
+    current_predictions = predictions_by_gw[next_gw]
 
     enriched_team = enrich_user_team(user_team, current_predictions)
     context = build_analysis_context(
@@ -234,6 +249,7 @@ def _analyse_team(
         missing_gws=missing_gws,
         free_transfers=free_transfers,
         max_transfers=max_transfers,
+        manager_state=manager_state,
     )
     context["analysis_scope"]["current_gameweek"] = int(next_gw)
     return enriched_team, context
@@ -241,7 +257,22 @@ def _analyse_team(
 
 def _handle_team_input() -> Optional[pd.DataFrame]:
     st.subheader("1. Load Your Team")
-    source = st.radio("Team source", options=["FPL ID", "CSV upload"], horizontal=True)
+    source = st.radio("Team source", options=["Saved AI Manager", "FPL ID", "CSV upload"], horizontal=True)
+    if st.session_state.get("assistant_team_source") != source:
+        for key in (SESSION_INPUT_KEY, SESSION_TEAM_KEY, SESSION_ANALYSIS_KEY, SESSION_CHAT_KEY, "assistant_analysis_signature"):
+            st.session_state.pop(key, None)
+        st.session_state["assistant_team_source"] = source
+    if source == "Saved AI Manager":
+        team = load_saved_manager_team()
+        state = team.attrs["manager_state"]
+        st.caption(
+            f"GW{state.last_processed_gameweek} is already applied. Planning from GW{state.last_processed_gameweek + 1}; "
+            f"£{state.bank_m:.1f}m bank and {state.free_transfers} saved free transfer(s). "
+            "Saved free transfers take precedence over the sidebar estimate."
+        )
+        if st.button("Load saved team", use_container_width=True) or SESSION_INPUT_KEY in st.session_state:
+            return team
+        return None
 
     if source == "FPL ID":
         fpl_id = st.number_input("FPL Team ID", min_value=1, step=1, value=1)
@@ -264,7 +295,7 @@ def _handle_team_input() -> Optional[pd.DataFrame]:
 
 def _render_chat_interface(
     context: Dict[str, object],
-    ollama: OllamaSettings,
+    astra: AstraSettings,
     search_settings: SearchSettings,
 ) -> None:
     st.subheader("2. Ask The Assistant")
@@ -294,9 +325,11 @@ def _render_chat_interface(
         height=100,
     )
 
-    if st.button("Ask local LLM", type="primary", use_container_width=True):
+    if st.button("Ask Astra", type="primary", use_container_width=True, disabled=not api_key_available()):
         if not question.strip():
             st.warning("Enter a question first.")
+        elif not api_key_available():
+            st.error("Set OPENAI_API_KEY in the server environment before asking the assistant.")
         else:
             answer = ""
             online_research: Dict[str, object] = {}
@@ -320,18 +353,18 @@ def _render_chat_interface(
                 prompt_context = dict(context)
                 prompt_context["online_research"] = online_research
                 user_prompt = build_user_prompt(question, prompt_context)
-                st.write("Streaming response from the local model.")
+                st.write("Streaming response from GPT-6 Astra.")
                 status.update(label="Streaming answer...", state="running", expanded=True)
 
                 try:
                     answer = st.write_stream(
-                        stream_chat_with_local_llm(
+                        stream_chat_with_llm(
                             system_prompt=SYSTEM_PROMPT,
                             user_prompt=user_prompt,
-                            settings=ollama,
+                            settings=astra,
                         )
                     )
-                except LocalLLMError as exc:
+                except LLMError as exc:
                     status.update(label="Answer failed", state="error", expanded=True)
                     st.error(str(exc))
                 else:
@@ -361,29 +394,55 @@ def _render_chat_interface(
             st.markdown("</div>", unsafe_allow_html=True)
 
 
+def refresh_analysis(session, team, *, horizon, free_transfers, max_transfers,
+                     analyse=None, revision=None):
+    """Recompute on input/settings/artifact changes; never retain stale advice on failure."""
+    manager_state = team.attrs.get("manager_state")
+    state_signature = repr(manager_state.to_dict()) if manager_state is not None else None
+    signature = (team.to_json(), state_signature, horizon, free_transfers, max_transfers, revision)
+    if session.get("assistant_analysis_signature") == signature:
+        return
+    for key in (SESSION_TEAM_KEY, SESSION_ANALYSIS_KEY, SESSION_CHAT_KEY, "assistant_analysis_signature"):
+        session.pop(key, None)
+    enriched, context = (analyse or _analyse_team)(
+        team, horizon=horizon, free_transfers=free_transfers, max_transfers=max_transfers,
+    )
+    session[SESSION_TEAM_KEY] = enriched
+    session[SESSION_ANALYSIS_KEY] = context
+    session[SESSION_CHAT_KEY] = []
+    session["assistant_analysis_signature"] = signature
+
+
 def main() -> None:
     _apply_style()
-    st.title("FPL Local LLM Assistant")
+    st.title("FPL Astra Assistant")
     st.caption(
-        "Separate sidecar app that reuses this repo's prediction outputs and explains them with a local LLM."
+        "Squad advice from GPT-6 Astra, grounded in your prediction outputs and optional current news."
     )
 
     settings = _build_sidebar_settings()
-    team_df = _handle_team_input()
-    if team_df is not None:
-        try:
-            enriched_team, context = _analyse_team(
-                team_df,
+    try:
+        team_df = _handle_team_input()
+        if team_df is not None:
+            st.session_state[SESSION_INPUT_KEY] = team_df
+        raw_team = st.session_state.get(SESSION_INPUT_KEY)
+        if raw_team is not None:
+            if st.button("Refresh analysis"):
+                st.session_state.pop("assistant_analysis_signature", None)
+            files = discover_prediction_files()
+            revision = tuple((gw, path.stat().st_mtime_ns, path.stat().st_size) for gw, path in sorted(files.items()))
+            refresh_analysis(
+                st.session_state, raw_team,
                 horizon=settings["horizon"],
                 free_transfers=settings["free_transfers"],
                 max_transfers=settings["max_transfers"],
+                revision=revision,
             )
-        except Exception as exc:
-            st.error(str(exc))
-            return
-        st.session_state[SESSION_TEAM_KEY] = enriched_team
-        st.session_state[SESSION_ANALYSIS_KEY] = context
-        st.session_state[SESSION_CHAT_KEY] = []
+    except Exception as exc:
+        for key in (SESSION_TEAM_KEY, SESSION_ANALYSIS_KEY, SESSION_CHAT_KEY, "assistant_analysis_signature"):
+            st.session_state.pop(key, None)
+        st.error(str(exc))
+        return
 
     stored_team = st.session_state.get(SESSION_TEAM_KEY)
     stored_context = st.session_state.get(SESSION_ANALYSIS_KEY)
@@ -398,7 +457,7 @@ def main() -> None:
     with left:
         st.subheader("Current Team Context")
         _render_team_table(stored_team)
-        _render_chat_interface(stored_context, settings["ollama"], settings["search"])
+        _render_chat_interface(stored_context, settings["astra"], settings["search"])
 
     with right:
         _render_transfer_preview(stored_context)

@@ -24,7 +24,6 @@ from sklearn.impute import SimpleImputer
 from sklearn.model_selection import (
     BaseCrossValidator,
     RandomizedSearchCV,
-    TimeSeriesSplit,
     cross_val_score,
 )
 from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -57,7 +56,9 @@ from .config import (
     ENABLE_GPU_TRAINING,
     ENABLE_RANDOM_FOREST_MODELS,
     ENABLE_MLP_MODELS,
-    MIN_MATCHES_FOR_FEATURES,
+    PREDICTION_RELIABILITY_MATCHES,
+    PRESEASON_PRIOR_MAX_WEIGHT,
+    PRESEASON_ROLE_MAX_EP_ADJUSTMENT,
 )
 from .state import ModelState
 
@@ -73,6 +74,7 @@ REG_PATH = MODELS_DIR / "regressor.joblib"
 CLF_PATH = MODELS_DIR / "classifier.joblib"
 APPEARANCE_CLF_PATH = MODELS_DIR / "appearance_classifier.joblib"
 CAMEO_POINTS_PATH = MODELS_DIR / "cameo_points_by_position.joblib"
+ENSEMBLE_PATH = MODELS_DIR / "ensemble_models.joblib"
 
 class CorrelatedFeatureDropper(BaseEstimator, TransformerMixin):
     """
@@ -137,6 +139,56 @@ def _param_space_size(param_grid: dict[str, Sequence]) -> int:
 _SEASON_SORT_COL = "__season_sort__"
 _ROUND_SORT_COL = "__round_sort__"
 _KICKOFF_SORT_COL = "__kickoff_sort__"
+
+
+class GroupedExpandingWindowSplit(BaseCrossValidator):
+    """Expanding-window CV that keeps each season/round key intact per fold."""
+
+    def __init__(self, group_keys: Sequence[tuple[Any, Any]], n_splits: int):
+        self.group_keys = tuple(group_keys)
+        self.n_splits = int(n_splits)
+
+    def get_n_splits(self, X=None, y=None, groups=None) -> int:  # noqa: D401 - sklearn signature
+        return self.n_splits
+
+    def split(self, X, y=None, groups=None):
+        n_samples = len(X)
+        if n_samples != len(self.group_keys):
+            raise ValueError("GroupedExpandingWindowSplit requires one group key per sample.")
+
+        unique_keys: list[tuple[Any, Any]] = []
+        group_to_indices: dict[tuple[Any, Any], list[int]] = {}
+        for idx, key in enumerate(self.group_keys):
+            if key not in group_to_indices:
+                unique_keys.append(key)
+                group_to_indices[key] = []
+            group_to_indices[key].append(idx)
+
+        n_groups = len(unique_keys)
+        if self.n_splits < 1:
+            raise ValueError("n_splits must be at least 1.")
+        if n_groups <= self.n_splits:
+            raise ValueError("Not enough grouped time keys for the requested n_splits.")
+
+        test_size = n_groups // (self.n_splits + 1)
+        if test_size < 1:
+            raise ValueError("Not enough grouped time keys to allocate validation folds.")
+
+        test_starts = range(n_groups - self.n_splits * test_size, n_groups, test_size)
+        for test_start in test_starts:
+            train_groups = unique_keys[:test_start]
+            test_groups = unique_keys[test_start:test_start + test_size]
+            if not train_groups or not test_groups:
+                continue
+            train_idx = np.array(
+                [idx for group in train_groups for idx in group_to_indices[group]],
+                dtype=int,
+            )
+            test_idx = np.array(
+                [idx for group in test_groups for idx in group_to_indices[group]],
+                dtype=int,
+            )
+            yield train_idx, test_idx
 
 
 def _season_start_year(label: Any) -> int | None:
@@ -215,17 +267,41 @@ def _compute_season_sample_weights(season_series: pd.Series) -> pd.Series:
 def _build_time_series_cv(
     metadata: pd.DataFrame,
     max_splits: int,
-    n_samples: int,
 ) -> BaseCrossValidator | None:
     if metadata is None or metadata.empty:
         return None
+    working_metadata = metadata.copy()
+    n_samples = len(metadata)
     if n_samples < 3:
         return None
-    if _SEASON_SORT_COL not in metadata.columns or _ROUND_SORT_COL not in metadata.columns:
-        return None
+    if _SEASON_SORT_COL not in working_metadata.columns:
+        season_series = working_metadata.get("season_name")
+        season_rank = _season_rank(season_series) if season_series is not None else pd.Series(index=working_metadata.index, dtype=float)
+        if season_rank.empty:
+            season_rank = pd.Series(np.arange(len(working_metadata), dtype=float), index=working_metadata.index)
+        if season_rank.notna().any():
+            fill_value = float(season_rank.max(skipna=True)) + 1.0
+            working_metadata[_SEASON_SORT_COL] = season_rank.fillna(fill_value)
+        else:
+            working_metadata[_SEASON_SORT_COL] = pd.Series(
+                np.arange(len(working_metadata), dtype=float),
+                index=working_metadata.index,
+            )
+    if _ROUND_SORT_COL not in working_metadata.columns:
+        if "round" not in working_metadata.columns:
+            return None
+        round_numeric = pd.to_numeric(working_metadata["round"], errors="coerce")
+        if round_numeric.notna().any():
+            fallback = float(round_numeric.max(skipna=True)) + 1.0
+            working_metadata[_ROUND_SORT_COL] = round_numeric.fillna(fallback)
+        else:
+            working_metadata[_ROUND_SORT_COL] = pd.Series(
+                np.arange(len(working_metadata), dtype=float),
+                index=working_metadata.index,
+            )
 
     time_keys = (
-        metadata[[_SEASON_SORT_COL, _ROUND_SORT_COL]]
+        working_metadata[[_SEASON_SORT_COL, _ROUND_SORT_COL]]
         .dropna()
         .drop_duplicates()
         .sort_values(by=[_SEASON_SORT_COL, _ROUND_SORT_COL])
@@ -241,7 +317,11 @@ def _build_time_series_cv(
     if n_splits < 2:
         return None
 
-    return TimeSeriesSplit(n_splits=n_splits)
+    group_keys = [
+        (season_key, round_key)
+        for season_key, round_key in working_metadata[[_SEASON_SORT_COL, _ROUND_SORT_COL]].itertuples(index=False, name=None)
+    ]
+    return GroupedExpandingWindowSplit(group_keys=group_keys, n_splits=n_splits)
 
 
 def _prepare_training_temporal_order(
@@ -310,7 +390,7 @@ def _prepare_training_temporal_order(
         sample_weight_series = _compute_season_sample_weights(metadata_sorted["season_name"])
         sample_weight = sample_weight_series.to_numpy()
 
-    cv_strategy = _build_time_series_cv(metadata_sorted, HYPERPARAM_TUNING_CV, len(X_sorted))
+    cv_strategy = _build_time_series_cv(metadata_sorted, HYPERPARAM_TUNING_CV)
 
     metadata_clean = metadata_sorted.drop(
         columns=[_SEASON_SORT_COL, _ROUND_SORT_COL, _KICKOFF_SORT_COL],
@@ -1002,7 +1082,7 @@ def train_models(
             n_splits = cv_strategy.get_n_splits()
         except TypeError:
             n_splits = cv_strategy.get_n_splits(X_train, y_train)
-        logger.info("Using TimeSeriesSplit with %d folds for hyperparameter tuning.", n_splits)
+        logger.info("Using grouped expanding-window CV with %d folds for hyperparameter tuning.", n_splits)
     else:
         logger.info("Using default CV folds for hyperparameter tuning (time splits unavailable).")
 
@@ -1021,6 +1101,11 @@ def train_models(
     reg_X_train = X_train.loc[start_mask].reset_index(drop=True)
     reg_y_train = y_train.loc[start_mask].reset_index(drop=True)
     reg_sample_weight = sample_weight[start_mask] if sample_weight is not None else None
+    reg_full_metadata = metadata_sorted.loc[start_mask].reset_index(drop=True)
+    reg_cv_strategy = _build_time_series_cv(
+        reg_full_metadata,
+        HYPERPARAM_TUNING_CV,
+    )
 
     cameo_points_by_position: dict[int, float] = {}
     if metadata_sorted is not None and "minutes" in metadata_sorted.columns:
@@ -1054,6 +1139,11 @@ def train_models(
         sample_weight,
     )
     selection_y_appearance = y_appearance[-len(selection_X):]
+    selection_metadata = metadata_sorted.iloc[-len(selection_X):].reset_index(drop=True)
+    selection_cv = _build_time_series_cv(
+        selection_metadata,
+        HYPERPARAM_TUNING_CV,
+    )
 
     reg_selection_X = reg_X_train
     reg_selection_y = reg_y_train
@@ -1068,18 +1158,19 @@ def train_models(
         reg_selection_y = reg_selection_y.iloc[start_idx:].reset_index(drop=True)
         if reg_selection_weight is not None:
             reg_selection_weight = reg_selection_weight[start_idx:]
+        reg_metadata = reg_full_metadata.iloc[start_idx:].reset_index(drop=True)
+    else:
+        reg_metadata = reg_full_metadata
     reg_selection_cv: BaseCrossValidator | None = None
     if len(reg_selection_X) >= 3:
-        reg_selection_cv = TimeSeriesSplit(
-            n_splits=min(HYPERPARAM_TUNING_CV, len(reg_selection_X) - 1)
-        )
+        reg_selection_cv = _build_time_series_cv(reg_metadata, HYPERPARAM_TUNING_CV)
     evaluation_results = _evaluate_model_candidates(
         candidates,
         selection_X,
         selection_y_start,
         selection_y_appearance,
         selection_sample_weight,
-        cv_strategy,
+        selection_cv,
         reg_selection_X,
         reg_selection_y,
         reg_selection_weight,
@@ -1223,7 +1314,7 @@ def train_models(
                 label=f"regressor[{candidate.name}]",
                 scoring="neg_mean_absolute_error",
                 override_params=reg_override_params,
-                cv=None,
+                cv=reg_cv_strategy,
                 sample_weight=reg_sample_weight,
             )
         except Exception as exc:  # pragma: no cover - defensive fallback
@@ -1259,6 +1350,7 @@ def train_models(
             label=f"classifier[{fallback.name}]",
             scoring="balanced_accuracy",
             require_two_classes=True,
+            cv=cv_strategy,
         )
         fallback_appearance_clf = _fit_with_optional_tuning(
             fallback.build_classifier(),
@@ -1268,6 +1360,7 @@ def train_models(
             label=f"appearance_classifier[{fallback.name}]",
             scoring="balanced_accuracy",
             require_two_classes=True,
+            cv=cv_strategy,
         )
         fallback_reg = _fit_with_optional_tuning(
             fallback.build_regressor(),
@@ -1276,6 +1369,7 @@ def train_models(
             reg_y_train,
             label=f"regressor[{fallback.name}]",
             scoring="neg_mean_absolute_error",
+            cv=reg_cv_strategy,
             sample_weight=reg_sample_weight,
         )
         fallback_bundle = FittedModelBundle(
@@ -1350,6 +1444,7 @@ def train_models(
     joblib.dump(appearance_clf, APPEARANCE_CLF_PATH)
     joblib.dump(reg, REG_PATH)
     joblib.dump(cameo_points, CAMEO_POINTS_PATH)
+    joblib.dump(fitted_candidates, ENSEMBLE_PATH)
     return clf, appearance_clf, reg, cameo_points, fitted_candidates
 
 def load_models() -> Tuple[Pipeline, Pipeline, Pipeline, dict[int, float]]:
@@ -1374,41 +1469,164 @@ def predict_expected_points(
     """
     base_meta_cols = ["player_id", "full_name", "team_name", "now_cost_millions", "team_id", "element_type"]
     optional_meta_names = (
+        "player_code",
         "season_minutes",
         "history_match_count",
+        "current_season_match_count",
         "availability_this_round",
         "availability_next_round",
         "status_availability",
         "status_injury_flag",
+        "status_persistent_flag",
+        "status_return_date",
+        "future_status_applied_flag",
+        "target_fixture_kickoff",
         "injury_risk_flag",
         "fixture_count",
         "official_ep_next",
         "price_change_percent",
+        "set_piece_duty_score",
+        "has_corners_duty",
+        "primary_corners_taker",
+        "has_direct_fk_duty",
+        "primary_direct_fk_taker",
+        "has_penalty_duty",
+        "primary_penalty_taker",
+        "preseason_minutes",
+        "preseason_starts",
+        "preseason_appearances",
+        "preseason_last_two_minutes",
+        "prior_p_start",
+        "prior_p_appearance",
+        "preseason_prior_quality",
+        "preseason_data_source",
+        "source_confidence",
+        "preseason_appearance_share",
+        "preseason_start_share",
+        "preseason_minutes_share",
+        "preseason_recent_minutes_share",
+        "preseason_evidence_components",
+        "preseason_evidence_depth",
+        "role_target_gameweek",
+        "attacking_role_delta",
+        "penalty_role_delta",
+        "corner_role_delta",
+        "direct_fk_role_delta",
+        "role_evidence_matches",
+        "role_evidence_confidence",
+        "role_last_observed_at",
+        "role_change_score",
+        "role_evidence_components",
+        "role_evidence_quality",
+        "role_data_source",
+        "role_notes",
+        "tournament_minutes",
+        "tournament_matches",
+        "tournament_starts",
+        "last_tournament_appearance_at",
+        "late_return_flag",
+        "readiness_multiplier",
+        "workload_evidence_confidence",
+        "workload_valid_through_gameweek",
+        "workload_notes",
+        "workload_data_source",
+        "provider_expected_points",
+        "provider_expected_points_weight",
+        "provider_expected_points_source",
+        "team_prior_source",
+        "opponent_team_prior_source",
+        "team_context_prior_weight",
+        "opponent_team_context_prior_weight",
     )
     optional_meta_cols = [col for col in optional_meta_names if col in X_meta_and_feats.columns]
     meta_cols = base_meta_cols + optional_meta_cols
     meta = X_meta_and_feats[meta_cols].copy()
     feats = X_meta_and_feats.drop(columns=meta_cols)
 
-    p_start = clf.predict_proba(feats)[:, 1]
+    model_p_start = clf.predict_proba(feats)[:, 1]
     if appearance_clf is None:
         raise ValueError(
             "appearance_clf is required because start probability cannot be used "
             "as appearance probability."
         )
-    p_appearance = appearance_clf.predict_proba(feats)[:, 1]
-    p_appearance = np.maximum(p_appearance, p_start)
+    model_p_appearance = appearance_clf.predict_proba(feats)[:, 1]
+    model_p_appearance = np.maximum(model_p_appearance, model_p_start)
     pts_hat = reg.predict(feats)
     if "history_match_count" in meta.columns:
         history_matches = pd.to_numeric(meta["history_match_count"], errors="coerce").fillna(0.0)
-        reliability = np.clip(history_matches / float(max(1, MIN_MATCHES_FOR_FEATURES)), 0.0, 1.0)
+        reliability = np.clip(
+            history_matches / float(max(1, PREDICTION_RELIABILITY_MATCHES)),
+            0.0,
+            1.0,
+        )
     elif "season_minutes" in meta.columns:
         season_minutes = pd.to_numeric(meta["season_minutes"], errors="coerce").fillna(0.0)
-        minutes_threshold = float(MIN_MATCHES_FOR_FEATURES * 90.0)
+        minutes_threshold = float(PREDICTION_RELIABILITY_MATCHES * 90.0)
         reliability = np.clip(season_minutes / minutes_threshold, 0.0, 1.0)
     else:
         reliability = pd.Series(1.0, index=meta.index)
     reliability_np = reliability.to_numpy(dtype=float)
+
+    role_score = pd.to_numeric(
+        meta.get("role_change_score", pd.Series(np.nan, index=meta.index)),
+        errors="coerce",
+    ).clip(-1.0, 1.0)
+    role_quality = pd.to_numeric(
+        meta.get("role_evidence_quality", pd.Series(0.0, index=meta.index)),
+        errors="coerce",
+    ).fillna(0.0).clip(0.0, 1.0)
+    current_season_matches = pd.to_numeric(
+        meta.get("current_season_match_count", pd.Series(0.0, index=meta.index)),
+        errors="coerce",
+    ).fillna(0.0)
+    role_reliability = np.clip(
+        current_season_matches / float(max(1, PREDICTION_RELIABILITY_MATCHES)),
+        0.0,
+        1.0,
+    )
+    role_adjustment_weight = (
+        (1.0 - role_reliability) * role_quality
+    ).where(role_score.notna(), 0.0).clip(0.0, 1.0)
+    role_ep_multiplier = (
+        1.0
+        + role_adjustment_weight
+        * role_score.fillna(0.0)
+        * float(PRESEASON_ROLE_MAX_EP_ADJUSTMENT)
+    ).clip(
+        lower=1.0 - float(PRESEASON_ROLE_MAX_EP_ADJUSTMENT),
+        upper=1.0 + float(PRESEASON_ROLE_MAX_EP_ADJUSTMENT),
+    )
+    pre_role_points_hat = np.asarray(pts_hat, dtype=float).copy()
+    pts_hat = pre_role_points_hat * role_ep_multiplier.to_numpy(dtype=float)
+
+    prior_quality = pd.to_numeric(
+        meta.get("preseason_prior_quality", pd.Series(0.0, index=meta.index)),
+        errors="coerce",
+    ).fillna(0.0).clip(0.0, 1.0)
+    base_prior_weight = (
+        (1.0 - reliability) * prior_quality * float(PRESEASON_PRIOR_MAX_WEIGHT)
+    ).clip(0.0, 1.0)
+    prior_start = pd.to_numeric(
+        meta.get("prior_p_start", pd.Series(np.nan, index=meta.index)),
+        errors="coerce",
+    ).clip(0.0, 1.0)
+    prior_appearance = pd.to_numeric(
+        meta.get("prior_p_appearance", pd.Series(np.nan, index=meta.index)),
+        errors="coerce",
+    ).clip(0.0, 1.0)
+    start_prior_weight = base_prior_weight.where(prior_start.notna(), 0.0).to_numpy(dtype=float)
+    appearance_prior_weight = base_prior_weight.where(
+        prior_appearance.notna(), 0.0
+    ).to_numpy(dtype=float)
+    p_start = (
+        (1.0 - start_prior_weight) * model_p_start
+        + start_prior_weight * prior_start.fillna(0.0).to_numpy(dtype=float)
+    )
+    p_appearance = (
+        (1.0 - appearance_prior_weight) * model_p_appearance
+        + appearance_prior_weight * prior_appearance.fillna(0.0).to_numpy(dtype=float)
+    )
+    p_appearance = np.maximum(p_appearance, p_start)
 
     availability = pd.Series(1.0, index=meta.index, dtype=float)
     if "availability_next_round" in meta.columns:
@@ -1422,6 +1640,11 @@ def predict_expected_points(
             pd.to_numeric(meta["status_availability"], errors="coerce")
         )
     availability_np = availability.fillna(1.0).clip(0.0, 1.0).to_numpy(dtype=float)
+    readiness = pd.to_numeric(
+        meta.get("readiness_multiplier", pd.Series(1.0, index=meta.index)),
+        errors="coerce",
+    ).fillna(1.0).clip(0.0, 1.0)
+    availability_np = availability_np * readiness.to_numpy(dtype=float)
 
     # Apply bias corrections, but keep start probability as the gate on upside.
     # A player who is very unlikely to start should not gain large standalone EP
@@ -1443,10 +1666,23 @@ def predict_expected_points(
     ep_corrected = ep_raw + (bias_correction * availability_np)
 
     out = meta.copy()
+    out["model_p_start"] = model_p_start
+    out["model_p_appearance"] = model_p_appearance
+    out["start_prior_weight"] = start_prior_weight
+    out["appearance_prior_weight"] = appearance_prior_weight
+    out["pre_role_points_hat"] = pre_role_points_hat
+    out["role_adjustment_weight"] = role_adjustment_weight.to_numpy(dtype=float)
+    out["role_ep_multiplier"] = role_ep_multiplier.to_numpy(dtype=float)
+    out["role_points_hat_delta"] = pts_hat - pre_role_points_hat
     out["p_start"] = p_start
     out["p_appearance"] = p_appearance
     out["points_hat"] = pts_hat
     out["reliability_weight"] = reliability_np
+    out["cold_start_bucket"] = pd.cut(
+        reliability,
+        bins=[-0.01, 0.0, 0.49, 0.99, 1.0],
+        labels=["no_history", "sparse", "developing", "established"],
+    ).astype(str)
     out["expected_points_raw"] = ep_raw
     out["expected_points"] = ep_corrected.clip(min=0.0)  # no negatives
     return out

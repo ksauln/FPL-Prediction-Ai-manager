@@ -1,7 +1,7 @@
 # FPL 2026/27 Model Update
 
-Audit completed against the live FPL game and official Premier League
-announcements on 23 July 2026.
+Audit refreshed against the live FPL game and official Premier League
+announcements on 4 August 2026.
 
 ## Confirmed Rules
 
@@ -68,11 +68,12 @@ will include him automatically if he enters the live pool.
 
 ## New Official Data Used
 
-- **Official expected points:** live `ep_next` contributes 35% of the final
-  ensemble only for the official next Gameweek. A future planning replay does
-  not reuse it for the wrong Gameweek. Historical `xP` was audited but rejected
-  as a training input because the archive contains post-event/capture-time
-  snapshots rather than consistently calibrated pre-match forecasts.
+- **Official expected points:** live `ep_next` contributes 35% for a reliable
+  player and rises toward 85% as historical reliability falls. It is used only
+  for the official next Gameweek. A future planning replay does not reuse it for
+  the wrong Gameweek. Historical `xP` was audited but rejected as a training
+  input because the archive contains post-event/capture-time snapshots rather
+  than consistently calibrated pre-match forecasts.
 - **Fixture Difficulty Rating:** historical FDR is joined from each season's
   `fixtures.csv`; live home/away FDR comes from the official fixtures endpoint.
 - **Price Change Predictor:** `price_change_percent` is retained in prediction,
@@ -80,18 +81,28 @@ will include him automatically if he enters the live pool.
   value/timing signal, not an FPL points component, so it does not overwrite
   expected points or force a transfer.
 - **Current availability metadata:** status and availability fields adjust
-  confidence and player forecasts. Set-piece order, aggregate ownership,
-  transfers, and additional expected-stat fields are present in the refreshed
-  bootstrap data, but they are not currently training features and do not
-  silently change the optimizer's expected-points objective.
+  confidence and player forecasts. Full-season planning preserves permanent
+  `u`/`n` statuses and honors structured expected-return/suspension dates against
+  each player's target fixture, but does not copy an undated GW1 injury through
+  all 38 Gameweeks. Set-piece orders are retained as auditable role fields. They
+  are not backfilled onto historical training targets and do not receive an
+  invented points uplift.
+- **Preseason snapshots:** timestamped friendly usage can supply a bounded
+  start/appearance prior, prior-season league results supply stable-code GW1
+  team context, GW-scoped role-change evidence can supply a capped scoring
+  nudge, and optional licensed workload/projection files use the same cutoff-safe
+  contract. See the [enrichment runbook](preseason-enrichment.md).
+- **Leakage controls:** training features and validation are grouped by
+  season/Gameweek, including double Gameweeks, and residual calibration is fit
+  only on rows that predate the Gameweek being evaluated. Backdated runs require
+  archived as-of bootstrap and fixture metadata.
 
 The price signal is expected to remain zero until after the GW1 deadline while
 prices are locked. FPL describes it as guidance rather than a guaranteed price
 change.
 
-The 35% live-EP blend is configurable as `OFFICIAL_EP_BLEND_WEIGHT`. The custom
-model remains the majority input, while the official current-season forecast
-anchors a cold start under the new positions and BPS rules.
+The established and cold-start weights are configurable as
+`OFFICIAL_EP_BLEND_WEIGHT` and `OFFICIAL_EP_COLD_START_BLEND_WEIGHT`.
 
 ## Sources Reviewed But Not Added As Predictors
 
@@ -103,11 +114,10 @@ anchors a cold start under the new positions and BPS rules.
 - Exact 2026/27 BPS backcasting would require Opta event fields for times
   tackled, save location, and big-chance saves. Those fields are not available
   from the FPL history endpoints, so no invented proxy is used.
-- Preseason results and aggregate ownership were reviewed as cold-start
-  context. They are not yet automatic predictors: friendly strength and player
-  minutes need a consistent auditable feed, while ownership reflects manager
-  popularity rather than future points. A bounded new-player role/availability
-  prior is the recommended integration after backtesting.
+- Aggregate ownership remains descriptive rather than predictive. Preseason
+  evidence is accepted only through timestamped, source-attributed local
+  snapshots; unknown minutes remain null and heterogeneous editorial pages are
+  not scraped as if they were a stable feed.
 
 ## Sources
 

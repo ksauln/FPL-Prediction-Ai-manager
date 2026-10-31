@@ -103,6 +103,16 @@ class SeasonManagerConfig:
     chip_future_value_ratio: float = 0.95
     monte_carlo_noise_scale: float = 1.0
     strategic_chip_gameweeks: Optional[Sequence[int]] = None
+    # Existing saved requests omit this field and continue using the old engine.
+    manager_version: str = "legacy"
+    planning_beam_width: int = 4
+    planning_candidates: int = 6
+    free_transfer_future_value: float = 1.0
+    scenario_injury_probability: float = 0.015
+    scenario_team_correlation: float = 0.35
+    # V2 only: require extra net benefit before spending points on transfers.
+    paid_transfer_gain_buffer: float = 2.0
+    paid_transfer_min_probability: float = 0.75
 
 
 @dataclass
@@ -1082,6 +1092,15 @@ def simulate_season(
     """
 
     config = config or SeasonManagerConfig()
+    if config.manager_version == "v2":
+        from .manager_v2 import simulate_v2_season
+
+        return simulate_v2_season(
+            predictions_by_gw, gameweeks=gameweeks, config=config,
+            initial_state=initial_state, progress_callback=progress_callback,
+        )
+    if config.manager_version != "legacy":
+        raise ValueError("manager_version must be 'legacy' or 'v2'")
     predictions = _normalise_prediction_map(predictions_by_gw)
     prediction_season_name = _prediction_map_season_name(predictions)
     selected_gws = sorted(int(gw) for gw in (gameweeks if gameweeks is not None else predictions))
@@ -2043,6 +2062,16 @@ def run_repeated_season_simulations(
     if simulation_mode not in valid_modes:
         raise ValueError(f"simulation_mode must be one of {sorted(valid_modes)}")
     config = config or SeasonManagerConfig()
+    if config.manager_version == "v2":
+        from .manager_v2 import run_v2_simulations
+
+        return run_v2_simulations(
+            predictions_by_gw, gameweeks=gameweeks, simulations=simulations,
+            config=config, random_seed=random_seed, initial_state=initial_state,
+            progress_callback=progress_callback,
+        )
+    if config.manager_version != "legacy":
+        raise ValueError("manager_version must be 'legacy' or 'v2'")
     base_predictions = _normalise_prediction_map(predictions_by_gw)
     rng = np.random.default_rng(random_seed)
     total_started_at = perf_counter()

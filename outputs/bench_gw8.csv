@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-346,Dominic Calvert-Lewin,Leeds,13,4,6.0,4.113396910313922,0.9225083250385477,0.9712978200884855,,,1.0,1.0,1.6201438848920864,91.9,High,3.603,4.624,,0,0,1,0,1,SUN (A)
-533,Nordi Mukiele,Sunderland,20,2,5.5,4.052575205229088,0.8826792937004925,0.9457637757344793,,,1.0,1.0,0.8766570605187319,94.3,High,3.845,4.26,,0,0,1,0,2,LEE (H)
-254,Antonee Robinson,Fulham,10,2,4.5,3.641773024373558,0.8026284723180779,0.8596543813674067,,,1.0,1.0,0.8766570605187319,88.4,High,3.093,4.191,,0,0,1,0,3,COV (A)
-250,Bernd Leno,Fulham,10,1,4.5,3.391147596864922,0.9547519862004517,0.9657867118019857,,,1.0,1.0,0.5,96.9,High,3.255,3.528,,0,0,1,0,4,COV (A)

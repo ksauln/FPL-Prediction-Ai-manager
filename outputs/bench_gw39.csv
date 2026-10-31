@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,starting,bench,captain,bench_order
-749,Mateus Mané,Wolves,20,4,4.2,4.38389324220838,0.799762181999188,56.8,Medium,2.467,6.3,0,1,0,1
-500,William Osula,Newcastle,15,4,5.5,4.187234183349393,0.7588176337055332,84.6,High,3.318,5.057,0,1,0,2
-344,Jaka Bijol,Leeds,11,2,3.9,4.118712759846148,0.9347915078026825,87.6,High,3.005,5.233,0,1,0,3
-341,Karl Darlow,Leeds,11,1,4.0,4.010391935836632,0.9792853645109698,63.9,Medium,2.521,5.499,0,1,0,4

@@ -15,6 +15,7 @@ CACHE_DIR = PROJECT_ROOT / "cache"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 EXTERNAL_HISTORY_REPO = EXTERNAL_DATA_DIR / "Fantasy-Premier-League"
 EXTERNAL_HISTORY_DIR = EXTERNAL_HISTORY_REPO / "data"
+PRESEASON_SNAPSHOT_DIR = DATA_DIR / "snapshots"
 
 # --- API Endpoints (official FPL)
 FPL_BOOTSTRAP = "https://fantasy.premierleague.com/api/bootstrap-static/"
@@ -49,6 +50,23 @@ ENABLE_MLP_MODELS = False
 # Feature engineering
 ROLLING_WINDOWS = [5]
 MIN_MATCHES_FOR_FEATURES = 3  # min previous matches required to generate a training row
+# Reliability is deliberately slower to reach 1.0 than training eligibility.
+# Three matches can create a row, but ten completed matches are required before
+# sparse-history priors fully fade out.
+PREDICTION_RELIABILITY_MATCHES = 10
+PRESEASON_PRIOR_MAX_WEIGHT = 0.80
+# Manual preseason role evidence only nudges conditional scoring. Its signal is
+# additionally reduced by evidence quality and current-season reliability.
+PRESEASON_ROLE_MAX_EP_ADJUSTMENT = 0.10
+
+# Strict GW1 is intended for the final, decision-ready data refresh rather than
+# an early-preseason placeholder export.
+STRICT_GW1_PLAYER_EVIDENCE_MAX_AGE_DAYS = 7
+STRICT_GW1_TEAM_PRIOR_MAX_AGE_DAYS = 120
+STRICT_GW1_MIN_EVIDENCED_PLAYERS_PER_TEAM = 11
+STRICT_GW1_MIN_PRESEASON_MATCHES = 2
+STRICT_GW1_MIN_SOURCE_CONFIDENCE = 0.50
+STRICT_GW1_MIN_PLAYER_EVIDENCE_QUALITY = 0.25
 
 # Bias-correction (EMA) applied after each finished GW
 EMA_ALPHA = 0.15  # smooth bias correction across ~3 GWs to damp one-off spikes
@@ -56,6 +74,9 @@ EMA_ALPHA = 0.15  # smooth bias correction across ~3 GWs to damp one-off spikes
 # Treat live FPL ep_next as one bounded ensemble input for the official next GW.
 # It is not reused for later planning replays because it is gameweek-specific.
 OFFICIAL_EP_BLEND_WEIGHT = 0.35
+OFFICIAL_EP_COLD_START_BLEND_WEIGHT = 0.85
+# Applied only when a point-in-time provider_expected_points snapshot exists.
+PROVIDER_EP_BLEND_WEIGHT = 0.20
 
 # Feature selection
 FEATURE_CORRELATION_THRESHOLD = 0.90

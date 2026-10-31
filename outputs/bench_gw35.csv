@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-106,Igor Thiago Nascimento Rodrigues,Brentford,4,4,8.0,4.027945925782897,0.8834029683527163,0.9710845277262736,,,1.0,1.0,1.6201438848920864,92.7,High,3.689,4.367,,0,0,1,0,1,AVL (H)
-445,Malick Thiaw,Newcastle,17,2,5.0,3.690895048179522,0.8927547117042166,0.955257541612091,,,1.0,1.0,0.8766570605187319,93.8,High,3.43,3.952,,0,0,1,0,2,COV (H)
-113,Ferdi Kadıoğlu,Brighton,5,2,4.5,3.682963911065301,0.8747117251735499,0.9448207671322828,,,1.0,1.0,0.8766570605187319,95.3,High,3.563,3.803,,0,0,1,0,3,SUN (H)
-109,Bart Verbruggen,Brighton,5,1,4.5,3.4767391940315306,0.9392865907945505,0.9640944244183571,,,1.0,1.0,0.5,91.9,High,2.937,4.017,,0,0,1,0,4,SUN (H)

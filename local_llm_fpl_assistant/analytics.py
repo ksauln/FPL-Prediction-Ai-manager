@@ -10,6 +10,7 @@ from fplmodel.config import FORMATION_OPTIONS
 from fplmodel.team_analysis import compare_team_to_optimal, summarise_team
 from fplmodel.team_picker import pick_best_xi
 from fplmodel.transfer_recommender import aggregate_expected_points, recommend_transfers
+from fplmodel.season_manager import ManagerState, SeasonManagerConfig, _transfer_candidate
 
 from .data_access import infer_captain_id
 
@@ -97,6 +98,8 @@ def _build_transfer_summary(transfers_payload: Dict[str, Any]) -> Dict[str, Any]
                 "out": _player_snapshot(item["out_player"]),
                 "in": _player_snapshot(item["in_player"]),
                 "expected_points_delta": _round_float(item.get("expected_points_delta")),
+                "sale_value_m": _round_float(item.get("out_sale_value")),
+                "purchase_cost_m": _round_float(item.get("in_purchase_price")),
             }
         )
 
@@ -138,8 +141,9 @@ def build_analysis_context(
     missing_gws: List[int],
     free_transfers: int,
     max_transfers: int,
+    manager_state: Optional[ManagerState] = None,
 ) -> Dict[str, Any]:
-    """Build a structured context object for the local LLM."""
+    """Build structured FPL context for the assistant."""
 
     captain_id = infer_captain_id(user_team)
     user_summary = summarise_team(user_team, captain_id=captain_id)
@@ -155,15 +159,43 @@ def build_analysis_context(
         budget_m=float(user_summary.total_cost),
         formations=FORMATION_OPTIONS,
     )
-    transfers_payload = recommend_transfers(
-        user_team,
-        predictions_by_gw,
-        gameweeks=loaded_gws,
-        free_transfers=free_transfers,
-        max_transfers=max_transfers,
-        budget_m=float(user_summary.total_cost),
-        formations=FORMATION_OPTIONS,
-    )
+    financial_context = {"mode": "estimate", "note": "Bank and purchase prices are unknown; transfer affordability is not verified."}
+    if manager_state is None:
+        transfers_payload = recommend_transfers(
+            user_team, predictions_by_gw, gameweeks=loaded_gws,
+            free_transfers=free_transfers, max_transfers=max_transfers,
+            budget_m=float(user_summary.total_cost), formations=FORMATION_OPTIONS,
+        )
+    else:
+        if set(user_team["player_id"]) != set(manager_state.squad_player_ids):
+            raise ValueError("Loaded squad does not match saved manager state.")
+        if loaded_gws[0] != manager_state.last_processed_gameweek + 1:
+            raise ValueError("Saved-team advice must start after the committed gameweek.")
+        candidate = _transfer_candidate(
+            manager_state, predictions_by_gw, loaded_gws[0],
+            SeasonManagerConfig(transfer_horizon=len(loaded_gws),
+                                max_transfers_per_gw=max_transfers, enable_chips=False),
+        )
+        transfers = candidate["transfers"]
+        count = len(transfers)
+        transfers_payload = {
+            "recommended_transfers": transfers,
+            "metadata": {
+                "free_transfers_used": min(count, manager_state.free_transfers),
+                "additional_transfers": max(0, count - manager_state.free_transfers),
+                "total_expected_points_current": candidate["projected_total_before"],
+                "total_expected_points_optimal": candidate["projected_total_after"],
+            },
+        }
+        financial_context = {
+            "mode": "saved_manager_state", "bank_m": manager_state.bank_m,
+            "free_transfers": manager_state.free_transfers,
+            "used_chips": manager_state.used_chips,
+            "committed_gameweek": manager_state.last_processed_gameweek,
+            "transfer_hit_cost": 4 * max(0, count - manager_state.free_transfers),
+            "net_projected_gain": candidate["gain"],
+            "note": "Legal regular-transfer plan using saved purchase prices and bank. Chip strategy is handled by AI Manager. Projection totals include its bench weighting.",
+        }
     aggregated_predictions = aggregate_expected_points(predictions_by_gw, gameweeks=loaded_gws)
 
     top_captains = (
@@ -178,6 +210,7 @@ def build_analysis_context(
             "horizon_gameweeks": [int(gw) for gw in loaded_gws],
             "missing_prediction_gameweeks": [int(gw) for gw in missing_gws],
         },
+        "financial_context": financial_context,
         "user_squad": {
             "total_cost_m": _round_float(user_summary.total_cost),
             "current_captain": user_summary.captain,

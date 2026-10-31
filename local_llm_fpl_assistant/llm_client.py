@@ -1,119 +1,87 @@
-"""HTTP client for a local Ollama-compatible chat endpoint."""
+"""GPT-6 Astra Responses API client for grounded FPL explanations."""
 
 from __future__ import annotations
 
-import json
+import os
 from dataclasses import dataclass
-from typing import Iterator, Optional
+from typing import Iterator
 
-import requests
+import httpx
+from openai import (
+    OpenAI, APIError, APIConnectionError, APITimeoutError,
+    AuthenticationError, PermissionDeniedError, NotFoundError, RateLimitError,
+)
+
+MODEL = "gpt-6-astra"
+REASONING_EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
-class LocalLLMError(RuntimeError):
-    """Raised when the local LLM request fails."""
+class LLMError(RuntimeError):
+    """User-safe failure without raw provider payloads or credentials."""
 
 
-@dataclass
-class OllamaSettings:
-    """Connection settings for a local Ollama-compatible endpoint."""
-
-    base_url: str = "http://localhost:11434"
-    model: str = "llama3.1:8b"
+@dataclass(frozen=True)
+class AstraSettings:
+    reasoning_effort: str = "low"
     timeout_seconds: int = 120
-    temperature: float = 0.2
+
+    def __post_init__(self) -> None:
+        if self.reasoning_effort not in REASONING_EFFORTS:
+            raise ValueError("Unsupported Astra reasoning effort.")
+        if self.timeout_seconds <= 0:
+            raise ValueError("Timeout must be positive.")
 
 
-def chat_with_local_llm(
-    *,
-    system_prompt: str,
-    user_prompt: str,
-    settings: OllamaSettings,
-) -> str:
-    """Send a chat request to a local Ollama-compatible server."""
-
-    url = settings.base_url.rstrip("/") + "/api/chat"
-    payload = {
-        "model": settings.model,
-        "stream": False,
-        "options": {"temperature": settings.temperature},
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
-
-    try:
-        response = requests.post(url, json=payload, timeout=settings.timeout_seconds)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        raise LocalLLMError(
-            f"Failed to reach the local LLM endpoint at {url}: {exc}"
-        ) from exc
-
-    try:
-        data = response.json()
-    except ValueError as exc:
-        raise LocalLLMError("Local LLM returned a non-JSON response.") from exc
-
-    message: Optional[dict] = data.get("message")
-    content = message.get("content") if isinstance(message, dict) else None
-    if not content:
-        raise LocalLLMError("Local LLM response did not include message content.")
-    return str(content).strip()
+def api_key_available() -> bool:
+    return bool(os.environ.get("OPENAI_API_KEY", "").strip())
 
 
-def stream_chat_with_local_llm(
-    *,
-    system_prompt: str,
-    user_prompt: str,
-    settings: OllamaSettings,
+def stream_chat_with_llm(
+    *, system_prompt: str, user_prompt: str, settings: AstraSettings,
 ) -> Iterator[str]:
-    """Stream a chat response from a local Ollama-compatible server."""
-
-    url = settings.base_url.rstrip("/") + "/api/chat"
-    payload = {
-        "model": settings.model,
-        "stream": True,
-        "options": {"temperature": settings.temperature},
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
-
+    """Yield answer text; require completion so partial streams cannot be saved."""
+    if not api_key_available():
+        raise LLMError("Set OPENAI_API_KEY in the server environment before asking the assistant.")
     try:
-        with requests.post(
-            url,
-            json=payload,
-            timeout=settings.timeout_seconds,
-            stream=True,
-        ) as response:
-            response.raise_for_status()
-            yielded_any = False
-            for raw_line in response.iter_lines(decode_unicode=True):
-                if not raw_line:
-                    continue
-                try:
-                    data = json.loads(raw_line)
-                except json.JSONDecodeError as exc:
-                    raise LocalLLMError("Local LLM returned malformed stream data.") from exc
-
-                if data.get("error"):
-                    raise LocalLLMError(str(data["error"]))
-
-                message = data.get("message")
-                if isinstance(message, dict):
-                    content = message.get("content")
-                    if content:
-                        yielded_any = True
-                        yield str(content)
-
-                if data.get("done"):
-                    break
-
-            if not yielded_any:
-                raise LocalLLMError("Local LLM stream did not include message content.")
-    except requests.RequestException as exc:
-        raise LocalLLMError(
-            f"Failed to reach the local LLM endpoint at {url}: {exc}"
-        ) from exc
+        with OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"].strip(),
+            base_url="https://api.openai.com/v1",
+            timeout=settings.timeout_seconds, max_retries=0,
+        ) as client:
+            with client.responses.create(
+                model=MODEL, instructions=system_prompt, input=user_prompt,
+                reasoning={"effort": settings.reasoning_effort}, store=False, stream=True,
+            ) as stream:
+                has_text = False
+                completed = False
+                for event in stream:
+                    if event.type == "response.output_text.delta":
+                        has_text = has_text or bool(event.delta.strip())
+                        yield event.delta
+                    elif event.type == "response.completed":
+                        completed = True
+                        break
+                    elif event.type == "response.incomplete":
+                        raise LLMError("The answer is incomplete. Try a shorter question or lower reasoning effort.")
+                    elif event.type in ("response.failed", "error"):
+                        raise LLMError("The OpenAI request failed. Please retry.")
+                    elif event.type == "response.refusal.delta":
+                        raise LLMError("The model declined this request. Try rephrasing your FPL question.")
+                if not completed:
+                    raise LLMError("The response stream ended before completion. Please retry.")
+                if not has_text:
+                    raise LLMError("The model returned no answer text. Please retry.")
+    except AuthenticationError:
+        raise LLMError("OpenAI authentication failed. Check the server's OPENAI_API_KEY.") from None
+    except (PermissionDeniedError, NotFoundError):
+        raise LLMError("GPT-6 Astra is unavailable for this API project. Check model access.") from None
+    except RateLimitError:
+        raise LLMError("OpenAI rate or quota limit reached. Check billing and retry later.") from None
+    except APITimeoutError:
+        raise LLMError("OpenAI timed out. Increase the timeout or lower reasoning effort.") from None
+    except APIConnectionError:
+        raise LLMError("Could not connect to OpenAI. Check the server's network connection.") from None
+    except httpx.TransportError:
+        raise LLMError("The connection to OpenAI was interrupted. Please retry.") from None
+    except APIError:
+        raise LLMError("The OpenAI request failed. Please retry.") from None

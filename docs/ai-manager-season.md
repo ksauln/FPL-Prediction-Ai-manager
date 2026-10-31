@@ -29,6 +29,13 @@ fpl_venv/bin/python main.py --force-refetch --expected-season 2026-27 \
 
 The command fails if the API still serves 2025/26. Bootstrap and fixture caches otherwise refresh automatically every 15 minutes.
 
+Before the final run, complete the
+[preseason enrichment workflow](preseason-enrichment.md). The local free-source
+team-prior snapshot is safe to build now; publish the player-usage snapshot only
+after the final one or two meaningful friendlies and late World Cup returns have
+been checked. Then add `--snapshot-mode strict` to the launch command so GW1
+cannot silently run without those inputs.
+
 The GUI defaults to the season identified by the cached FPL event deadlines, not
 the calendar alone. If prediction files were created by the older pipeline and
 lack season metadata, **Validate and tag legacy files** appears only when their
@@ -69,6 +76,13 @@ fpl_venv/bin/python main.py --expected-season 2026-27 \
 
 This writes `outputs/predictions_gw1.csv` through `outputs/predictions_gw38.csv`. Each file is tagged with its season and gameweek. The notebook rejects old or untagged artifacts.
 
+During a sequential planning replay, the immediately previous fitted ensemble is
+reused only when the full ordered training data and effective trainer signature
+match exactly. Target fixtures, prediction features, enrichment, confidence,
+squad artifacts, and reproducibility archives are regenerated for every
+Gameweek. A changed training row, schema, model setting, or trainer path forces a
+fresh fit.
+
 The pipeline also copies each prediction into
 `outputs/seasons/<season>/predictions_gw<N>.csv` and stores that season's
 matching `bootstrap_gw<N>.json` snapshot alongside it. A latest
@@ -76,6 +90,13 @@ matching `bootstrap_gw<N>.json` snapshot alongside it. A latest
 the GUI's **Season to simulate** selector. A season appears only after
 prediction files have been generated for it; historical results in the external
 dataset alone are not enough to reconstruct a manager simulation.
+
+Each archived Gameweek also stores `fixtures_gw<N>.json` and
+`context_gw<N>.json`. The context manifest records the cutoff, snapshot source
+and integrity hash, training-universe coverage, effective model configuration,
+and feature contract used for the run. Exact fitted models, enrichment inputs,
+source modules, and dependency metadata are copied into
+`reproducibility_gw<N>/`.
 
 The future-gameweek files are planning forecasts using the information available now and the target fixtures. They are not claims that future form, injuries, starts, or price changes are already known. Regenerate them each week.
 
@@ -144,12 +165,17 @@ Assume the next deadline is GW8.
 For the normal dashboard workflow, launch Streamlit, choose the inclusive target
 under **Build predictions through**, and click **Update data & predictions**.
 Choosing GW11 force-refreshes live FPL data, rebuilds GW8, and generates GW9
-through GW11. The new season-tagged files are used by subsequent AI Manager
-simulations; the update does not change completed runs or the committed
-live-manager state. Use the commands below to run the same process outside
-Streamlit. If live and cached event metadata are temporarily unavailable, the
-dashboard uses a relative next-N-Gameweeks selector and lets the refresh
-discover the official start. The button is disabled after GW38.
+through GW11. If saved manager state is through GW7, the refresh then starts a
+GW8-GW11 live simulation automatically. It carries forward the saved squad,
+bank, purchase prices, free transfers, chip usage, and decision history while
+reusing the prior run's simulation, strategy, and season-rule settings. You do
+not need to configure or press **Run AI Manager** again. Completed runs remain
+unchanged, and the committed live-manager state still advances only after you
+confirm that you applied the recommendation. Use the commands below to rebuild
+predictions outside Streamlit; automatic manager continuation is part of the
+dashboard refresh. If live and cached event metadata are temporarily
+unavailable, the dashboard uses a relative next-N-Gameweeks selector and lets
+the refresh discover the official start. The button is disabled after GW38.
 
 1. Refresh current players, prices, status, history, and fixtures:
 
@@ -164,13 +190,24 @@ discover the official start. The button is disabled after GW38.
      --replay-start-gw 8 --replay-end-gw 11
    ```
 
-3. Launch Streamlit, open **AI Manager**, choose **Live gameweek**, and run the displayed next gameweek through the available horizon. The live state fixes the start gameweek automatically.
+3. Open **AI Manager** and monitor the live run started by the refresh. Under **Review results**, the new job is already selected.
 
 4. Under **Review results**, apply only the first decision to the official team: transfers, lineup, bench, captain, vice-captain, and chip.
 
 5. After those moves are actually applied, select the confirmation checkbox and press **Save state through GW8**. This advances the live state file.
 
 Each GUI job keeps a reviewable `recommended_state.json` under `outputs/ai_manager_jobs/<job-id>/` before changing the live state file. Do not commit state for recommendations you did not apply. The notebook workflow remains available by setting `RUN_MODE = "live"`; it writes `recommended_state_after_gw<N>.json` and uses `COMMIT_RECOMMENDED_STATE` for the equivalent confirmation.
+
+The automatic continuation fails closed if the saved state is not exactly one
+Gameweek behind the official next round. This prevents the manager from silently
+skipping an uncommitted decision. If no saved state exists yet, the refresh only
+builds predictions, which is the expected preseason/GW1 setup behavior.
+
+If the official upcoming gameweek is already applied and saved, a refresh updates
+predictions and reports that the manager is waiting for the following gameweek.
+It does not rerun the committed decision or advance state. For example, after
+saving GW4, automatic continuation waits until the official next event is GW5.
+Skipped, uncommitted gameweeks and season mismatches still stop continuation.
 
 ## New Players And Transfers
 

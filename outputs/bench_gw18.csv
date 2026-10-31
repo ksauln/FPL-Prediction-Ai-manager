@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-106,Igor Thiago Nascimento Rodrigues,Brentford,4,4,8.0,4.63024086788746,0.8824823369487983,0.9710845277262736,,,1.0,1.0,1.6201438848920864,96.0,High,4.536,4.725,,0,0,1,0,1,COV (A)
-498,Marcos Senesi Barón,Spurs,19,2,6.0,4.376458602045739,0.8596510192482267,0.9182595412406809,,,1.0,1.0,0.8766570605187319,93.9,High,4.171,4.581,,0,0,1,0,2,BHA (H)
-423,Luke Shaw,Man Utd,16,2,4.5,4.13843393570036,0.883211403964653,0.9262922790242926,,,1.0,1.0,0.8766570605187319,91.6,High,3.69,4.587,,0,0,1,0,3,SUN (H)
-109,Bart Verbruggen,Brighton,5,1,4.5,3.325035370602495,0.9365277910382401,0.9640944244183571,,,1.0,1.0,0.5,92.8,High,2.881,3.769,,0,0,1,0,4,TOT (A)

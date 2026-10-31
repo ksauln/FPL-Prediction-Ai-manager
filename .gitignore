@@ -18,12 +18,16 @@ secrets.toml
 .DS_Store
 
 # Local data caches
-#data/raw/
-#data/processed/
-#data/external/
-#cache/
+data/raw/
+data/processed/
+data/external/
+cache/
+# Point-in-time enrichment snapshots may contain provider-restricted data and
+# locally entered evidence. Keep them private; schemas/examples live in docs.
+data/snapshots/
 
 # Model artifacts
+models/
 models/*.joblib
 models/regressor.joblib
 models/classifier.joblib
@@ -32,13 +36,16 @@ outputs/season_plan_simulations.json
 outputs/ai_manager_jobs/
 outputs/manager_state_*.json
 outputs/prediction_backups/
+outputs/manager_baselines/
+outputs/manager_v2/
+outputs/ui/
 outputs/seasons/
 #models/state.json
 #models/model_selection_summary.csv
 
 # Run outputs and logs
-#outputs/
-#logs/
+outputs/
+logs/
 
 # IDE metadata
 .vscode/

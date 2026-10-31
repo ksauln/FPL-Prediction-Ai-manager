@@ -8,11 +8,13 @@ from unittest.mock import Mock, patch
 
 from fplmodel.manager_jobs import (
     _update_status,
+    build_live_continuation_request,
     cancel_manager_job,
     commit_recommended_state,
     create_manager_job,
     list_manager_jobs,
     load_manager_job,
+    start_live_manager_continuation,
     start_manager_job,
     validate_job_request,
 )
@@ -41,6 +43,20 @@ def _request(**overrides: object) -> dict[str, object]:
 
 
 class ManagerJobTests(unittest.TestCase):
+    @staticmethod
+    def _write_state(path: Path, *, last_processed_gameweek: int) -> None:
+        payload = {
+            "squad_player_ids": list(range(1, 16)),
+            "bank_m": 1.2,
+            "free_transfers": 1,
+            "purchase_price_by_player_id": {str(i): 5.0 for i in range(1, 16)},
+            "used_chips": {"first": {}, "second": {}},
+            "history": [],
+            "last_processed_gameweek": last_processed_gameweek,
+            "season_name": "2026-27",
+        }
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
     def test_validate_job_request_normalises_values(self) -> None:
         validated = validate_job_request(
             _request(
@@ -208,6 +224,159 @@ class ManagerJobTests(unittest.TestCase):
                 commit_recommended_state(
                     created["job_id"], destination, job_root=root
                 )
+
+    def test_live_continuation_reuses_settings_but_advances_from_saved_state(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "manager_state.json"
+            self._write_state(state_path, last_processed_gameweek=7)
+            previous_request = validate_job_request(
+                _request(
+                    start_gw=1,
+                    end_gw=38,
+                    simulations=12_345,
+                    simulation_mode="fixed_policy",
+                    policy_refresh_interval=321,
+                    random_seed=77,
+                    output_dir="old-predictions",
+                    manager_state_path=str(state_path),
+                    manager_config={"transfer_horizon": 6, "enable_chips": False},
+                    rules={"max_free_transfers": 4},
+                )
+            )
+            previous_jobs = [
+                {
+                    "status": "completed",
+                    "state_committed_at": "2026-08-20T10:00:00+00:00",
+                    "request": previous_request,
+                }
+            ]
+
+            request = build_live_continuation_request(
+                season_name="2026-27",
+                start_gw=8,
+                end_gw=11,
+                output_dir="fresh-predictions",
+                manager_state_path=state_path,
+                previous_jobs=previous_jobs,
+            )
+
+        self.assertIsNotNone(request)
+        self.assertEqual(request["run_mode"], "live")
+        self.assertEqual(request["gameweeks"], [8, 9, 10, 11])
+        self.assertEqual(request["simulations"], 12_345)
+        self.assertEqual(request["simulation_mode"], "fixed_policy")
+        self.assertEqual(request["policy_refresh_interval"], 321)
+        self.assertEqual(request["random_seed"], 77)
+        self.assertEqual(request["manager_config"]["transfer_horizon"], 6)
+        self.assertFalse(request["manager_config"]["enable_chips"])
+        self.assertEqual(request["rules"]["max_free_transfers"], 4)
+        self.assertEqual(request["output_dir"], "fresh-predictions")
+        self.assertEqual(request["manager_state_path"], str(state_path))
+
+    def test_live_continuation_refuses_to_skip_uncommitted_gameweek(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "manager_state.json"
+            self._write_state(state_path, last_processed_gameweek=6)
+
+            with self.assertRaisesRegex(ValueError, "expects GW7"):
+                build_live_continuation_request(
+                    season_name="2026-27",
+                    start_gw=8,
+                    end_gw=11,
+                    output_dir="fresh-predictions",
+                    manager_state_path=state_path,
+                    previous_jobs=[],
+                )
+
+    def test_live_continuation_skips_before_a_manager_state_exists(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            result = start_live_manager_continuation(
+                season_name="2026-27",
+                start_gw=1,
+                end_gw=4,
+                output_dir="fresh-predictions",
+                manager_state_path=Path(tmpdir) / "missing-state.json",
+                job_root=Path(tmpdir) / "jobs",
+            )
+
+        self.assertEqual(result["action"], "skipped")
+        self.assertEqual(result["reason"], "no_saved_state")
+
+    def test_live_continuation_waits_when_upcoming_week_already_committed(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "manager_state.json"
+            self._write_state(state_path, last_processed_gameweek=4)
+            before = state_path.read_bytes()
+            with patch("fplmodel.manager_jobs.create_manager_job") as create:
+                result = start_live_manager_continuation(
+                    season_name="2026-27", start_gw=4, end_gw=10,
+                    output_dir=tmpdir, manager_state_path=state_path,
+                    job_root=Path(tmpdir) / "jobs",
+                )
+            self.assertEqual(result["action"], "waiting")
+            self.assertEqual(result["next_gameweek"], 5)
+            self.assertEqual(state_path.read_bytes(), before)
+            create.assert_not_called()
+
+    def test_live_continuation_starts_one_background_job(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / "jobs"
+            state_path = Path(tmpdir) / "manager_state.json"
+            self._write_state(state_path, last_processed_gameweek=7)
+
+            with patch(
+                "fplmodel.manager_jobs.start_manager_job",
+                side_effect=lambda job_id, **_kwargs: {
+                    "job_id": job_id,
+                    "status": "running",
+                },
+            ) as start_job:
+                result = start_live_manager_continuation(
+                    season_name="2026-27",
+                    start_gw=8,
+                    end_gw=11,
+                    output_dir="fresh-predictions",
+                    manager_state_path=state_path,
+                    job_root=root,
+                )
+
+            jobs = list_manager_jobs(job_root=root)
+
+        self.assertEqual(result["action"], "started")
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["request"]["run_mode"], "live")
+        self.assertEqual(jobs[0]["request"]["start_gw"], 8)
+        start_job.assert_called_once()
+
+    def test_live_continuation_does_not_duplicate_an_active_job(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir) / "jobs"
+            state_path = Path(tmpdir) / "manager_state.json"
+            self._write_state(state_path, last_processed_gameweek=7)
+            existing = create_manager_job(
+                _request(
+                    run_mode="live",
+                    start_gw=8,
+                    end_gw=11,
+                    output_dir="fresh-predictions",
+                    manager_state_path=str(state_path),
+                ),
+                job_root=root,
+            )
+
+            with patch("fplmodel.manager_jobs.start_manager_job") as start_job:
+                result = start_live_manager_continuation(
+                    season_name="2026-27",
+                    start_gw=8,
+                    end_gw=11,
+                    output_dir="fresh-predictions",
+                    manager_state_path=state_path,
+                    job_root=root,
+                )
+
+        self.assertEqual(result["action"], "existing")
+        self.assertEqual(result["job_id"], existing["job_id"])
+        start_job.assert_not_called()
 
 
 if __name__ == "__main__":

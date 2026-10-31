@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-418,Harry Maguire,Man Utd,16,2,5.0,4.38184671776431,0.7888696199781113,0.8514438779075879,,,1.0,1.0,0.8766570605187319,83.6,High,3.254,5.51,,0,0,1,0,1,COV (H)
-60,James Hill,Bournemouth,3,2,5.5,4.286317229611303,0.9104394754164771,0.9157142093566397,,,1.0,1.0,0.8766570605187319,96.7,High,4.2,4.373,,0,0,1,0,2,HUL (H)
-465,William Osula,Newcastle,17,4,6.0,4.049662492676339,0.9402529100338064,0.9625072220904748,,,1.0,1.0,1.6201438848920864,92.2,High,3.52,4.58,,0,0,1,0,3,SUN (H)
-57,Đorđe Petrović,Bournemouth,3,1,4.5,3.413406235253561,0.9037813064319322,0.9295148529008181,,,1.0,1.0,0.5,89.5,High,2.709,4.118,,0,0,1,0,4,HUL (H)

@@ -1,2 +1,1 @@
-"""Separate local-LLM assistant app for FPL team advice."""
-
+"""Separate GPT-6 Astra assistant app for FPL team advice."""

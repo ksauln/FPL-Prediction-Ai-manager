@@ -48,6 +48,7 @@ def _solve_for_formation(
     max_transfers: Optional[int] = None,
     free_transfers: int = 0,
     transfer_hit_cost: float = 4.0,
+    formation_options: Optional[list[Dict[str, int]]] = None,
 ) -> Dict[str, object]:
     """Solve the ILP for a specific formation."""
     if LpProblem is None:
@@ -95,10 +96,19 @@ def _solve_for_formation(
         prob += captain_vars[pid] <= start_vars[pid]
         prob += bench_vars[pid] + start_vars[pid] <= 1
 
-    # Formation constraints for the XI
+    # The optional joint formulation selects one of exactly the supplied legal
+    # formations in a single solve. The original path remains the default.
+    shape_vars = None
+    if formation_options is not None:
+        if not formation_options or any(sum(shape.values()) != desired_xi for shape in formation_options):
+            raise ValueError("All formation options must have the same XI size")
+        shape_vars = [LpVariable(f"shape_{i}", cat=LpBinary) for i in range(len(formation_options))]
+        prob += lpSum(shape_vars) == 1
     for pos, need in formation.items():
         pids = df[df["pos_name"] == pos]["player_id"].tolist()
-        prob += lpSum(start_vars[pid] for pid in pids) == need
+        required = (lpSum(var * int(shape.get(pos, 0)) for var, shape in zip(shape_vars, formation_options))
+                    if shape_vars is not None else need)
+        prob += lpSum(start_vars[pid] for pid in pids) == required
 
     # Total squad composition (XI + bench)
     for pos, limit in SQUAD_POSITION_LIMITS.items():
@@ -232,6 +242,10 @@ def _solve_for_formation(
         if (squad["captain"] == 1).any()
         else None,
     }
+    if shape_vars is not None:
+        selected_shape = next(shape for var, shape in zip(shape_vars, formation_options) if (var.value() or 0) > .5)
+        result["formation"] = selected_shape.copy()
+        result["formation_name"] = f"{selected_shape.get('DEF', 0)}-{selected_shape.get('MID', 0)}-{selected_shape.get('FWD', 0)}"
     if current_player_ids is not None:
         selected_ids = set(selected.loc[selected["starting"].eq(1) | selected["bench"].eq(1), "player_id"])
         transfers_made = len(selected_ids - current_player_ids)
@@ -260,6 +274,7 @@ def pick_best_xi(
     max_transfers: Optional[int] = None,
     free_transfers: int = 0,
     transfer_hit_cost: float = 4.0,
+    joint_formations: bool = False,
 ) -> Dict[str, object]:
     """
     ILP: pick best XI with bench under budget, formation, per-team, and squad constraints.
@@ -289,6 +304,13 @@ def pick_best_xi(
         if current_player_ids is not None
         else None
     )
+    if joint_formations:
+        return _solve_for_formation(
+            df, budget_m, formations[0], formation_options=formations,
+            current_player_ids=current_ids, bank_m=bank_m,
+            sale_value_by_player_id=sale_value_by_player_id, max_transfers=max_transfers,
+            free_transfers=free_transfers, transfer_hit_cost=transfer_hit_cost,
+        )
 
     for current in formations:
         try:

@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-388,Marc Guéhi,Man City,15,2,6.0,4.001651697536433,0.8855586706965173,0.9065623608229426,,,1.0,1.0,0.8766570605187319,90.5,High,3.449,4.555,,0,0,1,0,1,SUN (H)
-346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.9686474327415233,0.9251146275383189,0.9712978200884855,,,1.0,1.0,1.6201438848920864,92.8,High,3.54,4.398,,0,0,1,0,2,CRY (H)
-112,Jan Paul van Hecke,Spurs,19,2,5.0,3.9148634151088673,0.8496307275655046,0.9100274854811345,,,1.0,1.0,0.8766570605187319,92.8,High,3.65,4.179,,0,0,1,0,3,AVL (H)
-198,Dean Henderson,Crystal Palace,8,1,5.0,3.200042346260945,0.8381073463959505,0.8878067946787358,,,1.0,1.0,0.5,91.5,High,2.866,3.534,,0,0,1,0,4,LEE (A)

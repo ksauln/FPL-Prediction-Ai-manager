@@ -12,9 +12,33 @@ import requests
 
 from fplmodel.config import DATA_DIR, OUTPUTS_DIR
 from fplmodel.utils import get_current_and_last_finished_gw
+from fplmodel.prediction_artifacts import infer_bootstrap_season_name
+from fplmodel.season_manager import load_manager_state
 
 
 FPL_BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
+
+
+def load_saved_manager_team() -> pd.DataFrame:
+    """Read the live season's committed squad without changing its state."""
+    season = infer_bootstrap_season_name(DATA_DIR / "raw" / "bootstrap-static.json")
+    if not season:
+        raise ValueError("Cannot identify the live season. Refresh predictions first.")
+    path = OUTPUTS_DIR / f"manager_state_{season}.json"
+    state = load_manager_state(path)
+    if state.season_name != season:
+        raise ValueError("Saved manager state season does not match prediction inputs.")
+    if set(state.squad_player_ids) != set(state.purchase_price_by_player_id):
+        raise ValueError("Saved manager state is missing purchase prices.")
+    team = pd.DataFrame({"player_id": state.squad_player_ids})
+    validate_user_team(team)
+    decision = state.history[-1] if state.history else {}
+    starters = decision.get("starting_player_ids", state.squad_player_ids[:11])
+    team["starting"] = team.player_id.isin(starters).astype(int)
+    team["bench"] = 1 - team.starting
+    team["captain"] = (team.player_id == decision.get("captain_id")).astype(int)
+    team.attrs["manager_state"] = state
+    return team
 
 
 def extract_gw_from_path(path: Path) -> Optional[int]:
@@ -144,6 +168,7 @@ def load_next_predictions() -> Tuple[int, Path, pd.DataFrame]:
 
 def load_predictions_for_horizon(
     horizon: int,
+    *, start_gameweek: Optional[int] = None, season_name: Optional[str] = None,
 ) -> Tuple[List[int], Dict[int, pd.DataFrame], List[int]]:
     """Load prediction frames across a requested horizon."""
 
@@ -153,13 +178,20 @@ def load_predictions_for_horizon(
             "No prediction files found in outputs/. Run the pipeline first."
         )
 
-    try:
-        events_df = load_bootstrap_events()
-    except (FileNotFoundError, ValueError):
-        events_df = None
-    start_gw = select_prediction_gameweek(sorted(files), events_df)
+    if start_gameweek is None:
+        try:
+            events_df = load_bootstrap_events()
+        except (FileNotFoundError, ValueError):
+            events_df = None
+        start_gw = select_prediction_gameweek(sorted(files), events_df)
+    else:
+        start_gw = int(start_gameweek)
+    if not 1 <= start_gw <= 38:
+        raise ValueError("No remaining gameweeks to plan.")
+    if start_gw not in files:
+        raise FileNotFoundError(f"Build predictions for GW{start_gw} before asking the assistant.")
 
-    target_gws = [start_gw + offset for offset in range(horizon)]
+    target_gws = list(range(start_gw, min(39, start_gw + horizon)))
     predictions_by_gw: Dict[int, pd.DataFrame] = {}
     missing: List[int] = []
 
@@ -169,6 +201,12 @@ def load_predictions_for_horizon(
             missing.append(gw)
             continue
         predictions_by_gw[gw] = load_predictions(path)
+        if season_name is not None:
+            frame = predictions_by_gw[gw]
+            if ("season_name" not in frame or "gameweek" not in frame
+                    or not frame["season_name"].eq(season_name).all()
+                    or not frame["gameweek"].eq(gw).all()):
+                raise ValueError(f"{path.name} has stale or missing season/gameweek metadata. Rebuild predictions.")
 
     if not predictions_by_gw:
         raise FileNotFoundError(

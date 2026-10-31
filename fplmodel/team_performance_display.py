@@ -221,9 +221,9 @@ def _render_summary(history_df: pd.DataFrame) -> None:
 
 
 def _render_history_charts(history_df: pd.DataFrame) -> None:
-    point_color = "#4C78A8"
-    average_color = "#F58518"
-    rank_color = "#54A24B"
+    point_color = "#7de4f2"
+    average_color = "#ffc774"
+    rank_color = "#c8f46a"
 
     points_fig = go.Figure()
     points_fig.add_trace(
@@ -252,7 +252,10 @@ def _render_history_charts(history_df: pd.DataFrame) -> None:
 
     points_fig.update_layout(
         title="Points vs global average",
-        template="plotly_white",
+        template="plotly_dark",
+        paper_bgcolor="#0b111a",
+        plot_bgcolor="#111d2a",
+        font=dict(color="#eef5fc"),
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=""),
         xaxis=dict(title="Gameweek", showgrid=False),
@@ -271,14 +274,17 @@ def _render_history_charts(history_df: pd.DataFrame) -> None:
                 name="Overall rank",
                 line=dict(color=rank_color, width=3),
                 fill="tozeroy",
-                fillcolor="rgba(84,162,75,0.15)",
+                fillcolor="rgba(200,244,106,0.10)",
                 marker=dict(size=7, symbol="square", line=dict(color="white", width=1)),
                 hovertemplate="GW %{x}<br>Overall rank: %{y:,}<extra></extra>",
             )
         )
         rank_fig.update_layout(
             title="Overall rank trend",
-            template="plotly_white",
+            template="plotly_dark",
+            paper_bgcolor="#0b111a",
+            plot_bgcolor="#111d2a",
+            font=dict(color="#eef5fc"),
             hovermode="x unified",
             showlegend=False,
             xaxis=dict(title="Gameweek", showgrid=False),

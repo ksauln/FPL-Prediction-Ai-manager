@@ -1,5 +1,10 @@
 # Stateful FPL Season Manager
 
+The opt-in upgraded manager is available as a read-only trial. The current engine
+remains the default for the in-progress season. See [Manager v2](manager-v2.md)
+for weekly planning, shared scenario comparisons, individual-fixture forecasts,
+historical evaluation and live-state safeguards.
+
 ## Design Principle
 
 A real FPL manager needs state, transfer costs, chip timing, bench value, future fixtures, and uncertainty. This is a stateful manager, not another one-week optimizer.

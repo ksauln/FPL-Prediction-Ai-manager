@@ -1,5 +1,0 @@
-player_id,full_name,team_name,team_id,element_type,now_cost_millions,expected_points,start_probability,appearance_probability,availability_this_round,availability_next_round,status_availability,fixture_multiplier,cameo_points,confidence_score,confidence_level,expected_points_lower_80,expected_points_upper_80,official_ep_next,price_change_percent,starting,bench,captain,bench_order,next_fixture
-533,Nordi Mukiele,Sunderland,20,2,5.5,4.052575205229088,0.8826792937004925,0.9457637757344793,,,1.0,1.0,0.8766570605187319,94.3,High,3.845,4.26,,0,0,1,0,1,FUL (H)
-346,Dominic Calvert-Lewin,Leeds,13,4,6.0,3.9686474327415233,0.9251146275383189,0.9712978200884855,,,1.0,1.0,1.6201438848920864,92.8,High,3.54,4.398,,0,0,1,0,2,BRE (H)
-527,Richarlison de Andrade,Spurs,19,4,6.0,3.898422538180043,0.8602556703396568,0.9488996128521177,,,1.0,1.0,1.6201438848920864,93.5,High,3.669,4.127,,0,0,1,0,3,NEW (H)
-226,Jordan Pickford,Everton,9,1,5.5,3.4305654191116393,0.9777148246138256,0.9811776160566967,,,1.0,1.0,0.5,98.7,High,3.366,3.495,,0,0,1,0,4,BOU (A)

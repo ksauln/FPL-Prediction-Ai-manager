@@ -1,6 +1,10 @@
 # FPL Expected Points Pipeline
 
-Automated Fantasy Premier League analytics pipeline that ingests raw data, engineers features, trains ML models, updates bias adjustments, and outputs next gameweek projections alongside an optimized squad selection. A companion Streamlit interface (“FPL Optimization Toolkit”) visualizes the official next gameweek, confidence-aware predictions, user squad comparisons, and transfer recommendations.
+Automated Fantasy Premier League analytics pipeline that ingests raw data, engineers features, trains ML models, updates bias adjustments, and outputs next gameweek projections alongside an optimized squad selection. **Orbital**, the companion Streamlit dashboard, presents the AI Manager, confidence-aware predictions, squad comparisons, and transfer recommendations in a responsive charcoal, cyan and lime interface.
+
+![Orbital AI Manager squad and recommendation](docs/screenshots/orbital-desktop.png)
+
+Start with the [season runbook](docs/ai-manager-season.md), [v2 trial guide](docs/manager-v2.md), [transfer-hit fix and results](docs/manager-hit-discipline.md), or [Orbital UI guide](docs/orbital-ui.md). Setup, phone access and hosting boundaries are covered in [access and hosting](docs/access-and-hosting.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -21,6 +25,10 @@ The pipeline is structured so each stage feeds the next while persisting interme
 
 ### 1.1 AI Manager
 
+An opt-in **Upgraded manager · read-only trial** adds week-by-week transfer/chip
+planning and shared future scenarios while preserving the current live manager.
+See the [v2 trial guide](docs/manager-v2.md) for use and historical evaluation.
+
 The **AI Manager** runs through the main Streamlit app and manages a full FPL season. It uses repeated simulations to choose the squad, transfers, lineup, bench, captain, vice-captain, and chip timing while tracking bank, purchase prices, free transfers, and saved live state.
 
 Generate prediction artifacts, launch the main toolkit, and open **AI Manager**:
@@ -30,33 +38,38 @@ python main.py
 python -m streamlit run streamlit_app.py
 ```
 
-During the season, choose **Build predictions through** under sidebar **Updates**, then press **Update data & predictions**. The refresh pulls official FPL players, prices, availability, histories, and fixtures, rebuilds the official next Gameweek, and creates every season-tagged prediction file through the selected Gameweek.
+During the season, choose **Build predictions through** under sidebar **Updates**, then press **Update data & predictions**. The refresh pulls official FPL players, prices, availability, histories, and fixtures, rebuilds the official next Gameweek, and creates every season-tagged prediction file through the selected Gameweek. When saved AI Manager state exists, the same action automatically starts the next live simulation from that state using the previous simulation and strategy settings.
 
-Those new files affect the inputs used by subsequent AI Manager simulations. They do not rewrite a completed simulation, alter a saved recommendation, or advance the committed live-manager state. Longer-range files use the information available now, so regenerate them after each deadline and before acting on a recommendation.
+You do not need to configure or start the weekly simulation again. Completed runs remain immutable, and the committed state advances only after you confirm that the new recommendation was applied in FPL. Longer-range files use the information available now, so regenerate them after each deadline and before acting on a recommendation.
 
 If live and cached event metadata are temporarily unavailable, the selector
 falls back to a relative **Build predictions for** horizon; the refresh then
 discovers the official next Gameweek before generating files. After GW38, the
 update action is disabled because there is no upcoming Gameweek.
 
-![AI Manager season-planning and simulation settings](docs/screenshots/ai-manager.jpg)
+![Orbital saved-run selection and gameweek summary](docs/screenshots/orbital-overview.png)
+
+The upgraded manager's transfer-hit fix improved the reconstructed GW1–8 replay
+from 398 to 412 net points and reduced hit deductions from 40 to 4. The original
+next-week-only control still trails legacy (401 versus 446), so v2 remains an
+opt-in trial. These are observed-period checks with reconstructed horizons,
+not independent proof of full-season superiority. See the
+[evaluation and limitations](docs/manager-hit-discipline.md).
 
 See the [AI Manager season runbook](docs/ai-manager-season.md) for the end-to-end workflow and [season manager design notes](docs/season-manager.md) for the simulation modes and rules.
 
-### 1.2 Local LLM FPL Assistant
+### 1.2 FPL Astra Assistant
 
-The **Local LLM FPL Assistant** is a separate Streamlit app that uses a local Ollama-compatible model to explain the pipeline's deterministic squad analysis, player comparisons, and transfer recommendations in conversational language. It can load a squad by FPL ID or CSV and can optionally add current injury or availability search context.
+The **FPL Astra Assistant** is a separate Streamlit app that uses GPT-6 Astra to explain the pipeline's deterministic squad analysis, player comparisons, and transfer recommendations. It loads a squad by FPL ID or CSV and optionally adds current injury or availability search context. Questions and structured squad context are sent to OpenAI.
 
-Generate prediction artifacts, start your local Ollama server, and launch the assistant:
+Generate prediction artifacts, configure OPENAI_API_KEY in the server environment, install requirements, and launch the assistant:
 
 ```bash
 python main.py
 python -m streamlit run local_llm_fpl_assistant/app.py
 ```
 
-![Local LLM Assistant model and team settings](docs/screenshots/local-llm-assistant.jpg)
-
-See the [Local LLM FPL Assistant guide](local_llm_fpl_assistant/README.md) for model setup, supported inputs, and usage details.
+See the [FPL Astra Assistant guide](local_llm_fpl_assistant/README.md) for API-key setup, data handling, costs, supported inputs, and usage details.
 
 ---
 
@@ -80,7 +93,12 @@ FPL-Prediction/
 │   ├── transfer_recommender.py # multi-GW projections + transfer suggestions
 │   ├── season_manager.py       # stateful full-season manager simulation
 │   ├── manager_jobs.py         # persistent background simulation workers
-│   ├── manager_dashboard.py    # Streamlit AI Manager page
+│   ├── manager_dashboard.py    # Orbital AI Manager page
+│   ├── manager_v2.py           # opt-in weekly search and paid-transfer guards
+│   ├── manager_scenarios.py    # shared, batched future-outcome scenarios
+│   ├── manager_forecasts.py    # fixture forecasts and provenance
+│   ├── manager_backtest.py     # actual-outcome manager evaluation
+│   ├── ui_theme.py / assets/   # Orbital theme and pitch stylesheets
 │   ├── team_analysis.py        # squad summaries and comparisons
 │   ├── state.py / utils.py / logging_utils.py
 │   └── display.py              # squad visualisation
@@ -88,9 +106,10 @@ FPL-Prediction/
 ├── outputs/                    # csv/json/png artefacts per run
 ├── docs/screenshots/            # README screenshots of the Streamlit toolkit
 ├── logs/                       # detailed run logs
-├── local_llm_fpl_assistant/    # separate Ollama-backed conversational assistant
+├── local_llm_fpl_assistant/    # separate GPT-6 Astra conversational assistant
 ├── main.py                     # orchestrates the full pipeline
-├── streamlit_app.py            # FPL Optimization Toolkit UI
+├── scripts/                    # trial, backtest and preseason CLI tools
+├── streamlit_app.py            # Orbital dashboard entry point
 └── requirements.txt
 ```
 
@@ -108,6 +127,19 @@ python main.py              # runs the full pipeline
 
 To include historical CSVs from the vaastav archive, clone the repo into `data/external/Fantasy-Premier-League` (matching the default path in `config.py`). The official player endpoint exposes only the current season, so this external dataset is required for a useful preseason GW1 cold start.
 
+```bash
+mkdir -p data/external
+git clone https://github.com/vaastav/Fantasy-Premier-League.git data/external/Fantasy-Premier-League
+```
+
+API caches, external datasets, processed data, fitted models, prediction outputs,
+logs and live manager state are excluded from Git. Run `python main.py` to fetch
+current public FPL data, build features, train models and generate outputs before
+opening Orbital. The separate historical archive needs the clone above; private
+enrichment snapshots and an existing live-manager state must be restored from
+your own backup. A fresh checkout does not recover an in-progress manager or
+recreate historical forecast vintages. See the [data rebuild guide](docs/data-rebuild.md).
+
 After a season ends, update that archive with `git -C data/external/Fantasy-Premier-League pull --no-rebase origin master`. Preseason runs verify that all 38 gameweeks of the immediately prior season are present.
 
 Adjustments to paths, feature toggles, and model settings live in `fplmodel/config.py`.
@@ -122,6 +154,11 @@ Adjustments to paths, feature toggles, and model settings live in `fplmodel/conf
 
 - Only the first replay iteration honours `--force-refetch`; later runs reuse cached data.
 - Overrides let you reconstruct history so EMA biases in `models/state.json` evolve just as they would week by week.
+- A backdated replay now requires the matching
+  `outputs/seasons/<season>/bootstrap_gw<N>.json` and `fixtures_gw<N>.json`.
+  The pipeline fails closed when those as-of inputs are absent rather than
+  leaking today's player status, club, position, or set-piece metadata into the
+  past. Forward planning overrides continue to use metadata available now.
 - Without overrides the pipeline relies on live `bootstrap-static` metadata to infer the current, next, and last finished gameweeks automatically.
 - Live bootstrap and fixture caches expire after 15 minutes. The pipeline also checks that API deadlines match the season implied by today's date; use `--expected-season 2026-27` explicitly at launch or when selecting another season intentionally.
 
@@ -159,6 +196,12 @@ When it is time to run the actual new season:
    python main.py --expected-season 2026-27 --replay-start-gw 1 --replay-end-gw 38
    ```
 
+   A sequential replay reuses its immediately previous fitted ensemble only when
+   the complete ordered training dataset and effective trainer configuration have
+   identical fingerprints. Prediction features, fixtures, confidence, team picks,
+   and archives are still rebuilt for every target Gameweek; any training change
+   forces a new fit.
+
 3. Launch `python -m streamlit run streamlit_app.py`, open **AI Manager**, and select:
    - **Season to simulate**: `2026-27`
    - **Season planning**
@@ -180,6 +223,12 @@ When it is time to run the actual new season:
 4. Review the [2026/27 rule and data-source audit](docs/season-2026-27-update.md).
    The live pipeline now validates the official budget, squad, transfer, chip,
    position, and scoring configuration before training and stops on drift.
+
+   Before the final GW1 rerun, follow the
+   [preseason enrichment runbook](docs/preseason-enrichment.md) to refresh the
+   private promoted-team prior snapshot, enter final-friendly player usage and
+   GW-scoped role changes, add any licensed World Cup workload/projection
+   evidence, then run with `--snapshot-mode strict`.
 
 5. Run the manager and review:
    - simulation summary
@@ -208,10 +257,11 @@ When it is time to run the actual new season:
 
 4. **External history ingestion** (`external_history.load_external_histories`)  
    Attaches vaastav CSV seasons listed in `EXTERNAL_HISTORY_SEASONS`. Historical
-   element IDs are season-specific, so rows are mapped to current players
-   through stable player codes. Historical position and fixture difficulty are
-   retained for training. Archived `xP` is retained for audit but is not treated
-   as a reliable pre-match feature.
+   element IDs are season-specific, so stable player codes bridge active players
+   while historical-only players remain in the training universe under a
+   disjoint ID. Historical position, stable team code, and fixture difficulty
+   are retained for training. Archived `xP` is retained for audit but is not
+   treated as a reliable pre-match feature.
 
 ### 4.3 Data Cleaning
 - `data_cleaning.normalize_bootstrap` normalises bootstrap structures into pandas DataFrames (`elements`, `teams`, `events`).
@@ -296,19 +346,18 @@ other managers' teams as a points predictor.
   warns that the final one or two friendlies are normally more informative than
   early fitness matches.
 
-A safe future integration would store auditable friendly appearances, minutes,
-starts, position/role, goals, assists, and set-piece evidence; adjust for
-opponent strength and recency; and apply the result only as a bounded
-availability/role prior for players with little competitive history. Aggregate
-ownership should remain an explanatory or tie-break signal, not a replacement
-for expected points. Until that data path is implemented and backtested, new
-players rely on historical stable-code matches when available, current
-position/price/status, fixtures, the bounded official `ep_next` blend for the
-real next Gameweek, and a low-confidence flag when history is sparse.
+The implemented enrichment path accepts auditable, point-in-time friendly usage,
+GW-scoped role evidence, promoted-team priors and optional licensed projections
+as private snapshots. Appearance priors and role adjustments are bounded and
+fade as competitive evidence accumulates. Snapshot manifests retain provenance
+and cutoff checks; unknown observations remain blank. Aggregate ownership is
+not a substitute for expected points. See the
+[preseason enrichment runbook](docs/preseason-enrichment.md) for schemas,
+import/publish commands and strict GW1 requirements.
 
 ---
 
-## 5. Streamlit “FPL Optimization Toolkit”
+## 5. Orbital Streamlit Dashboard
 
 Launch the UI after running the pipeline at least once:
 
@@ -320,7 +369,20 @@ The app auto-loads fixtures and prediction files from `outputs/`, checks live FP
 
 The **AI Manager** tab runs long simulations in a separate process. Progress, ETA, results, and the first recommended state are persisted under `outputs/ai_manager_jobs/`, so changing pages or reconnecting to Streamlit does not discard a run.
 
+Completed runs initially open **Review results**; an active run keeps **Run
+simulations** as the initial view. The selected gameweek shows a responsive pitch,
+jersey markers, captain/vice pairing, transfers and hit cost. Player tables and
+season analysis remain available in expandable sections. The legacy engine is
+still the default, and v2 trials cannot save or advance live state.
+
 ### 5.1 Screenshots
+
+Orbital on a narrow mobile viewport:
+
+![Orbital mobile recommendation](docs/screenshots/orbital-mobile.png)
+
+The following older screenshots document the other toolkit pages before the
+shared Orbital theme was applied; their controls remain available.
 
 Optimal team view with confidence summary, squad metrics, and the prediction confidence board:
 
@@ -333,11 +395,11 @@ Transfer recommender setup showing the official next-gameweek horizon and missin
 ### 5.2 AI Manager Page
 - **Build predictions through** selects an inclusive target from the official next Gameweek through GW38. **Update data & predictions** then refreshes live FPL inputs and rebuilds every prediction file in that range. Progress and any failure are shown in the sidebar.
 - If event metadata cannot be loaded, the control safely falls back to a relative next-N-Gameweeks horizon. It is disabled after the season is complete.
-- Refreshed season-tagged files are used by new AI Manager simulations. Existing saved runs and committed manager state are unchanged.
+- When committed manager state exists, refreshing season-tagged files automatically starts the next live simulation with the saved squad, bank, purchase prices, free transfers, chips, and prior run settings. Existing completed runs and committed state remain unchanged.
 - **Run simulations** configures planning or live mode, gameweek range, simulation count, policy refresh interval, uncertainty, strategy thresholds, and season rules. The manager still chooses the squad, transfers, chips, lineup, bench, captain, and vice-captain itself.
 - **Review results** compares policy blocks and simulation totals, shows the recommended policy by gameweek, and displays a responsive pitch graphic for the selected XI alongside each player's opponent, home/away venue, Fixture Difficulty Rating, price, the bench, formation, projected points, free transfers, captaincy, chip, transfers, bank, and team value.
 - **Manager state** shows the committed live squad, purchase prices, bank, free transfers, chip usage, and decision history.
-- Only one background run is started from the UI at a time. It can be canceled from the active-run panel.
+- Only one background run is started from the UI at a time. Repeated refreshes reuse the active job instead of creating a duplicate, and it can be canceled from the active-run panel.
 - Live state advances only after you select the completed run, confirm that its first decision was applied on the FPL website, and press **Save state through GW<N>**.
 
 ### 5.3 Optimal Team Page

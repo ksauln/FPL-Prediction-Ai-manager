@@ -146,6 +146,15 @@ def validate_job_request(request: dict[str, object]) -> dict[str, object]:
         option_type=SeasonManagerConfig,
         excluded={"rules", "formations"},
     )
+    version = manager_config.get("manager_version", "legacy")
+    if version not in {"legacy", "v2"}:
+        raise ValueError("manager_version must be 'legacy' or 'v2'")
+    if version == "v2":
+        from .manager_v2 import validate_config
+
+        validate_config(SeasonManagerConfig(**manager_config))
+        if simulations > 10000:
+            raise ValueError("V2 trial simulations must be <= 10000")
     rules = _normalise_dataclass_options(
         request.get("rules", {}),
         option_type=SeasonRules,
@@ -293,6 +302,144 @@ def list_manager_jobs(
     return sorted(jobs, key=lambda item: str(item.get("created_at", "")), reverse=True)
 
 
+def _continuation_template(
+    jobs: list[dict[str, object]],
+    *,
+    season_name: str,
+) -> Optional[dict[str, object]]:
+    completed = [
+        job
+        for job in jobs
+        if job.get("status") == "completed"
+        and str(dict(job.get("request", {})).get("season_name")) == season_name
+        and dict(dict(job.get("request", {})).get("manager_config", {})).get("manager_version", "legacy") == "legacy"
+    ]
+    committed = [job for job in completed if job.get("state_committed_at")]
+    candidates = committed or completed
+    return candidates[0] if candidates else None
+
+
+def build_live_continuation_request(
+    *,
+    season_name: str,
+    start_gw: int,
+    end_gw: int,
+    output_dir: Path | str,
+    manager_state_path: Path | str,
+    previous_jobs: Optional[list[dict[str, object]]] = None,
+    job_root: Path = MANAGER_JOB_ROOT,
+) -> Optional[dict[str, object]]:
+    """Build the next live request from saved state and prior run settings.
+
+    Returning ``None`` means the manager has not been started yet. Once state
+    exists, continuation is deliberately strict: the refreshed official next
+    Gameweek must be exactly one round after the committed state.
+    """
+
+    state_path = Path(manager_state_path)
+    if not state_path.is_file():
+        return None
+    state = load_manager_state(state_path)
+    if state.season_name != season_name:
+        raise ValueError(
+            f"Saved AI Manager state is for {state.season_name or 'an unknown season'}, "
+            f"not {season_name}."
+        )
+
+    expected_start = int(state.last_processed_gameweek) + 1
+    if int(start_gw) != expected_start:
+        raise ValueError(
+            f"Saved AI Manager state is through GW{state.last_processed_gameweek} and "
+            f"expects GW{expected_start}, but refreshed predictions start at GW{start_gw}. "
+            "Apply and save each weekly recommendation before continuing."
+        )
+
+    jobs = list_manager_jobs(job_root=job_root) if previous_jobs is None else previous_jobs
+    template = _continuation_template(jobs, season_name=season_name)
+    template_request = dict(template.get("request", {})) if template else {}
+    request = {
+        "season_name": season_name,
+        "run_mode": "live",
+        "start_gw": int(start_gw),
+        "end_gw": int(end_gw),
+        "simulations": int(template_request.get("simulations", 50_000)),
+        "simulation_mode": str(
+            template_request.get("simulation_mode", "periodic_reoptimization")
+        ),
+        "policy_refresh_interval": int(
+            template_request.get("policy_refresh_interval", 1_000)
+        ),
+        "random_seed": int(template_request.get("random_seed", 90)),
+        "manager_config": dict(template_request.get("manager_config", {})),
+        "rules": dict(template_request.get("rules", {})),
+        "output_dir": str(output_dir),
+        "manager_state_path": str(state_path),
+    }
+    return validate_job_request(request)
+
+
+def start_live_manager_continuation(
+    *,
+    season_name: str,
+    start_gw: int,
+    end_gw: int,
+    output_dir: Path | str,
+    manager_state_path: Path | str,
+    job_root: Path = MANAGER_JOB_ROOT,
+) -> dict[str, object]:
+    """Start the next live AI Manager run after a successful data refresh."""
+
+    state_path = Path(manager_state_path)
+    if not state_path.is_file():
+        return {"action": "skipped", "reason": "no_saved_state"}
+
+    state = load_manager_state(state_path)
+    if state.season_name == season_name and state.last_processed_gameweek == int(start_gw):
+        return {
+            "action": "waiting",
+            "next_gameweek": int(start_gw) + 1,
+            "message": (
+                f"GW{start_gw} is already applied and saved. "
+                f"Continue when the official next Gameweek becomes GW{int(start_gw) + 1}."
+            ),
+        }
+
+    jobs = list_manager_jobs(job_root=job_root)
+    active = next(
+        (job for job in jobs if job.get("status") in {"queued", "running"}),
+        None,
+    )
+    if active is not None:
+        active_request = dict(active.get("request", {}))
+        return {
+            "action": "existing",
+            "job_id": str(active["job_id"]),
+            "start_gw": int(active_request.get("start_gw", start_gw)),
+            "end_gw": int(active_request.get("end_gw", end_gw)),
+        }
+
+    request = build_live_continuation_request(
+        season_name=season_name,
+        start_gw=start_gw,
+        end_gw=end_gw,
+        output_dir=output_dir,
+        manager_state_path=state_path,
+        previous_jobs=jobs,
+        job_root=job_root,
+    )
+    if request is None:  # Defensive; the existence check above normally handles this.
+        return {"action": "skipped", "reason": "no_saved_state"}
+    created = create_manager_job(request, job_root=job_root)
+    started = start_manager_job(str(created["job_id"]), job_root=job_root)
+    return {
+        "action": "started",
+        "job_id": str(created["job_id"]),
+        "start_gw": int(start_gw),
+        "end_gw": int(end_gw),
+        "status": str(started.get("status", "running")),
+    }
+
+
 def load_manager_job_result(
     job_id: str,
     *,
@@ -414,6 +561,8 @@ def commit_recommended_state(
     """Commit a completed job's first recommended decision as live state."""
 
     job = load_manager_job(job_id, job_root=job_root)
+    if dict(job.get("request", {}).get("manager_config", {})).get("manager_version", "legacy") == "v2":
+        raise ValueError("V2 is a read-only trial and cannot commit live manager state")
     if job["status"] != "completed":
         raise RuntimeError("Only a completed manager job can commit state")
     candidate_path = _job_directory(job_id, Path(job_root)) / "recommended_state.json"
@@ -546,7 +695,10 @@ def run_manager_job(job_dir: Path) -> dict[str, object]:
     recommended_policy = result.get("recommended_policy", result.get("best_run", {}))
     decisions = list(recommended_policy.get("decisions", []))
     recommended_state_path: Optional[Path] = None
-    if decisions and "manager_state_after" in decisions[0]:
+    if (
+        decisions and "manager_state_after" in decisions[0]
+        and dict(request.get("manager_config", {})).get("manager_version", "legacy") == "legacy"
+    ):
         recommended_state_path = save_manager_state(
             ManagerState.from_dict(decisions[0]["manager_state_after"]),
             job_dir / "recommended_state.json",
@@ -607,6 +759,7 @@ if __name__ == "__main__":
 
 __all__ = [
     "MANAGER_JOB_ROOT",
+    "build_live_continuation_request",
     "cancel_manager_job",
     "commit_recommended_state",
     "create_manager_job",
@@ -614,6 +767,7 @@ __all__ = [
     "load_manager_job",
     "load_manager_job_result",
     "run_manager_job",
+    "start_live_manager_continuation",
     "start_manager_job",
     "validate_job_request",
 ]

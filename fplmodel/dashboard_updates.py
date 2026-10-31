@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 
 PipelineFunction = Callable[..., dict[str, object]]
 ReplayFunction = Callable[..., list[dict[str, object]]]
 ProgressCallback = Callable[[str], None]
+ManagerContinuationFunction = Callable[..., dict[str, object]]
 
 
 def build_update_control_state(next_gameweek: int | None) -> dict[str, Any]:
@@ -123,3 +125,55 @@ def refresh_dashboard_data(
         "gameweeks": gameweeks,
         "runs": results,
     }
+
+
+def refresh_dashboard_data_and_continue_manager(
+    *,
+    horizon: int = 4,
+    through_gameweek: int | None = None,
+    run_pipeline_fn: PipelineFunction | None = None,
+    replay_gameweeks_fn: ReplayFunction | None = None,
+    progress_callback: ProgressCallback | None = None,
+    manager_continuation_fn: ManagerContinuationFunction | None = None,
+) -> dict[str, Any]:
+    """Refresh predictions and automatically continue any saved live manager."""
+
+    result = refresh_dashboard_data(
+        horizon=horizon,
+        through_gameweek=through_gameweek,
+        run_pipeline_fn=run_pipeline_fn,
+        replay_gameweeks_fn=replay_gameweeks_fn,
+        progress_callback=progress_callback,
+    )
+    if manager_continuation_fn is None:
+        from .manager_jobs import start_live_manager_continuation
+
+        manager_continuation_fn = start_live_manager_continuation
+
+    season_name = str(result["season_name"])
+    first_run = dict(result["runs"][0]) if result.get("runs") else {}
+    archive_value = first_run.get("predictions_archive_csv")
+    if archive_value:
+        predictions_dir = Path(str(archive_value)).parent
+        output_root = predictions_dir.parent.parent
+    else:
+        from .config import OUTPUTS_DIR
+
+        output_root = OUTPUTS_DIR
+        predictions_dir = output_root / "seasons" / season_name
+
+    try:
+        continuation = manager_continuation_fn(
+            season_name=season_name,
+            start_gw=int(result["start_gameweek"]),
+            end_gw=int(result["end_gameweek"]),
+            output_dir=str(predictions_dir),
+            manager_state_path=str(output_root / f"manager_state_{season_name}.json"),
+        )
+    except (FileNotFoundError, OSError, RuntimeError, ValueError) as exc:
+        continuation = {
+            "action": "error",
+            "message": str(exc),
+        }
+    result["manager_continuation"] = continuation
+    return result

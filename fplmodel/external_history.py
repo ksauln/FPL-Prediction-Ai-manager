@@ -31,15 +31,45 @@ def _season_gw_dir(season: str) -> Path:
 
 
 def _load_team_map(season: str) -> dict[str, int]:
+    return _load_team_maps(season)[0]
+
+
+def _load_team_maps(
+    season: str,
+) -> tuple[dict[str, int], dict[str, int], dict[int, int]]:
     teams_path = _season_dir(season) / "teams.csv"
     if not teams_path.exists():
         logger.warning("Missing teams.csv for season %s at %s", season, teams_path)
-        return {}
+        return {}, {}, {}
     teams = pd.read_csv(teams_path)
     if "name" not in teams.columns or "id" not in teams.columns:
         logger.warning("teams.csv for season %s lacks expected columns", season)
-        return {}
-    return dict(zip(teams["name"].astype(str), teams["id"].astype(int)))
+        return {}, {}, {}
+
+    team_ids = pd.to_numeric(teams["id"], errors="coerce")
+    valid_ids = team_ids.notna() & team_ids.mod(1).eq(0)
+    names = teams["name"].astype(str)
+    name_to_id = dict(zip(names.loc[valid_ids], team_ids.loc[valid_ids].astype(int)))
+
+    if "code" not in teams.columns:
+        logger.warning(
+            "teams.csv for season %s lacks stable team codes; team prior mapping "
+            "will be unavailable",
+            season,
+        )
+        return name_to_id, {}, {}
+    team_codes = pd.to_numeric(teams["code"], errors="coerce")
+    valid_codes = valid_ids & team_codes.notna() & team_codes.mod(1).eq(0)
+    name_to_code = dict(
+        zip(names.loc[valid_codes], team_codes.loc[valid_codes].astype(int))
+    )
+    id_to_code = dict(
+        zip(
+            team_ids.loc[valid_codes].astype(int),
+            team_codes.loc[valid_codes].astype(int),
+        )
+    )
+    return name_to_id, name_to_code, id_to_code
 
 
 def _load_player_code_map(season: str) -> dict[int, int]:
@@ -82,6 +112,8 @@ def _normalise_frame(
     season: str,
     team_map: dict[str, int],
     fixture_difficulties: pd.DataFrame | None = None,
+    team_code_map: dict[str, int] | None = None,
+    opponent_team_code_map: dict[int, int] | None = None,
 ) -> pd.DataFrame:
     rename_map = {
         "element": "player_id",
@@ -179,10 +211,24 @@ def _normalise_frame(
             errors="ignore",
         )
 
-    # Map team names to ids where available
+    # Map season-specific team ids while retaining stable team codes.
     if "team" in df.columns:
-        mapped = df["team"].astype(str).map(team_map)
-        df["team"] = pd.to_numeric(mapped, errors="coerce")
+        raw_team = df["team"]
+        team_names = raw_team.astype(str)
+        mapped = team_names.map(team_map)
+        numeric_team = pd.to_numeric(raw_team, errors="coerce")
+        df["team"] = pd.to_numeric(mapped, errors="coerce").fillna(numeric_team)
+        if team_code_map is not None:
+            df["team_code"] = pd.to_numeric(
+                team_names.map(team_code_map), errors="coerce"
+            )
+            if opponent_team_code_map:
+                df["team_code"] = df["team_code"].fillna(
+                    df["team"].map(opponent_team_code_map)
+                )
+    if "opponent_team" in df.columns and opponent_team_code_map is not None:
+        opponent_ids = pd.to_numeric(df["opponent_team"], errors="coerce")
+        df["opponent_team_code"] = opponent_ids.map(opponent_team_code_map)
 
     # Ensure defaults for missing stats
     for col, default in HISTORY_COLS_DEFAULTS.items():
@@ -205,6 +251,8 @@ def _normalise_frame(
             "ict_index",
             "season_name",
             "team",
+            "team_code",
+            "opponent_team_code",
             "element_type",
             "official_expected_points",
             "fixture_difficulty",
@@ -240,7 +288,7 @@ def load_external_histories(
         if not gw_files:
             logger.info("No gameweek CSVs found for season %s", season)
             continue
-        team_map = _load_team_map(season)
+        team_map, team_code_map, opponent_team_code_map = _load_team_maps(season)
         player_code_map = _load_player_code_map(season)
         fixture_difficulties = _load_fixture_difficulties(season)
         season_frames = []
@@ -255,6 +303,8 @@ def load_external_histories(
                 season,
                 team_map,
                 fixture_difficulties=fixture_difficulties,
+                team_code_map=team_code_map,
+                opponent_team_code_map=opponent_team_code_map,
             )
             if gw_df.empty:
                 continue

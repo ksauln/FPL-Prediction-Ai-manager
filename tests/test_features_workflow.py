@@ -17,6 +17,7 @@ if sklearn_version < (1, 3):  # pragma: no cover - environment guard
     raise unittest.SkipTest("scikit-learn >= 1.3 is required for feature workflow tests")
 from fplmodel.features import (
     _add_team_context_features,
+    _prepare_player_static_features,
     build_training_and_pred_frames,
     expand_for_double_gw,
 )
@@ -27,9 +28,12 @@ from main import (
     _combine_ensemble_expected_points,
     add_prediction_confidence,
     blend_official_expected_points,
+    blend_provider_expected_points,
     infer_season_name,
     list_current_player_history_files,
     remap_external_histories_to_current_players,
+    scale_prediction_totals_for_fixtures,
+    target_gameweek_deadline,
     validate_external_history_coverage,
     validate_season_name,
 )
@@ -75,6 +79,10 @@ def _teams_df() -> pd.DataFrame:
     )
 
 
+def _fixtures_df(*rows: dict[str, object]) -> pd.DataFrame:
+    return pd.DataFrame(list(rows))
+
+
 def _history_row(
     player_id: int,
     season_name: str,
@@ -102,6 +110,62 @@ def _history_row(
 
 
 class FeatureWorkflowTests(unittest.TestCase):
+    def test_static_features_parse_real_fpl_status_news_shapes(self) -> None:
+        parsed = _prepare_player_static_features(
+            pd.DataFrame(
+                [
+                    {
+                        "player_id": 1,
+                        "status": "i",
+                        "news": "Leg injury - Expected back 28 Nov",
+                        "news_added": "2026-08-20T12:00:00Z",
+                    },
+                    {
+                        "player_id": 2,
+                        "status": "s",
+                        "news": "Suspended until 29 Aug",
+                        "news_added": "2026-08-20T12:00:00Z",
+                    },
+                    {
+                        "player_id": 3,
+                        "status": "i",
+                        "news": "Ankle injury - Expected back unknown",
+                        "news_added": "2026-08-20T12:00:00Z",
+                    },
+                ]
+            ),
+            current_season_name="2026-27",
+        ).set_index("player_id")
+
+        self.assertEqual(str(parsed.loc[1, "status_return_date"].date()), "2026-11-28")
+        self.assertEqual(str(parsed.loc[2, "status_return_date"].date()), "2026-08-29")
+        self.assertTrue(pd.isna(parsed.loc[3, "status_return_date"]))
+
+    def test_fixture_scaling_keeps_raw_and_corrected_dgw_outputs_comparable(self) -> None:
+        predictions = pd.DataFrame(
+            {
+                "fixture_multiplier": [2, 1, 0],
+                "expected_points_raw": [4.0, 4.0, 4.0],
+                "expected_points": [4.5, 4.5, 4.5],
+                "expected_points_raw__model": [3.0, 3.0, 3.0],
+                "expected_points__model": [3.5, 3.5, 3.5],
+                "points_hat__model": [5.0, 5.0, 5.0],
+                "cameo_points__model": [1.0, 1.0, 1.0],
+                "cameo_points": [1.0, 1.0, 1.0],
+                "start_probability__model": [0.7, 0.7, 0.7],
+            }
+        )
+
+        scaled = scale_prediction_totals_for_fixtures(predictions)
+
+        self.assertEqual(scaled["expected_points_raw"].tolist(), [8.0, 4.0, 0.0])
+        self.assertEqual(scaled["expected_points"].tolist(), [9.0, 4.5, 0.0])
+        self.assertEqual(
+            scaled["expected_points_raw__model"].tolist(), [6.0, 3.0, 0.0]
+        )
+        self.assertEqual(scaled["expected_points__model"].tolist(), [7.0, 3.5, 0.0])
+        self.assertEqual(scaled["start_probability__model"].tolist(), [0.7, 0.7, 0.7])
+
     def test_prediction_features_align_with_sparse_latest_row_indexes(self) -> None:
         rows: list[dict[str, object]] = []
         for player_id, points_offset, team, opponent in [(1, 0, 1, 2), (2, 4, 2, 1)]:
@@ -131,8 +195,33 @@ class FeatureWorkflowTests(unittest.TestCase):
             )
 
         pred_by_player = X_pred.set_index("player_id")
-        self.assertEqual(pred_by_player.loc[1, "total_points_lag1"], 3)
-        self.assertEqual(pred_by_player.loc[2, "total_points_lag1"], 7)
+        self.assertEqual(pred_by_player.loc[1, "total_points_lag1"], 4)
+        self.assertEqual(pred_by_player.loc[2, "total_points_lag1"], 8)
+        self.assertAlmostEqual(pred_by_player.loc[1, "total_points_ma5"], 2.5)
+        self.assertAlmostEqual(pred_by_player.loc[2, "total_points_ma5"], 6.5)
+
+    def test_training_rows_keep_one_match_behind_features(self) -> None:
+        histories = pd.DataFrame(
+            [
+                _history_row(1, "2025-26", round_number, round_number, round_number, 1, 2)
+                for round_number in range(1, 6)
+            ]
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            X_train, y_train, _, _ = build_training_and_pred_frames(
+                _elements_df().iloc[[0]].copy(),
+                _teams_df(),
+                histories,
+                next_gw=6,
+                last_finished_gw=5,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                current_season_name="2025-26",
+            )
+
+        target_row = X_train.loc[y_train.eq(5.0)].iloc[-1]
+        self.assertEqual(float(target_row["total_points_lag1"]), 4.0)
+        self.assertAlmostEqual(float(target_row["total_points_ma5"]), 2.5)
 
     def test_training_uses_completed_prior_seasons_beyond_current_gw(self) -> None:
         rows = [
@@ -178,6 +267,77 @@ class FeatureWorkflowTests(unittest.TestCase):
         self.assertEqual(set(X_pred["player_id"]), {1, 2})
         new_player = X_pred.set_index("player_id").loc[2]
         self.assertEqual(float(new_player["history_match_count"]), 0.0)
+        self.assertEqual(float(new_player["current_season_match_count"]), 0.0)
+
+    def test_prediction_counts_only_completed_current_season_matches(self) -> None:
+        rows = [
+            _history_row(1, "2025-26", round_number, 4, round_number, 1, 2)
+            for round_number in range(1, 6)
+        ]
+        rows.extend(
+            _history_row(1, "2026-27", round_number, 4, 100 + round_number, 1, 2)
+            for round_number in range(1, 4)
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                _elements_df().iloc[[0]].copy(),
+                _teams_df(),
+                pd.DataFrame(rows),
+                next_gw=3,
+                last_finished_gw=2,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                current_season_name="2026-27",
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertEqual(float(prediction["history_match_count"]), 7.0)
+        self.assertEqual(float(prediction["current_season_match_count"]), 2.0)
+
+    def test_role_evidence_is_prediction_metadata_not_a_training_feature(self) -> None:
+        histories = pd.DataFrame(
+            [
+                _history_row(1, "2025-26", round_number, 4, round_number, 1, 2)
+                for round_number in range(1, 6)
+            ]
+        )
+        preseason = pd.DataFrame(
+            {
+                "player_code": [1001, 1002],
+                # Published enrichment snapshots retain identity labels for
+                # operator auditing.  The live team mapping must remain the
+                # canonical prediction label after this frame is merged.
+                "team_name": ["Archived Alpha", "Archived Beta"],
+                "team_preseason_matches": [4, 4],
+                "preseason_appearances": [4, 4],
+                "preseason_starts": [4, 3],
+                "preseason_minutes": [320, 260],
+                "preseason_last_two_minutes": [170, 140],
+                "source_confidence": [0.8, 0.8],
+                "role_target_gameweek": [1, 1],
+                "role_change_score": [0.45, -0.35],
+                "role_evidence_quality": [0.8, 0.6],
+                "role_data_source": ["manual:test", "manual:test"],
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            X_train, _, X_pred, _ = build_training_and_pred_frames(
+                _elements_df(),
+                _teams_df(),
+                histories,
+                next_gw=1,
+                last_finished_gw=0,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                current_season_name="2026-27",
+                preseason_player_df=preseason,
+            )
+
+        self.assertNotIn("role_change_score", X_train.columns)
+        self.assertEqual(X_pred.set_index("player_id")["team_name"].to_dict(), {1: "Alpha", 2: "Beta"})
+        role_by_player = X_pred.set_index("player_id")["role_change_score"]
+        self.assertAlmostEqual(float(role_by_player.loc[1]), 0.45)
+        self.assertAlmostEqual(float(role_by_player.loc[2]), -0.35)
 
     def test_historical_replay_uses_the_price_from_the_target_round(self) -> None:
         rows = [
@@ -233,6 +393,128 @@ class FeatureWorkflowTests(unittest.TestCase):
         pred = X_pred.set_index("player_id")
         self.assertEqual(float(pred.loc[1, "was_home"]), 1.0)
         self.assertEqual(float(pred.loc[2, "was_home"]), 0.0)
+
+    def test_target_team_context_excludes_rows_after_last_finished_gameweek(self) -> None:
+        rows = []
+        for player_id, team, opponent in [(1, 1, 2), (2, 2, 1)]:
+            first = _history_row(player_id, "2025-26", 1, 4, 1, team, opponent)
+            future = _history_row(player_id, "2025-26", 3, 4, 3, team, opponent)
+            if team == 1:
+                first.update({"team_h_score": 2, "team_a_score": 0, "was_home": True})
+                future.update({"team_h_score": 9, "team_a_score": 0, "was_home": True})
+            else:
+                first.update({"team_h_score": 2, "team_a_score": 0, "was_home": False})
+                future.update({"team_h_score": 9, "team_a_score": 0, "was_home": False})
+            rows.extend([first, future])
+        fixtures = pd.DataFrame([{"event": 2, "team_h": 1, "team_a": 2}])
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                _elements_df(),
+                _teams_df(),
+                pd.DataFrame(rows),
+                next_gw=2,
+                last_finished_gw=1,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2025-26",
+            )
+
+        pred = X_pred.set_index("player_id")
+        self.assertEqual(float(pred.loc[1, "team_goals_for_ma5"]), 2.0)
+        self.assertEqual(float(pred.loc[2, "team_goals_for_ma5"]), 0.0)
+
+    def test_gw1_team_context_uses_prior_season_stable_team_codes(self) -> None:
+        teams = _teams_df().assign(code=[101, 202])
+        rows: list[dict[str, object]] = []
+        for round_number in range(1, 6):
+            rows.extend(
+                [
+                    {
+                        **_history_row(1, "2025-26", round_number, 4, round_number, 91, 92),
+                        "team_code": 101,
+                        "opponent_team_code": 202,
+                        "was_home": True,
+                        "team_h_score": 2,
+                        "team_a_score": 0,
+                    },
+                    {
+                        **_history_row(2, "2025-26", round_number, 2, round_number, 92, 91),
+                        "team_code": 202,
+                        "opponent_team_code": 101,
+                        "was_home": False,
+                        "team_h_score": 2,
+                        "team_a_score": 0,
+                    },
+                ]
+            )
+        fixtures = pd.DataFrame([{"event": 1, "team_h": 1, "team_a": 2}])
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                _elements_df(),
+                teams,
+                pd.DataFrame(rows),
+                next_gw=1,
+                last_finished_gw=0,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+            )
+
+        pred = X_pred.set_index("player_id")
+        self.assertEqual(float(pred.loc[1, "team_goals_for_ma5"]), 2.0)
+        self.assertEqual(float(pred.loc[2, "team_goals_against_ma5"]), 2.0)
+        self.assertEqual(pred.loc[1, "team_prior_source"], "history:2025-26")
+
+    def test_promoted_team_context_uses_optional_team_prior_snapshot(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements["team_id"] = 7
+        teams = pd.DataFrame(
+            [
+                {"team_id": 7, "name": "Coventry City", "code": 9},
+                {"team_id": 1, "name": "Alpha", "code": 3},
+            ]
+        )
+        histories = pd.DataFrame(
+            [
+                {
+                    **_history_row(1, "2025-26", round_number, 4, round_number, 1, 2),
+                    "team_code": 3,
+                }
+                for round_number in range(1, 6)
+            ]
+        )
+        fixtures = pd.DataFrame([{"event": 1, "team_h": 7, "team_a": 1}])
+        team_priors = pd.DataFrame(
+            {
+                "team_code": [9],
+                "team_goals_for_ma5": [1.8],
+                "team_goals_against_ma5": [0.9],
+                "team_goal_diff_ma5": [0.9],
+                "team_clean_sheet_ma5": [0.4],
+                "team_conceded_two_plus_ma5": [0.2],
+                "team_match_points_ma5": [2.2],
+                "team_prior_source": ["football_data_co_uk:2025-26:E1"],
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                teams,
+                histories,
+                next_gw=1,
+                last_finished_gw=0,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                team_priors_df=team_priors,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertAlmostEqual(float(prediction["team_goals_for_ma5"]), 1.8)
+        self.assertEqual(prediction["team_prior_source"], "football_data_co_uk:2025-26:E1")
 
     def test_current_position_fdr_and_live_signals_reach_prediction(self) -> None:
         rows = [
@@ -304,6 +586,412 @@ class FeatureWorkflowTests(unittest.TestCase):
         self.assertTrue(pd.isna(X_pred.iloc[0]["official_ep_next"]))
         self.assertNotIn("official_expected_points", X_pred.columns)
 
+    def test_future_replay_neutralizes_transient_availability_flags(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "d"
+        elements.loc[:, "chance_of_playing_this_round"] = 25
+        elements.loc[:, "chance_of_playing_next_round"] = 50
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 1.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 0)
+
+    def test_future_replay_keeps_dated_injury_before_explicit_return_date(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "i"
+        elements.loc[:, "chance_of_playing_this_round"] = 0
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        elements.loc[:, "news"] = "Expected back 14 Sep"
+        elements.loc[:, "news_added"] = "2026-08-20T12:00:00Z"
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+        fixtures = _fixtures_df(
+            {
+                "event": 8,
+                "team_h": 1,
+                "team_a": 2,
+                "kickoff_time": "2026-09-13T12:00:00Z",
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertEqual(str(prediction["status_return_date"].date()), "2026-09-14")
+        self.assertEqual(int(prediction["future_status_applied_flag"]), 1)
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 0.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 0.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 0.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 1)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 1)
+
+    def test_future_replay_clears_dated_injury_on_explicit_return_date_boundary(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "i"
+        elements.loc[:, "chance_of_playing_this_round"] = 0
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        elements.loc[:, "news"] = "Expected back 14 Sep"
+        elements.loc[:, "news_added"] = "2026-08-20T12:00:00Z"
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+        fixtures = _fixtures_df(
+            {
+                "event": 8,
+                "team_h": 1,
+                "team_a": 2,
+                "kickoff_time": "2026-09-14T12:00:00Z",
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertEqual(str(prediction["status_return_date"].date()), "2026-09-14")
+        self.assertEqual(int(prediction["future_status_applied_flag"]), 0)
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 1.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 0)
+
+    def test_future_replay_keeps_dated_suspension_before_explicit_return_date(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "s"
+        elements.loc[:, "chance_of_playing_this_round"] = 0
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        elements.loc[:, "news"] = "Suspended until 17 Sep"
+        elements.loc[:, "news_added"] = "2026-08-20T12:00:00Z"
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+        fixtures = _fixtures_df(
+            {
+                "event": 8,
+                "team_h": 1,
+                "team_a": 2,
+                "kickoff_time": "2026-09-16T12:00:00Z",
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertEqual(str(prediction["status_return_date"].date()), "2026-09-17")
+        self.assertEqual(int(prediction["future_status_applied_flag"]), 1)
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 0.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 0.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 0.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 1)
+
+    def test_future_replay_keeps_persistent_unavailability_flags(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "u"
+        elements.loc[:, "chance_of_playing_this_round"] = 0
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 0.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 0.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 0.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 1)
+
+    def test_future_replay_neutralizes_undated_suspension_flags(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "s"
+        elements.loc[:, "chance_of_playing_this_round"] = 0
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertTrue(pd.isna(prediction["status_return_date"]))
+        self.assertEqual(int(prediction["future_status_applied_flag"]), 0)
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 1.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 0)
+
+    def test_future_replay_neutralizes_unknown_return_injury(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "i"
+        elements.loc[:, "chance_of_playing_this_round"] = 0
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        elements.loc[:, "news"] = "Expected back unknown"
+        elements.loc[:, "news_added"] = "2026-08-20T12:00:00Z"
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+        fixtures = _fixtures_df(
+            {
+                "event": 8,
+                "team_h": 1,
+                "team_a": 2,
+                "kickoff_time": "2026-09-10T12:00:00Z",
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertTrue(pd.isna(prediction["status_return_date"]))
+        self.assertEqual(int(prediction["future_status_applied_flag"]), 0)
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 1.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 0)
+
+    def test_official_next_gameweek_preserves_current_availability_flags(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "s"
+        elements.loc[:, "chance_of_playing_this_round"] = 100
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        elements.loc[:, "news"] = "Suspended until 17 Sep"
+        elements.loc[:, "news_added"] = "2026-08-20T12:00:00Z"
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+        fixtures = _fixtures_df(
+            {
+                "event": 5,
+                "team_h": 1,
+                "team_a": 2,
+                "kickoff_time": "2026-09-05T12:00:00Z",
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=5,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertEqual(str(prediction["status_return_date"].date()), "2026-09-17")
+        self.assertEqual(int(prediction["future_status_applied_flag"]), 0)
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 0.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 0.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 1)
+
+    def test_future_replay_neutralizes_dated_status_without_target_fixture(self) -> None:
+        elements = _elements_df().iloc[[0]].copy()
+        elements.loc[:, "status"] = "s"
+        elements.loc[:, "chance_of_playing_this_round"] = 0
+        elements.loc[:, "chance_of_playing_next_round"] = 0
+        elements.loc[:, "news"] = "Suspended until 17 Sep"
+        elements.loc[:, "news_added"] = "2026-08-20T12:00:00Z"
+        histories = pd.DataFrame(
+            [_history_row(1, "2025-26", round_number, round_number, round_number, 1, 2) for round_number in range(1, 5)]
+        )
+        fixtures = _fixtures_df(
+            {
+                "event": 8,
+                "team_h": 2,
+                "team_a": 3,
+                "kickoff_time": "2026-09-16T12:00:00Z",
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        prediction = X_pred.iloc[0]
+        self.assertEqual(str(prediction["status_return_date"].date()), "2026-09-17")
+        self.assertEqual(int(prediction["future_status_applied_flag"]), 0)
+        self.assertTrue(pd.isna(prediction["target_fixture_kickoff"]))
+        self.assertAlmostEqual(float(prediction["availability_this_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["availability_next_round"]), 1.0)
+        self.assertAlmostEqual(float(prediction["status_availability"]), 1.0)
+        self.assertEqual(int(prediction["status_injury_flag"]), 0)
+        self.assertEqual(int(prediction["injury_risk_flag"]), 0)
+
+    def test_future_replay_counterfactual_current_bootstrap_shapes(self) -> None:
+        elements = pd.DataFrame(
+            [
+                {
+                    **_elements_df().iloc[0].to_dict(),
+                    "player_id": 1,
+                    "code": 1001,
+                    "full_name": "Yankuba Minteh",
+                    "team_id": 1,
+                    "status": "i",
+                    "chance_of_playing_this_round": 0,
+                    "chance_of_playing_next_round": 0,
+                    "news": "Leg injury - Expected back 28 Nov",
+                    "news_added": "2026-08-20T12:00:00Z",
+                },
+                {
+                    **_elements_df().iloc[1].to_dict(),
+                    "player_id": 2,
+                    "code": 1002,
+                    "full_name": "Carlos Baleba",
+                    "team_id": 2,
+                    "status": "i",
+                    "chance_of_playing_this_round": 0,
+                    "chance_of_playing_next_round": 0,
+                    "news": "Ankle injury - Expected back 23 Aug",
+                    "news_added": "2026-08-20T12:00:00Z",
+                },
+            ]
+        )
+        histories = pd.DataFrame(
+            [
+                _history_row(1, "2025-26", round_number, round_number, round_number, 1, 2)
+                for round_number in range(1, 5)
+            ]
+            + [
+                _history_row(2, "2025-26", round_number, round_number, 100 + round_number, 2, 1)
+                for round_number in range(1, 5)
+            ]
+        )
+        fixtures = _fixtures_df(
+            {
+                "event": 8,
+                "team_h": 1,
+                "team_a": 3,
+                "kickoff_time": "2026-11-27T12:00:00Z",
+            },
+            {
+                "event": 8,
+                "team_h": 2,
+                "team_a": 4,
+                "kickoff_time": "2026-08-24T12:00:00Z",
+            },
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            _, _, X_pred, _ = build_training_and_pred_frames(
+                elements,
+                _teams_df(),
+                histories,
+                next_gw=8,
+                last_finished_gw=4,
+                state=ModelState(path=Path(tmpdir) / "state.json"),
+                fixtures_df=fixtures,
+                current_season_name="2026-27",
+                official_next_gw=5,
+            )
+
+        pred = X_pred.set_index("full_name")
+        self.assertEqual(int(pred.loc["Yankuba Minteh", "future_status_applied_flag"]), 1)
+        self.assertAlmostEqual(float(pred.loc["Yankuba Minteh", "status_availability"]), 0.0)
+        self.assertEqual(int(pred.loc["Carlos Baleba", "future_status_applied_flag"]), 0)
+        self.assertAlmostEqual(float(pred.loc["Carlos Baleba", "status_availability"]), 1.0)
+
     def test_blank_gameweek_players_receive_zero_fixture_multiplier(self) -> None:
         predictions = pd.DataFrame({"player_id": [1, 2], "team_id": [1, 2]})
         fixtures = pd.DataFrame([{"event": 7, "team_h": 1, "team_a": 3}])
@@ -364,6 +1052,29 @@ class FeatureWorkflowTests(unittest.TestCase):
         self.assertGreater(out.loc[0, "confidence_score"], out.loc[1, "confidence_score"])
         self.assertLessEqual(out.loc[0, "expected_points_lower_80"], out.loc[0, "expected_points"])
         self.assertGreaterEqual(out.loc[0, "expected_points_upper_80"], out.loc[0, "expected_points"])
+
+    def test_sparse_player_without_preseason_evidence_has_low_confidence(self) -> None:
+        predictions = pd.DataFrame(
+            {
+                "expected_points": [4.0],
+                "expected_points__a": [4.0],
+                "expected_points__b": [4.0],
+                "start_probability__a": [0.01],
+                "start_probability__b": [0.01],
+                "reliability_weight": [0.0],
+                "preseason_prior_quality": [0.0],
+                "availability_next_round": [1.0],
+            }
+        )
+
+        out = add_prediction_confidence(
+            predictions,
+            per_model_corrected_cols=["expected_points__a", "expected_points__b"],
+            per_model_start_cols=["start_probability__a", "start_probability__b"],
+        )
+
+        self.assertEqual(out.loc[0, "confidence_level"], "Low")
+        self.assertLess(float(out.loc[0, "confidence_score"]), 50.0)
 
     def test_predict_expected_points_uses_separate_start_and_appearance_probabilities(self) -> None:
         class StubClassifier:
@@ -449,6 +1160,106 @@ class FeatureWorkflowTests(unittest.TestCase):
         self.assertEqual(float(out.loc[0, "reliability_weight"]), 0.0)
         self.assertAlmostEqual(float(out.loc[0, "expected_points"]), 4.6)
 
+    def test_preseason_usage_prior_replaces_unreliable_start_probabilities(self) -> None:
+        class StubClassifier:
+            def predict_proba(self, feats: pd.DataFrame) -> np.ndarray:
+                return np.array([[0.9, 0.1], [0.9, 0.1]])
+
+        class StubAppearanceClassifier:
+            def predict_proba(self, feats: pd.DataFrame) -> np.ndarray:
+                return np.array([[0.8, 0.2], [0.8, 0.2]])
+
+        class StubRegressor:
+            def predict(self, feats: pd.DataFrame) -> np.ndarray:
+                return np.array([6.0, 6.0])
+
+        X_pred = pd.DataFrame(
+            {
+                "player_id": [1, 2],
+                "full_name": ["Cold Starter", "Established Player"],
+                "team_name": ["Alpha", "Beta"],
+                "now_cost_millions": [6.0, 8.0],
+                "team_id": [1, 2],
+                "element_type": [3, 4],
+                "history_match_count": [0, 20],
+                "prior_p_start": [0.9, 0.9],
+                "prior_p_appearance": [0.98, 0.98],
+                "preseason_prior_quality": [1.0, 1.0],
+                "readiness_multiplier": [1.0, 1.0],
+                "feature_a": [0.0, 0.0],
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            out = predict_expected_points(
+                X_pred,
+                StubClassifier(),
+                StubRegressor(),
+                ModelState(path=Path(tmpdir) / "state.json"),
+                appearance_clf=StubAppearanceClassifier(),
+            )
+
+        self.assertGreater(float(out.loc[0, "p_start"]), 0.6)
+        self.assertAlmostEqual(float(out.loc[1, "p_start"]), 0.1)
+        self.assertGreater(float(out.loc[0, "appearance_prior_weight"]), 0.0)
+        self.assertEqual(float(out.loc[1, "appearance_prior_weight"]), 0.0)
+        self.assertGreater(float(out.loc[0, "start_prior_weight"]), 0.0)
+        self.assertEqual(float(out.loc[1, "start_prior_weight"]), 0.0)
+        self.assertAlmostEqual(float(out.loc[0, "model_p_start"]), 0.1)
+
+    def test_preseason_role_signal_fades_with_current_season_matches(self) -> None:
+        class StubClassifier:
+            def predict_proba(self, feats: pd.DataFrame) -> np.ndarray:
+                assert "current_season_match_count" not in feats.columns
+                return np.array([[0.1, 0.9], [0.1, 0.9], [0.1, 0.9]])
+
+        class StubAppearanceClassifier:
+            def predict_proba(self, feats: pd.DataFrame) -> np.ndarray:
+                return np.array([[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]])
+
+        class StubRegressor:
+            def predict(self, feats: pd.DataFrame) -> np.ndarray:
+                return np.array([5.0, 5.0, 5.0])
+
+        X_pred = pd.DataFrame(
+            {
+                "player_id": [1, 2, 3],
+                "full_name": ["GW1", "Five Matches", "Ten Matches"],
+                "team_name": ["Alpha", "Beta", "Gamma"],
+                "now_cost_millions": [6.0, 8.0, 7.0],
+                "team_id": [1, 2, 3],
+                "element_type": [3, 3, 3],
+                "history_match_count": [20, 20, 20],
+                "current_season_match_count": [0, 5, 10],
+                "role_change_score": [1.0, 1.0, 1.0],
+                "role_evidence_quality": [1.0, 1.0, 1.0],
+                "role_target_gameweek": [1, 1, 1],
+                "feature_a": [0.0, 0.0, 0.0],
+            }
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            out = predict_expected_points(
+                X_pred,
+                StubClassifier(),
+                StubRegressor(),
+                ModelState(path=Path(tmpdir) / "state.json"),
+                appearance_clf=StubAppearanceClassifier(),
+            )
+
+        self.assertAlmostEqual(float(out.loc[0, "pre_role_points_hat"]), 5.0)
+        self.assertAlmostEqual(float(out.loc[0, "points_hat"]), 5.5)
+        self.assertAlmostEqual(float(out.loc[0, "role_ep_multiplier"]), 1.1)
+        self.assertAlmostEqual(float(out.loc[0, "role_adjustment_weight"]), 1.0)
+        self.assertAlmostEqual(float(out.loc[1, "points_hat"]), 5.25)
+        self.assertAlmostEqual(float(out.loc[1, "role_ep_multiplier"]), 1.05)
+        self.assertAlmostEqual(float(out.loc[1, "role_adjustment_weight"]), 0.5)
+        self.assertAlmostEqual(float(out.loc[2, "points_hat"]), 5.0)
+        self.assertAlmostEqual(float(out.loc[2, "role_ep_multiplier"]), 1.0)
+        self.assertEqual(out["reliability_weight"].tolist(), [1.0, 1.0, 1.0])
+        self.assertEqual(out["p_start"].tolist(), [0.9, 0.9, 0.9])
+        self.assertEqual(out["p_appearance"].tolist(), [1.0, 1.0, 1.0])
+
     def test_model_selection_uses_distinct_appearance_and_conditional_points_targets(self) -> None:
         candidate = ModelCandidate(
             name="stub",
@@ -524,6 +1335,10 @@ class FeatureWorkflowTests(unittest.TestCase):
                     "fplmodel.model.CAMEO_POINTS_PATH",
                     model_dir / "cameo_points.joblib",
                 ),
+                patch(
+                    "fplmodel.model.ENSEMBLE_PATH",
+                    model_dir / "ensemble_models.joblib",
+                ),
             ):
                 start_clf, appearance_clf, reg, cameo_points, bundles = (
                     model_module.train_models(X, y, metadata)
@@ -533,6 +1348,7 @@ class FeatureWorkflowTests(unittest.TestCase):
             self.assertTrue((model_dir / "appearance_classifier.joblib").exists())
             self.assertTrue((model_dir / "regressor.joblib").exists())
             self.assertTrue((model_dir / "cameo_points.joblib").exists())
+            self.assertTrue((model_dir / "ensemble_models.joblib").exists())
 
         self.assertEqual(len(bundles), 1)
         self.assertEqual(set(cameo_points), {1, 2, 3, 4})
@@ -566,6 +1382,7 @@ class FeatureWorkflowTests(unittest.TestCase):
                 "player_id": [1, 2],
                 "expected_points": [8.0, 4.0],
                 "official_ep_next": [4.0, np.nan],
+                "reliability_weight": [1.0, 0.0],
             }
         )
 
@@ -576,6 +1393,40 @@ class FeatureWorkflowTests(unittest.TestCase):
         self.assertAlmostEqual(out.loc[0, "official_ep_blend_weight"], 0.35)
         self.assertAlmostEqual(out.loc[1, "expected_points"], 4.0)
         self.assertAlmostEqual(out.loc[1, "official_ep_blend_weight"], 0.0)
+
+    def test_official_ep_blend_increases_for_cold_starts(self) -> None:
+        predictions = pd.DataFrame(
+            {
+                "expected_points": [1.0, 1.0],
+                "official_ep_next": [5.0, 5.0],
+                "reliability_weight": [0.0, 1.0],
+            }
+        )
+
+        out = blend_official_expected_points(
+            predictions,
+            weight=0.35,
+            cold_start_weight=0.85,
+        )
+
+        self.assertAlmostEqual(float(out.loc[0, "official_ep_blend_weight"]), 0.85)
+        self.assertAlmostEqual(float(out.loc[1, "official_ep_blend_weight"]), 0.35)
+        self.assertGreater(float(out.loc[0, "expected_points"]), float(out.loc[1, "expected_points"]))
+
+    def test_optional_provider_ep_snapshot_is_a_bounded_ensemble_input(self) -> None:
+        predictions = pd.DataFrame(
+            {
+                "expected_points": [4.0, 4.0],
+                "provider_expected_points": [6.0, np.nan],
+            }
+        )
+
+        out = blend_provider_expected_points(predictions, weight=0.2)
+
+        self.assertAlmostEqual(float(out.loc[0, "expected_points"]), 4.4)
+        self.assertAlmostEqual(float(out.loc[0, "provider_ep_blend_weight"]), 0.2)
+        self.assertAlmostEqual(float(out.loc[1, "expected_points"]), 4.0)
+        self.assertEqual(float(out.loc[1, "provider_ep_blend_weight"]), 0.0)
 
     def test_player_history_file_listing_ignores_stale_player_caches(self) -> None:
         with TemporaryDirectory() as tmpdir:
@@ -605,11 +1456,17 @@ class FeatureWorkflowTests(unittest.TestCase):
 
         remapped = remap_external_histories_to_current_players(external, _elements_df())
 
-        self.assertEqual(remapped["player_id"].tolist(), [1])
-        self.assertEqual(remapped["player_code"].tolist(), [1001])
-        self.assertEqual(remapped["element_type"].tolist(), [4])
-        self.assertEqual(remapped["current_element_type"].tolist(), [3])
-        self.assertTrue(bool(remapped["position_changed"].iloc[0]))
+        self.assertEqual(len(remapped), 2)
+        mapped = remapped[remapped["player_code"].eq(1001)].iloc[0]
+        historical_only = remapped[remapped["player_code"].eq(9999)].iloc[0]
+        self.assertEqual(int(mapped["player_id"]), 1)
+        self.assertEqual(int(mapped["element_type"]), 4)
+        self.assertEqual(int(mapped["current_element_type"]), 3)
+        self.assertTrue(bool(mapped["position_changed"]))
+        self.assertTrue(bool(mapped["is_current_player_mapped"]))
+        self.assertLess(int(historical_only["player_id"]), 0)
+        self.assertFalse(bool(historical_only["is_current_player_mapped"]))
+        self.assertEqual(int(historical_only["historical_player_id"]), 888)
 
     def test_season_validation_rejects_stale_api_data(self) -> None:
         events = pd.DataFrame({"deadline_time": ["2025-08-15T17:30:00Z"]})
@@ -617,6 +1474,17 @@ class FeatureWorkflowTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "2026-27"):
             validate_season_name(actual, expected_season_name="2026-27")
+
+    def test_snapshot_cutoff_fails_closed_when_target_deadline_is_missing(self) -> None:
+        events = pd.DataFrame(
+            {
+                "event_id": [1],
+                "deadline_time": ["2026-08-21T17:30:00Z"],
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "GW2 deadline"):
+            target_gameweek_deadline(events, 2)
 
     def test_preseason_history_validation_requires_all_gameweeks(self) -> None:
         external = pd.DataFrame(

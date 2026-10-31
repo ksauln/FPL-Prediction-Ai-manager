@@ -25,9 +25,10 @@ from fplmodel.team_performance_display import (
     render_team_performance_page,
 )
 from fplmodel.manager_dashboard import render_ai_manager_page
+from fplmodel.ui_theme import APP_STYLE, app_brand_html
 from fplmodel.dashboard_updates import (
     build_update_control_state,
-    refresh_dashboard_data,
+    refresh_dashboard_data_and_continue_manager,
 )
 from fplmodel.utils import get_current_and_last_finished_gw
 
@@ -41,74 +42,8 @@ POSITION_SLOTS = (
 )
 
 
-st.set_page_config(page_title="FPL Optimization Toolkit", layout="wide")
+st.set_page_config(page_title="Orbital · FPL AI Manager", page_icon="◈", layout="wide")
 
-APP_STYLE = """
-<style>
-    :root {
-        --fpl-bg: #f7f8fb;
-        --fpl-panel: #ffffff;
-        --fpl-border: #d9dee8;
-        --fpl-text: #172033;
-        --fpl-muted: #667085;
-        --fpl-accent: #0f766e;
-        --fpl-accent-soft: #d9f4ef;
-        --fpl-warn: #b45309;
-        --fpl-warn-soft: #fef3c7;
-        --fpl-low: #b42318;
-        --fpl-low-soft: #fee4e2;
-    }
-
-    .main .block-container {
-        padding-top: 1.4rem;
-        max-width: 1500px;
-    }
-
-    h1, h2, h3 {
-        color: var(--fpl-text);
-        letter-spacing: 0;
-    }
-
-    h1 {
-        font-size: 2.15rem;
-        margin-bottom: 0.25rem;
-    }
-
-    h2, h3 {
-        margin-top: 1.1rem;
-    }
-
-    div[data-testid="stMetric"] {
-        background: var(--fpl-panel);
-        border: 1px solid var(--fpl-border);
-        border-radius: 8px;
-        padding: 0.8rem 0.9rem;
-        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
-    }
-
-    button[data-baseweb="tab"] p {
-        font-size: 1.02rem;
-        font-weight: 650;
-        color: var(--fpl-muted);
-    }
-
-    button[data-baseweb="tab"][aria-selected="true"] p {
-        color: var(--fpl-accent);
-    }
-
-    div[data-testid="stDataFrame"] {
-        border: 1px solid var(--fpl-border);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .confidence-note {
-        color: var(--fpl-muted);
-        font-size: 0.92rem;
-        margin: 0.1rem 0 0.7rem 0;
-    }
-</style>
-"""
 
 SESSION_USER_TEAM_KEY = "user_team_df"
 SESSION_CAPTAIN_OVERRIDE_KEY = "user_team_captain_override"
@@ -1882,6 +1817,12 @@ def _render_sidebar_update_control() -> None:
                 "The official season is complete; there is no upcoming Gameweek to update."
             )
 
+        if control_mode != "season_complete":
+            st.caption(
+                "When live AI Manager state has been saved, a successful refresh "
+                "automatically starts its next simulation."
+            )
+
         update_requested = st.button(
             "Update data & predictions",
             type="primary",
@@ -1899,7 +1840,9 @@ def _render_sidebar_update_control() -> None:
                         update_kwargs["through_gameweek"] = int(selected_value)
                     else:
                         update_kwargs["horizon"] = int(selected_value)
-                    result = refresh_dashboard_data(**update_kwargs)
+                    result = refresh_dashboard_data_and_continue_manager(
+                        **update_kwargs
+                    )
                 except Exception as exc:  # noqa: BLE001
                     message = f"Update failed: {exc}"
                     st.session_state[SESSION_UPDATE_RESULT_KEY] = {
@@ -1922,13 +1865,41 @@ def _render_sidebar_update_control() -> None:
                         f"Updated {result['season_name']} data and predictions for "
                         f"{gameweek_label}."
                     )
+                    result_status = "success"
+                    status_label = "Data and predictions updated"
+                    continuation = dict(result.get("manager_continuation", {}))
+                    continuation_action = continuation.get("action")
+                    if continuation_action == "started":
+                        job_id = str(continuation["job_id"])
+                        st.session_state["ai_manager_selected_job"] = job_id
+                        message += (
+                            f" Live AI Manager simulation started automatically for "
+                            f"GW{int(continuation['start_gw'])}-"
+                            f"GW{int(continuation['end_gw'])} from the saved state."
+                        )
+                        status_label = "Data updated and AI Manager started"
+                    elif continuation_action == "existing":
+                        job_id = str(continuation["job_id"])
+                        st.session_state["ai_manager_selected_job"] = job_id
+                        message += " An AI Manager simulation is already running."
+                        status_label = "Data updated; AI Manager already running"
+                    elif continuation_action == "waiting":
+                        message += " " + str(continuation["message"])
+                        status_label = "Data updated; current gameweek already saved"
+                    elif continuation_action == "error":
+                        message += (
+                            " AI Manager continuation was not started: "
+                            f"{continuation.get('message', 'unknown error')}"
+                        )
+                        result_status = "warning"
+                        status_label = "Predictions updated; AI Manager needs attention"
                     st.cache_data.clear()
                     st.session_state[SESSION_UPDATE_RESULT_KEY] = {
-                        "status": "success",
+                        "status": result_status,
                         "message": message,
                     }
                     update_status.update(
-                        label="Data and predictions updated",
+                        label=status_label,
                         state="complete",
                         expanded=False,
                     )
@@ -1937,14 +1908,17 @@ def _render_sidebar_update_control() -> None:
         if previous_result:
             if previous_result.get("status") == "success":
                 st.success(str(previous_result.get("message", "Update complete.")))
+            elif previous_result.get("status") == "warning":
+                st.warning(str(previous_result.get("message", "Update complete.")))
             else:
                 st.error(str(previous_result.get("message", "Update failed.")))
 
 
 def main() -> None:
     _apply_app_style()
-    st.title("FPL Optimization Toolkit")
-    st.sidebar.header("Navigation")
+    st.markdown(app_brand_html(), unsafe_allow_html=True)
+    st.sidebar.markdown(app_brand_html(sidebar=True), unsafe_allow_html=True)
+    st.sidebar.caption("MANAGER WORKSPACE")
     selected_page = st.sidebar.radio(
         "Page",
         options=list(PAGES),

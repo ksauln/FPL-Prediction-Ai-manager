@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from dataclasses import replace
 from html import escape
 import json
 from pathlib import Path
@@ -14,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from .config import OUTPUTS_DIR, RAW_DIR
+from .ui_theme import TEAM_PITCH_STYLE
 from .manager_jobs import (
     cancel_manager_job,
     commit_recommended_state,
@@ -39,345 +41,11 @@ SIMULATION_MODE_LABELS = {
     "fixed_policy": "Fixed policy",
     "full_reoptimization": "Full reoptimization",
 }
-TEAM_PITCH_STYLE = """
-<style>
-.ai-team-board {
-    --board-ink: #f8fafc;
-    --board-muted: #a8b6c8;
-    margin: 1.1rem 0 1.5rem;
-    overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 26px;
-    background:
-        radial-gradient(circle at 10% 0%, rgba(45, 212, 191, 0.13), transparent 30%),
-        linear-gradient(145deg, #07111f 0%, #0b1d2d 52%, #10293b 100%);
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
-    color: var(--board-ink);
-}
-.ai-team-board * {
-    box-sizing: border-box;
-}
-.ai-team-board__header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1.35rem 1.5rem 1.2rem;
-}
-.ai-team-board__eyebrow {
-    margin-bottom: 0.25rem;
-    color: #5eead4;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-}
-.ai-team-board__title {
-    margin: 0;
-    color: #ffffff;
-    font-size: clamp(1.2rem, 2.8vw, 1.75rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-}
-.ai-team-board__meta {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.45rem;
-}
-.ai-team-board__pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 2rem;
-    padding: 0.36rem 0.68rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.52);
-    color: #dbeafe;
-    font-size: 0.76rem;
-    font-weight: 700;
-    backdrop-filter: blur(10px);
-}
-.ai-team-board__pill strong {
-    color: #ffffff;
-}
-.ai-pitch {
-    position: relative;
-    display: grid;
-    grid-template-rows: repeat(4, minmax(122px, auto));
-    gap: 0.35rem;
-    min-height: 560px;
-    margin: 0 1.1rem;
-    padding: 1.15rem 1rem;
-    overflow: hidden;
-    border: 1px solid rgba(236, 253, 245, 0.46);
-    border-radius: 22px;
-    background:
-        repeating-linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.025) 0,
-            rgba(255, 255, 255, 0.025) 10%,
-            transparent 10%,
-            transparent 20%
-        ),
-        linear-gradient(180deg, #087f5b 0%, #087452 48%, #066649 100%);
-    box-shadow: inset 0 0 60px rgba(3, 34, 25, 0.34);
-}
-.ai-pitch::before {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    left: 0;
-    height: 1px;
-    background: rgba(236, 253, 245, 0.48);
-    content: "";
-}
-.ai-pitch::after {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 112px;
-    height: 112px;
-    border: 1px solid rgba(236, 253, 245, 0.48);
-    border-radius: 50%;
-    content: "";
-    transform: translate(-50%, -50%);
-}
-.ai-pitch__box {
-    position: absolute;
-    left: 50%;
-    width: 43%;
-    height: 78px;
-    border: 1px solid rgba(236, 253, 245, 0.42);
-    transform: translateX(-50%);
-}
-.ai-pitch__box--north {
-    top: -1px;
-    border-top: 0;
-    border-radius: 0 0 12px 12px;
-}
-.ai-pitch__box--south {
-    bottom: -1px;
-    border-bottom: 0;
-    border-radius: 12px 12px 0 0;
-}
-.ai-pitch__row {
-    position: relative;
-    z-index: 2;
-    display: grid;
-    grid-template-columns: repeat(var(--players), minmax(0, 1fr));
-    align-items: center;
-    justify-items: center;
-    gap: clamp(0.3rem, 1.4vw, 0.85rem);
-}
-.ai-player-card {
-    position: relative;
-    width: min(100%, 146px);
-    min-width: 0;
-    padding: 0.72rem 0.55rem 0.62rem;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 16px;
-    background: linear-gradient(155deg, rgba(7, 17, 31, 0.94), rgba(15, 38, 54, 0.9));
-    box-shadow: 0 9px 22px rgba(3, 20, 16, 0.26);
-    color: #f8fafc;
-    text-align: center;
-    backdrop-filter: blur(8px);
-}
-.ai-player-card::before {
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    height: 3px;
-    background: var(--position-accent);
-    content: "";
-}
-.ai-player-card__topline {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 1.5rem;
-    margin-bottom: 0.22rem;
-}
-.ai-player-card__position {
-    display: inline-grid;
-    width: 1.55rem;
-    height: 1.55rem;
-    place-items: center;
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--position-accent) 28%, transparent);
-    color: #ffffff;
-    font-size: 0.58rem;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-}
-.ai-player-card__role {
-    position: absolute;
-    top: 0.56rem;
-    right: 0.55rem;
-    display: inline-grid;
-    width: 1.42rem;
-    height: 1.42rem;
-    place-items: center;
-    border-radius: 50%;
-    background: #facc15;
-    box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
-    color: #1e293b;
-    font-size: 0.67rem;
-    font-weight: 950;
-}
-.ai-player-card__role--vice {
-    background: #99f6e4;
-    box-shadow: 0 0 0 3px rgba(153, 246, 228, 0.16);
-}
-.ai-player-card__name {
-    overflow: hidden;
-    color: #ffffff;
-    font-size: clamp(0.69rem, 1.25vw, 0.83rem);
-    font-weight: 800;
-    line-height: 1.16;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.ai-player-card__club {
-    margin-top: 0.18rem;
-    overflow: hidden;
-    color: var(--board-muted);
-    font-size: 0.61rem;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.ai-player-card__fixture {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.2rem;
-    min-width: 0;
-    margin-top: 0.34rem;
-    color: #dbeafe;
-    font-size: 0.52rem;
-    font-weight: 800;
-    line-height: 1;
-}
-.ai-player-card__opponent {
-    min-width: 0;
-    overflow: hidden;
-    color: #e2e8f0;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.ai-player-card__venue,
-.ai-player-card__fdr {
-    flex: 0 0 auto;
-    padding: 0.2rem 0.3rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 999px;
-    white-space: nowrap;
-}
-.ai-player-card__venue {
-    background: rgba(20, 184, 166, 0.2);
-    color: #ccfbf1;
-}
-.ai-player-card__fdr {
-    background: rgba(245, 158, 11, 0.18);
-    color: #fef3c7;
-}
-.ai-player-card__points {
-    margin-top: 0.42rem;
-    color: #ccfbf1;
-    font-size: clamp(0.58rem, 1.05vw, 0.7rem);
-    font-weight: 800;
-    white-space: nowrap;
-}
-.ai-player-card__cost {
-    color: #dbeafe;
-    font-weight: 700;
-}
-.ai-player-card--bench {
-    width: 100%;
-    max-width: none;
-    background: rgba(15, 23, 42, 0.64);
-    box-shadow: none;
-}
-.ai-bench {
-    padding: 1.1rem 1.1rem 1.25rem;
-}
-.ai-bench__heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 0 0 0.62rem;
-    color: #dbeafe;
-    font-size: 0.74rem;
-    font-weight: 850;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-}
-.ai-bench__rail {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.65rem;
-}
-@media (max-width: 760px) {
-    .ai-team-board {
-        border-radius: 20px;
-    }
-    .ai-team-board__header {
-        align-items: flex-start;
-        flex-direction: column;
-        padding: 1rem;
-    }
-    .ai-team-board__meta {
-        justify-content: flex-start;
-    }
-    .ai-pitch {
-        grid-template-rows: repeat(4, minmax(105px, auto));
-        min-height: 490px;
-        margin: 0 0.65rem;
-        padding: 0.8rem 0.45rem;
-    }
-    .ai-pitch__row {
-        gap: 0.25rem;
-    }
-    .ai-player-card {
-        padding: 0.62rem 0.3rem 0.52rem;
-        border-radius: 12px;
-    }
-    .ai-player-card__club {
-        display: none;
-    }
-    .ai-player-card__fixture {
-        gap: 0.14rem;
-        font-size: 0.47rem;
-    }
-    .ai-player-card__venue,
-    .ai-player-card__fdr {
-        padding: 0.18rem 0.24rem;
-    }
-    .ai-player-card__role {
-        top: 0.42rem;
-        right: 0.35rem;
-        width: 1.2rem;
-        height: 1.2rem;
-        font-size: 0.58rem;
-    }
-    .ai-bench {
-        padding: 0.9rem 0.65rem 1rem;
-    }
-    .ai-bench__rail {
-        gap: 0.35rem;
-    }
-}
-</style>
-"""
 POSITION_ACCENTS = {
-    1: "#f59e0b",
-    2: "#38bdf8",
-    3: "#a78bfa",
-    4: "#fb7185",
+    1: "#ffc774",
+    2: "#7de4f2",
+    3: "#c8f46a",
+    4: "#a9c5f5",
 }
 
 
@@ -684,7 +352,8 @@ def _player_card_html(
     name = escape(str(player.get("full_name") or "Unknown player"))
     club = escape(str(player.get("team_name") or "Unknown club"))
     try:
-        expected_points = f"{float(player.get('expected_points', 0.0)):.1f} pts"
+        points = float(player.get("expected_points"))
+        expected_points = f"{points:.1f} pts" if np.isfinite(points) else "— pts"
     except (TypeError, ValueError):
         expected_points = "— pts"
     try:
@@ -706,6 +375,13 @@ def _player_card_html(
         f'<div class="ai-player-card ai-player-card--{card_type}" '
         f'style="--position-accent: {accent};">'
         '<div class="ai-player-card__topline">'
+        '<svg class="ai-player-card__jersey" viewBox="0 0 64 66" '
+        'aria-hidden="true" focusable="false">'
+        f'<path fill="{accent}" stroke="#d9eef7" stroke-width="1" '
+        'd="M21 5L10 10 2 27 14 33 18 26 18 62 46 62 46 26 50 33 62 27 54 10 43 5Q32 13 21 5Z"/>'
+        '<path fill="#142536" opacity=".18" d="M23 10H28V60H23ZM36 10H41V60H36Z"/>'
+        '<path fill="none" stroke="#142536" stroke-width="2" d="M22 6Q32 17 42 6"/>'
+        '</svg>'
         f'<span class="ai-player-card__position" aria-hidden="true">{position}</span>'
         f"{role}"
         "</div>"
@@ -739,7 +415,7 @@ def _team_pitch_html(
             for player in starters
             if _safe_player_id(player.get("element_type")) == element_type
         ]
-        for element_type in (4, 3, 2, 1)
+        for element_type in (1, 2, 3, 4)
     }
     formation = "-".join(
         str(len(position_groups[element_type])) for element_type in (2, 3, 4)
@@ -757,7 +433,7 @@ def _team_pitch_html(
         free_transfers = "—"
 
     pitch_rows = []
-    for element_type in (4, 3, 2, 1):
+    for element_type in (1, 2, 3, 4):
         players = position_groups[element_type]
         if not players:
             continue
@@ -821,7 +497,7 @@ def _team_pitch_html(
     )
     return (
         TEAM_PITCH_STYLE
-        + f'<section class="ai-team-board" role="img" aria-label="{aria_label}">'
+        + f'<section class="ai-team-board" aria-label="{aria_label}">'
         '<header class="ai-team-board__header">'
         "<div>"
         '<div class="ai-team-board__eyebrow">AI Manager selection</div>'
@@ -841,6 +517,77 @@ def _team_pitch_html(
         + "</div>"
         + bench_section
         + "</section>"
+    )
+
+
+def _recommendation_html(decision: dict[str, object]) -> str:
+    """Present recorded decisions without synthesizing strategy or confidence."""
+    transfers = list(decision.get("transfers", []))
+    chip = str(decision.get("chip") or "").replace("_", " ").title()
+    if chip:
+        title = f"Play {chip}"
+    elif transfers:
+        title = f"Make {len(transfers)} transfer{'s' if len(transfers) != 1 else ''}"
+    else:
+        title = "Hold squad"
+    initial_selection = (
+        _safe_player_id(decision.get("gameweek")) == 1
+        and not decision.get("squad_player_ids_before_decision")
+    )
+    if initial_selection and not chip:
+        title = "Set starting squad"
+    # A zero-transfer action can also be initial team selection; do not invent a
+    # rollover or a strategic explanation that the saved policy never supplied.
+    explanation = (
+        "No player transfers in this gameweek's recommended plan."
+        if not transfers else "Recommended player moves for the selected gameweek."
+    )
+    if chip:
+        explanation = "Chip scheduled by this saved policy. Review the squad and alternatives below."
+    elif initial_selection:
+        explanation = "Initial squad selection for the opening gameweek."
+    team = dict(decision.get("team", {}))
+    players = list(team.get("squad", [])) + list(team.get("bench", []))
+
+    def captain_card(role: str, id_key: str, name_key: str, badge: str) -> str:
+        player_id = _safe_player_id(decision.get(id_key))
+        player = next(
+            (p for p in players if player_id is not None and _safe_player_id(p.get("player_id")) == player_id),
+            {},
+        )
+        name = escape(str(player.get("full_name") or decision.get(name_key) or "Unavailable"))
+        points = player.get("expected_points")
+        try:
+            points_label = f"{float(points):.1f} projected pts · before captain bonus" if np.isfinite(float(points)) else "Projection unavailable"
+        except (TypeError, ValueError):
+            points_label = "Projection unavailable"
+        modifier = " orbital-role--vice" if badge == "V" else ""
+        return (
+            f'<div><span class="orbital-role{modifier}" aria-hidden="true">{badge}</span>'
+            f'<span>{role}</span><strong>{name}</strong><span>{points_label}</span></div>'
+        )
+
+    moves = "".join(
+        '<div class="orbital-move"><span>OUT </span>'
+        + escape(str(dict(move.get("out_player") or {}).get("full_name") or "Unavailable"))
+        + '<br><span>IN </span><strong>'
+        + escape(str(dict(move.get("in_player") or {}).get("full_name") or "Unavailable"))
+        + '</strong></div>'
+        for move in transfers
+    )
+    hit_cost = float(decision.get("transfer_hit_cost") or 0.0)
+    return (
+        '<aside class="orbital-briefing" aria-label="Recommended gameweek plan">'
+        '<div><div class="orbital-eyebrow">Recommended plan</div>'
+        '<span class="orbital-status">Saved recommendation</span>'
+        f'<h3>{escape(title)}</h3><p>{escape(explanation)}</p></div>'
+        '<div class="orbital-captains">'
+        + captain_card("Captain", "captain_id", "captain", "C")
+        + captain_card("Vice-captain", "vice_captain_id", "vice_captain", "V")
+        + '</div>' + (f'<div>{moves}</div>' if moves else '')
+        + f'<div class="orbital-ledger"><span>Transfer hit cost</span><strong>{hit_cost:g} pts</strong></div>'
+        '<p>Inspect player details and decision alternatives below. This view does not save a new decision.</p>'
+        '</aside>'
     )
 
 
@@ -1055,6 +802,22 @@ def _render_run_view(
     season_name: str,
     source: PredictionSeasonSource,
 ) -> None:
+    manager_version = st.selectbox(
+        "Decision engine", options=["legacy", "v2"],
+        format_func=lambda value: "Current season manager" if value == "legacy" else "Upgraded manager · read-only trial",
+        key="ai_manager_engine",
+    )
+    if manager_version == "v2":
+        st.info("Trial recommendations use a copy of your squad. They cannot advance live state or change automatic weekly runs.")
+        vintage_root = OUTPUTS_DIR / "manager_v2" / "forecasts" / season_name
+        vintages = sorted((p for p in vintage_root.glob("*") if (p / "vintage.json").is_file()), reverse=True)
+        if vintages:
+            selected_vintage = st.selectbox("Forecasts", options=[None] + vintages,
+                format_func=lambda p: "Current pipeline projections" if p is None else f"Individual fixtures · {p.name}")
+            if selected_vintage is not None:
+                source = replace(source, predictions_dir=selected_vintage)
+        else:
+            st.caption("Using current pipeline projections. Individual-fixture forecasts can be built with the v2 forecast command.")
     tagged_gameweeks = _render_data_readiness(season_name, source)
     jobs = list_manager_jobs()
     active_job = _latest_active_job(jobs)
@@ -1104,17 +867,23 @@ def _render_run_view(
             key=f"ai_manager_end_{season_name}_{run_mode}",
         )
     )
-    simulation_mode = settings[2].selectbox(
-        "Simulation mode",
-        options=list(SIMULATION_MODE_LABELS),
-        format_func=SIMULATION_MODE_LABELS.get,
-        index=0,
-    )
+    if manager_version == "v2":
+        simulation_mode = "periodic_reoptimization"
+        settings[2].caption("Compare plans on shared futures, then validate on fresh futures.")
+    else:
+        simulation_mode = settings[2].selectbox(
+            "Simulation mode", options=list(SIMULATION_MODE_LABELS),
+            format_func=SIMULATION_MODE_LABELS.get, index=0,
+        )
 
     sizing = st.columns(3)
     simulations = int(
         sizing[0].number_input(
-            "Simulations", min_value=1, max_value=1_000_000, value=50_000, step=1_000
+            "Simulations", min_value=1,
+            max_value=10_000 if manager_version == "v2" else 1_000_000,
+            value=128 if manager_version == "v2" else 50_000,
+            step=32 if manager_version == "v2" else 1_000,
+            key=f"ai_manager_simulations_{manager_version}",
         )
     )
     policy_refresh_interval = int(
@@ -1124,7 +893,7 @@ def _render_run_view(
             max_value=max(1, simulations),
             value=min(1_000, simulations),
             step=min(100, simulations),
-            disabled=simulation_mode != "periodic_reoptimization",
+            disabled=manager_version == "v2" or simulation_mode != "periodic_reoptimization",
         )
     )
     random_seed = int(
@@ -1145,32 +914,46 @@ def _render_run_view(
             horizons[2].number_input("Chip lookahead", 1, 20, 4)
         )
         max_transfers = int(
-            horizons[3].number_input("Max transfers/GW", 0, 15, 2)
+            horizons[3].number_input("Max transfers/GW", 0, 15, 5 if manager_version == "v2" else 2,
+                                      key=f"ai_manager_transfer_limit_{manager_version}")
         )
         thresholds = st.columns(4)
         transfer_threshold = float(
             thresholds[0].number_input("Transfer gain", 0.0, 20.0, 1.5, 0.1)
         )
         wildcard_threshold = float(
-            thresholds[1].number_input("Wildcard gain", 0.0, 50.0, 16.0, 0.5)
+            thresholds[1].number_input("Wildcard gain", 0.0, 50.0, 16.0, 0.5, disabled=manager_version == "v2")
         )
         free_hit_threshold = float(
-            thresholds[2].number_input("Free Hit gain", 0.0, 50.0, 10.0, 0.5)
+            thresholds[2].number_input("Free Hit gain", 0.0, 50.0, 10.0, 0.5, disabled=manager_version == "v2")
         )
         bench_boost_threshold = float(
-            thresholds[3].number_input("Bench Boost gain", 0.0, 30.0, 8.0, 0.5)
+            thresholds[3].number_input("Bench Boost gain", 0.0, 30.0, 8.0, 0.5, disabled=manager_version == "v2")
         )
         chip_settings = st.columns(4)
         triple_captain_threshold = float(
-            chip_settings[0].number_input("Triple Captain gain", 0.0, 30.0, 5.0, 0.5)
+            chip_settings[0].number_input("Triple Captain gain", 0.0, 30.0, 5.0, 0.5, disabled=manager_version == "v2")
         )
         future_value_ratio = float(
-            chip_settings[1].number_input("Future chip value", 0.0, 2.0, 0.95, 0.05)
+            chip_settings[1].number_input("Future chip value", 0.0, 2.0, 0.95, 0.05, disabled=manager_version == "v2")
         )
         noise_scale = float(
             chip_settings[2].number_input("Uncertainty scale", 0.0, 5.0, 1.0, 0.1)
         )
         enable_chips = chip_settings[3].toggle("Automatic chips", value=True)
+        beam_width, saved_transfer_value = 4, 1.0
+        paid_gain_buffer, paid_min_probability = 2.0, .75
+        if manager_version == "v2":
+            st.caption("The upgraded manager plans chips with transfers. Separate chip gain thresholds apply to the current manager.")
+            v2_settings = st.columns(2)
+            beam_width = int(v2_settings[0].number_input("Plans retained per action", 1, 12, 4))
+            saved_transfer_value = float(v2_settings[1].number_input("Value of a saved transfer (points)", 0., 5., 1., .25))
+            paid_settings = st.columns(2)
+            paid_gain_buffer = float(paid_settings[0].number_input(
+                "Extra net gain per paid transfer", 0., 8., 2., .5, key="ai_manager_paid_gain_buffer"))
+            paid_min_probability = float(paid_settings[1].number_input(
+                "Paid transfer minimum win chance", 0., 1., .75, .05, key="ai_manager_paid_min_probability"))
+            st.caption("Paid moves must beat the best move with no hits after costs. The extra margin is a decision threshold, not another points deduction.")
 
     with st.expander("Season rules"):
         rules = st.columns(5)
@@ -1222,6 +1005,11 @@ def _render_run_view(
                 "output_dir": str(source.predictions_dir),
                 "manager_state_path": str(_state_path(season_name)),
                 "manager_config": {
+                    "manager_version": manager_version,
+                    "planning_beam_width": beam_width,
+                    "free_transfer_future_value": saved_transfer_value,
+                    "paid_transfer_gain_buffer": paid_gain_buffer,
+                    "paid_transfer_min_probability": paid_min_probability,
                     "initial_horizon": initial_horizon,
                     "transfer_horizon": transfer_horizon,
                     "chip_lookahead": chip_lookahead,
@@ -1254,6 +1042,9 @@ def _render_run_view(
 
 def _render_run_summary(result: dict[str, object]) -> None:
     summary = dict(result.get("summary", {}))
+    if result.get("manager_version") == "v2":
+        weeks = result.get("evaluation", {}).get("gameweeks", [])
+        st.caption(f"Trial outcome distribution covers GW{weeks[0]}–GW{weeks[-1]}. Replan with fresh information each deadline." if weeks else "Read-only manager trial.")
     columns = st.columns(5)
     columns[0].metric("Simulations", f"{int(summary.get('simulations', 0)):,}")
     columns[1].metric("Average points", f"{float(summary.get('average_total_expected_points', 0.0)):.1f}")
@@ -1303,28 +1094,20 @@ def _render_gameweek_decision(
     fixture_context_by_team: Optional[dict[int, dict[str, str]]] = None,
 ) -> None:
     is_free_hit = decision.get("team_context") == "free_hit" or decision.get("chip") == "free_hit"
-    columns = st.columns(6 if is_free_hit else 5)
-    columns[0].metric("Expected points", f"{float(decision.get('expected_points', 0.0)):.1f}")
-    metric_offset = 0
+    metrics = [
+        ("Expected points", f"{float(decision.get('expected_points', 0.0)):.1f}"),
+        ("Free transfers after plan", str(int(decision.get("free_transfers_after", 0)))),
+        ("Owned bank" if is_free_hit else "Bank", f"£{float(decision.get('bank_m', 0.0)):.1f}m"),
+        ("Owned team value" if is_free_hit else "Team value", f"£{float(decision.get('team_value_m', 0.0)):.1f}m"),
+        ("Chip", str(decision.get("chip") or "None").replace("_", " ").title()),
+    ]
     if is_free_hit:
-        columns[1].metric(
-            "Free Hit squad cost",
-            f"£{float(decision.get('displayed_squad_cost_m', 0.0)):.1f}m",
-        )
-        metric_offset = 1
-    columns[1 + metric_offset].metric(
-        "Owned bank" if is_free_hit else "Bank",
-        f"£{float(decision.get('bank_m', 0.0)):.1f}m",
-    )
-    columns[2 + metric_offset].metric(
-        "Owned team value" if is_free_hit else "Team value",
-        f"£{float(decision.get('team_value_m', 0.0)):.1f}m",
-    )
-    columns[3 + metric_offset].metric(
-        "Free transfers", int(decision.get("free_transfers_after", 0))
-    )
-    columns[4 + metric_offset].metric(
-        "Chip", str(decision.get("chip") or "None").replace("_", " ").title()
+        metrics.append(("Free Hit squad cost", f"£{float(decision.get('displayed_squad_cost_m', 0.0)):.1f}m"))
+    st.markdown(
+        '<div class="orbital-summary" aria-label="Gameweek summary">'
+        + "".join(f'<div class="orbital-summary__item"><span>{escape(label)}</span><strong>{escape(value)}</strong></div>' for label, value in metrics)
+        + '</div>',
+        unsafe_allow_html=True,
     )
 
     team = dict(decision.get("team", {}))
@@ -1333,22 +1116,28 @@ def _render_gameweek_decision(
         fixture_context_by_team=fixture_context_by_team,
     )
     if pitch_html:
-        st.markdown(pitch_html, unsafe_allow_html=True)
-    starter_column, bench_column = st.columns([2.2, 1])
-    with starter_column:
-        st.subheader("Free Hit starting XI" if is_free_hit else "Starting XI")
-        st.dataframe(
-            _team_frame(list(team.get("squad", [])), decision, bench=False),
-            width="stretch",
-            hide_index=True,
+        st.markdown(
+            '<div class="orbital-cockpit">' + pitch_html + _recommendation_html(decision) + '</div>',
+            unsafe_allow_html=True,
         )
-    with bench_column:
-        st.subheader("Free Hit bench" if is_free_hit else "Bench")
-        st.dataframe(
-            _team_frame(list(team.get("bench", [])), decision, bench=True),
-            width="stretch",
-            hide_index=True,
-        )
+    else:
+        st.info("Squad details are unavailable for this saved decision.")
+    with st.expander("Squad details · starting XI and bench"):
+        starter_column, bench_column = st.columns([2.2, 1])
+        with starter_column:
+            st.subheader("Free Hit starting XI" if is_free_hit else "Starting XI")
+            st.dataframe(
+                _team_frame(list(team.get("squad", [])), decision, bench=False),
+                width="stretch",
+                hide_index=True,
+            )
+        with bench_column:
+            st.subheader("Free Hit bench" if is_free_hit else "Bench")
+            st.dataframe(
+                _team_frame(list(team.get("bench", [])), decision, bench=True),
+                width="stretch",
+                hide_index=True,
+            )
 
     transfers = _transfer_frame(decision)
     st.subheader("Transfers")
@@ -1356,9 +1145,41 @@ def _render_gameweek_decision(
         st.info("No transfers recommended.")
     else:
         st.dataframe(transfers, width="stretch", hide_index=True)
+    comparison = decision.get("decision_comparison", [])
+    if comparison:
+        st.subheader("Decision alternatives")
+        table = pd.DataFrame(comparison).rename(columns={
+            "action": "Plan", "average_total_points": "Average points",
+            "gain_over_hold": "Gain over holding this week",
+            "probability_beats_hold": "Chance of beating hold",
+            "p10_total_points": "P10 points", "p90_total_points": "P90 points",
+            "terminal_transfer_value": "Value of saved transfers",
+            "median_total_points": "Median points", "simulations": "Simulations",
+            "paired_standard_error": "Gain standard error",
+            "expected_points": "Projected horizon points", "objective": "Plan value",
+            "free_reference_action": "Free alternative", "paid_transfers_now": "Paid transfers",
+            "hit_cost_now": "Hit cost", "gain_over_free": "Net gain over free alternative",
+            "probability_beats_free": "Chance of beating free alternative",
+            "required_paid_gain": "Required net gain", "paid_transfer_eligible": "Clears paid-move checks",
+            "rejection_reasons": "Reason",
+        })
+        if "Reason" in table:
+            table["Reason"] = table["Reason"].apply(lambda items: "; ".join(items) if isinstance(items, list) else items)
+        st.dataframe(table, width="stretch", hide_index=True)
+    paid_comparison = decision.get("paid_transfer_comparison")
+    if paid_comparison:
+        selected = paid_comparison["selected"]
+        if selected["paid_transfers_now"]:
+            st.caption(f"After hits, this move projects {selected['gain_over_free']:.1f} more points than the best free alternative, "
+                       f"and beats it in {selected['probability_beats_free']:.0%} of shared scenarios.")
+        else:
+            st.caption("Selected a move with no transfer hits. Paid alternatives must clear the marginal-gain and uncertainty checks.")
 
 
 def _render_state_commit(job: dict[str, object], result: dict[str, object]) -> None:
+    if result.get("manager_version") == "v2":
+        st.caption("Read-only trial: live manager state is preserved.")
+        return
     recommended = dict(result.get("recommended_policy", result.get("best_run", {})))
     decisions = list(recommended.get("decisions", []))
     if not decisions or not job.get("recommended_state_path"):
@@ -1434,8 +1255,10 @@ def _render_results_view(season_name: str) -> None:
     lookup = {str(job["job_id"]): job for job in jobs}
     job_ids = list(lookup)
     selected = st.session_state.get("ai_manager_selected_job")
-    index = job_ids.index(selected) if selected in job_ids else 0
-    job_id = st.selectbox(
+    completed_index = next((index for index, job in enumerate(jobs) if job.get("status") == "completed"), 0)
+    index = job_ids.index(selected) if selected in job_ids else completed_index
+    filters = st.columns([3, 1])
+    job_id = filters[0].selectbox(
         "Saved run",
         options=job_ids,
         index=index,
@@ -1454,17 +1277,12 @@ def _render_results_view(season_name: str) -> None:
         return
 
     result = load_manager_job_result(job_id)
-    _render_run_summary(result)
-    _render_policy_comparison(result)
     recommended = dict(result.get("recommended_policy", result.get("best_run", {})))
     decisions = list(recommended.get("decisions", []))
-    st.subheader("Recommended season policy")
-    st.dataframe(
-        _decision_frame(decisions), width="stretch", hide_index=True
-    )
+    st.caption("Read-only trial · live state is preserved" if result.get("manager_version") == "v2" else "Saved season policy · review each gameweek before saving state")
     if decisions:
         gameweeks = [int(decision["gameweek"]) for decision in decisions]
-        selected_gw = st.selectbox("Gameweek decision", options=gameweeks)
+        selected_gw = filters[1].selectbox("Gameweek decision", options=gameweeks)
         decision = next(
             item for item in decisions if int(item["gameweek"]) == selected_gw
         )
@@ -1476,6 +1294,11 @@ def _render_results_view(season_name: str) -> None:
             decision,
             fixture_context_by_team=fixture_context or None,
         )
+    with st.expander("Season policy and simulation analysis", expanded=not decisions):
+        _render_run_summary(result)
+        _render_policy_comparison(result)
+        st.subheader("Recommended season policy")
+        st.dataframe(_decision_frame(decisions), width="stretch", hide_index=True)
     _render_state_commit(job, result)
 
 
@@ -1548,6 +1371,13 @@ def render_ai_manager_page() -> None:
         default_season=default_season,
         container=heading[0],
     )
+    season_jobs = [
+        job
+        for job in list_manager_jobs()
+        if str(dict(job.get("request", {})).get("season_name")) == season_name
+    ]
+    has_results = any(job.get("status") == "completed" for job in season_jobs)
+    has_active_run = any(job.get("status") in {"queued", "running"} for job in season_jobs)
     view = heading[1].segmented_control(
         "View",
         options=["run", "results", "state"],
@@ -1556,7 +1386,7 @@ def render_ai_manager_page() -> None:
             "results": "Review results",
             "state": "Manager state",
         }[value],
-        default="run",
+        default="results" if has_results and not has_active_run else "run",
         key="ai_manager_view",
     )
     if view == "run":
