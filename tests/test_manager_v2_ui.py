@@ -4,7 +4,7 @@ pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest
 
 
-def test_engine_switch_keeps_legacy_default_and_trial_controls_isolated(tmp_path):
+def test_improved_engine_is_default_and_fallback_settings_stay_isolated(tmp_path):
     script = f'''
 from pathlib import Path
 import fplmodel.manager_dashboard as dashboard
@@ -18,15 +18,13 @@ dashboard._render_run_view("2026-27", source)
 '''
     app = AppTest.from_string(script).run()
     assert not app.exception
-    assert app.selectbox(key="ai_manager_engine").value == "legacy"
-    assert app.number_input(key="ai_manager_simulations_legacy").value == 50000
-    app.selectbox(key="ai_manager_engine").set_value("v2").run()
-    assert not app.exception
+    assert app.selectbox(key="ai_manager_engine_live").value == "v2"
+    assert app.checkbox(key="ai_manager_read_only").value is False
     assert app.number_input(key="ai_manager_simulations_v2").value == 128
     assert app.number_input(key="ai_manager_transfer_limit_v2").value == 5
     assert app.number_input(key="ai_manager_paid_gain_buffer").value == 2.
     assert app.number_input(key="ai_manager_paid_min_probability").value == .75
-    app.selectbox(key="ai_manager_engine").set_value("legacy").run()
+    app.selectbox(key="ai_manager_engine_live").set_value("legacy").run()
     assert not app.exception
     assert app.number_input(key="ai_manager_simulations_legacy").value == 50000
     assert app.number_input(key="ai_manager_transfer_limit_legacy").value == 2

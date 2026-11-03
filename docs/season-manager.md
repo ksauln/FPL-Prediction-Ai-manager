@@ -1,9 +1,10 @@
 # Stateful FPL Season Manager
 
-The opt-in upgraded manager is available as a read-only trial. The current engine
-remains the default for the in-progress season. See [Manager v2](manager-v2.md)
-for weekly planning, shared scenario comparisons, individual-fixture forecasts,
-historical evaluation and live-state safeguards.
+The improved v2 manager is the default for new UI runs and weekly continuation.
+It carries forward saved live state and exposes a separately confirmed state
+save. Historical/read-only trials remain unable to commit. Legacy is an explicit
+fallback. See [Manager v2](manager-v2.md) for weekly planning, shared scenarios,
+paid-transfer checks, forecast provenance and activation details.
 
 ## Design Principle
 

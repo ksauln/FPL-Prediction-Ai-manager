@@ -20,6 +20,7 @@ from .manager_jobs import (
     cancel_manager_job,
     commit_recommended_state,
     create_manager_job,
+    is_read_only_request,
     list_manager_jobs,
     load_manager_job,
     load_manager_job_result,
@@ -142,10 +143,12 @@ def _load_state_if_available(season_name: str):
 def _status_label(job: dict[str, object]) -> str:
     request = dict(job.get("request", {}))
     created = str(job.get("created_at", ""))[:19].replace("T", " ")
+    version = dict(request.get("manager_config", {})).get("manager_version", "legacy")
+    mode = "trial" if is_read_only_request(request) else str(request.get("run_mode", "planning"))
     return (
         f"{created} | {request.get('season_name', 'season')} | "
         f"GW{request.get('start_gw', '?')}-{request.get('end_gw', '?')} | "
-        f"{int(request.get('simulations', 0)):,} | {job.get('status', 'unknown')}"
+        f"{int(request.get('simulations', 0)):,} | {version} {mode} | {job.get('status', 'unknown')}"
     )
 
 
@@ -803,12 +806,14 @@ def _render_run_view(
     source: PredictionSeasonSource,
 ) -> None:
     manager_version = st.selectbox(
-        "Decision engine", options=["legacy", "v2"],
-        format_func=lambda value: "Current season manager" if value == "legacy" else "Upgraded manager · read-only trial",
-        key="ai_manager_engine",
+        "Decision engine", options=["v2", "legacy"],
+        format_func=lambda value: "Legacy manager · fallback" if value == "legacy" else "Improved manager · v2",
+        key="ai_manager_engine_live",
     )
+    read_only = False
     if manager_version == "v2":
-        st.info("Trial recommendations use a copy of your squad. They cannot advance live state or change automatic weekly runs.")
+        read_only = st.checkbox("Read-only comparison", value=False, key="ai_manager_read_only")
+        st.caption("Read-only comparisons cannot save state or configure future weekly runs." if read_only else "Improved engine enabled. Review and apply the recommendation before confirming the live-state save.")
         vintage_root = OUTPUTS_DIR / "manager_v2" / "forecasts" / season_name
         vintages = sorted((p for p in vintage_root.glob("*") if (p / "vintage.json").is_file()), reverse=True)
         if vintages:
@@ -830,8 +835,8 @@ def _render_run_view(
         "Manager mode",
         options=["planning", "live"],
         format_func=lambda value: "Season planning" if value == "planning" else "Live gameweek",
-        default="planning",
-        key="ai_manager_run_mode",
+        default="live" if _state_path(season_name).is_file() else "planning",
+        key="ai_manager_run_mode_live",
     )
     state = None
     state_error = None
@@ -1023,6 +1028,7 @@ def _render_run_view(
                     "chip_future_value_ratio": future_value_ratio,
                     "monte_carlo_noise_scale": noise_scale,
                 },
+                "read_only": read_only,
                 "rules": {
                     "budget_m": budget_m,
                     "max_free_transfers": max_free_transfers,
@@ -1044,7 +1050,7 @@ def _render_run_summary(result: dict[str, object]) -> None:
     summary = dict(result.get("summary", {}))
     if result.get("manager_version") == "v2":
         weeks = result.get("evaluation", {}).get("gameweeks", [])
-        st.caption(f"Trial outcome distribution covers GW{weeks[0]}–GW{weeks[-1]}. Replan with fresh information each deadline." if weeks else "Read-only manager trial.")
+        st.caption(f"Outcome distribution covers GW{weeks[0]}–GW{weeks[-1]}. Replan with fresh information each deadline." if weeks else "Improved manager analysis.")
     columns = st.columns(5)
     columns[0].metric("Simulations", f"{int(summary.get('simulations', 0)):,}")
     columns[1].metric("Average points", f"{float(summary.get('average_total_expected_points', 0.0)):.1f}")
@@ -1177,7 +1183,7 @@ def _render_gameweek_decision(
 
 
 def _render_state_commit(job: dict[str, object], result: dict[str, object]) -> None:
-    if result.get("manager_version") == "v2":
+    if result.get("read_only", result.get("manager_version") == "v2"):
         st.caption("Read-only trial: live manager state is preserved.")
         return
     recommended = dict(result.get("recommended_policy", result.get("best_run", {})))
@@ -1255,6 +1261,10 @@ def _render_results_view(season_name: str) -> None:
     lookup = {str(job["job_id"]): job for job in jobs}
     job_ids = list(lookup)
     selected = st.session_state.get("ai_manager_selected_job")
+    upgraded = [job for job in jobs if dict(job.get("request", {}).get("manager_config", {})).get("manager_version") == "v2" and not is_read_only_request(dict(job.get("request", {})))]
+    if upgraded and not st.session_state.get("ai_manager_live_v2_results_selected"):
+        selected = str(upgraded[0]["job_id"])
+        st.session_state["ai_manager_live_v2_results_selected"] = True
     completed_index = next((index for index, job in enumerate(jobs) if job.get("status") == "completed"), 0)
     index = job_ids.index(selected) if selected in job_ids else completed_index
     filters = st.columns([3, 1])
@@ -1279,7 +1289,9 @@ def _render_results_view(season_name: str) -> None:
     result = load_manager_job_result(job_id)
     recommended = dict(result.get("recommended_policy", result.get("best_run", {})))
     decisions = list(recommended.get("decisions", []))
-    st.caption("Read-only trial · live state is preserved" if result.get("manager_version") == "v2" else "Saved season policy · review each gameweek before saving state")
+    engine_label = "Improved v2" if result.get("manager_version") == "v2" else "Legacy"
+    read_only = result.get("read_only", result.get("manager_version") == "v2")
+    st.caption(f"{engine_label} · read-only trial · live state is preserved" if read_only else f"{engine_label} · review each gameweek before saving state")
     if decisions:
         gameweeks = [int(decision["gameweek"]) for decision in decisions]
         selected_gw = filters[1].selectbox("Gameweek decision", options=gameweeks)

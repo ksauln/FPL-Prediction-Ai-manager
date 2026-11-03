@@ -33,7 +33,7 @@ def test_v2_trial_cannot_commit_even_when_a_recommended_state_exists(tmp_path):
     assert destination.read_bytes() == before
 
 
-def test_v2_is_never_an_automatic_continuation_template():
+def test_unmarked_v2_trials_are_never_automatic_continuation_templates():
     v2 = {"status": "completed", "request": {"season_name": "2026-27", "manager_config": {"manager_version": "v2"}}}
     old = {"status": "completed", "request": {"season_name": "2026-27"}}
     assert _continuation_template([v2, old], season_name="2026-27") is old

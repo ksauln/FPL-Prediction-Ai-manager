@@ -1,10 +1,15 @@
-# Upgraded AI Manager: read-only season trials
+# Improved AI Manager: live v2 and read-only comparisons
 
-The current manager remains the default. V2 can read a copy of your committed
-squad, bank, purchase prices, free transfers and chips, and create recommendations
-in a separate job. It cannot commit state or become the template used by the
-weekly data-refresh continuation. No predictions, fitted models or bias state
-are updated by a trial.
+As of 2026-11-03, **Improved manager · v2** is the default for new UI runs and
+weekly continuation. It reads the saved squad, bank, purchase prices, free
+transfers and chips, then writes a new recommendation and a separate candidate
+state. It does not automatically advance the live state: apply the recommendation
+in FPL, check the existing confirmation and press **Save state through GW<N>**.
+No prediction, fitted-model or bias state is changed by running the manager.
+
+Existing v2 jobs without an explicit `read_only: false` flag remain historical
+read-only trials. They cannot save state or configure automatic continuation.
+This preserves the original trials while allowing new live-enabled jobs.
 
 The pre-change working source, models, root predictions and live manager state
 are preserved in `outputs/manager_baselines/20261031T094438Z/baseline.tar.gz`.
@@ -18,7 +23,7 @@ The backup directory is ignored by Git.
 | --- | --- | --- |
 | Transfers | Optimize summed horizon projections | Search sequences with a different XI and captain pair each week |
 | Rolling | Minimum transfer gain threshold | Explicit hold action, future transfer balances and diminishing value for unused transfers |
-| Packages | Default limit of two | Configurable limit, default five in the trial UI; includes larger free packages and paid transfers |
+| Packages | Default limit of two | Configurable limit, default five in the UI; includes larger free packages and paid transfers |
 | Chips | Gain thresholds | Compare chip/transfer sequences, including preparation, expiry and the squad afterward |
 | Captaincy | EP multiplied by additional reliability penalties | Compare captain/vice pairs including nonappearance fallback |
 | Strategy comparisons | Independently sampled policy blocks | All candidates face identical futures; finalists face a fresh batch |
@@ -30,19 +35,38 @@ lineups, rather than evaluating only one XI on summed player projections.
 
 ## Use in the app
 
-1. Open **AI Manager → Run simulations**.
-2. Leave **Current season manager** selected for the ongoing season workflow.
-3. To compare the upgrade, choose **Upgraded manager · read-only trial**.
-4. Choose **Live gameweek** to start from a copy of the committed squad, or
-   **Season planning** for a new squad. Start with 128 simulations and a short
-   horizon; the search is more expensive than scoring a fixed policy.
-5. Choose individual-fixture forecasts if available, otherwise the existing
-   pipeline projections can be used to isolate the decision-engine changes.
-6. Review the decision alternatives, points gain relative to holding this week,
-   probability of beating that continuation, and downside/upside percentiles.
+1. Open **AI Manager → Run simulations**. **Improved manager · v2** is selected
+   by default; with saved state, **Live gameweek** starts from the next unapplied
+   gameweek. **Season planning** remains available for a new squad.
+2. Leave **Read-only comparison** unchecked for the live workflow. Check it only
+   for a comparison that must not offer state saving or configure weekly runs.
+3. Start with 128 simulations and the desired planning horizon. Shared screening
+   and fresh validation are more expensive per scenario than legacy scoring, so
+   the old 50,000-simulation setting is not carried into a v2 migration.
+4. Choose fixture-level forecasts if available, or use current pipeline forecasts.
+5. Review the selected action, no-hit alternative, marginal paid-move gain,
+   shared-scenario win frequency and downside/upside percentiles.
+6. Apply only the current week's decision in FPL, then explicitly confirm and
+   save that week's candidate state. Later decisions are planning continuations;
+   replan with fresh information at their deadlines.
 
-There is no **Save state** action for v2. The API rejects v2 commits as well.
-Automatic weekly continuation ignores v2 jobs and retains existing settings.
+The results selector labels each run's engine and mode. On the first live-v2
+result, an existing browser session moves from its legacy result to the new v2
+result; historical runs remain selectable. **Legacy manager · fallback** is an
+explicit alternative, not the default.
+
+## Automatic continuation and migration
+
+The next dashboard refresh continues from the saved squad. Old legacy request
+settings migrate to v2 for the new job, retaining horizon, transfer limit,
+season rules, seed and other strategy settings. Sampling becomes 128 scenarios
+unless an existing live-v2 job provides a v2 count. Requests written by the new
+UI with an explicit legacy selection retain that fallback. Existing job files
+are not rewritten, and skipped/uncommitted gameweeks still stop continuation.
+
+New v2 job API requests must set `read_only: false` to enable the candidate-state
+and confirmed-save workflow. Omitting the flag on v2 intentionally retains the
+old trial semantics. The standalone `trial` CLI remains a read-only report.
 
 V2 ignores the old individual chip gain thresholds. It compares chip use against
 waiting inside the search horizon. **Transfer gain** remains the minimum net
@@ -54,7 +78,7 @@ Paid transfers now face additional checks against the best no-hit continuation.
 The default extra margin is two net points per paid transfer, in addition to the
 usual transfer-gain threshold, with a 75% shared-scenario win frequency required.
 Fees are already deducted before this comparison; the margin is not another
-charge. The trial settings expose both controls. See the
+charge. The v2 strategy settings expose both controls. See the
 [hit-discipline fix and evaluation](manager-hit-discipline.md) for the rule,
 before/after results, seed checks and limitations.
 
@@ -193,7 +217,7 @@ not an unbiased guarantee of future points. Sampling is batched to bound memory.
 
 ## Validation
 
-Tests cover legacy default/continuation isolation, rejected state commits, input
+Tests cover historical trial isolation, confirmed live-v2 commits and continuation, input
 immutability, weekly XI changes, captain fallback, rolling to fund a later package,
 larger free packages, chip timing/expiry, bench-boost preparation, free-hit state
 restoration and cross-half restrictions, correlated/persistent scenarios,
@@ -216,12 +240,23 @@ and UI coverage):
   generated under `outputs/manager_v2/`; the new GW9 vintage passed the provenance
   audit. Earlier unversioned archives were not counted as historical evidence.
 
-The later complete suite passes **295 tests**. The original season replay is
+The live-v2 activation suite passes **302 tests**. The original season replay is
 recorded in the [pre-fix backtest](manager-v2-season-backtest.md); current results
 and the remaining one-week-control deficit are in the
 [hit-discipline evaluation](manager-hit-discipline.md). Baselines, archived models,
 private enrichment inputs and generated evaluation reports are local artifacts
 excluded from Git. Reproduction commands require those matching inputs.
+
+The 2026-11-03 activation check generated a new GW10–15 live-enabled v2 job from
+the saved GW9 squad, using the existing forecasts and 128 scenarios. For GW10 it
+selected Gvardiol → Van Hecke as one free transfer with zero hit cost. The paid
+second move's fresh-scenario net advantage over the free alternative was about
+1.48 points versus a required 3.5, so it was rejected despite winning in about
+82% of scenarios. This is a decision-rule check, not a realized-performance claim.
+The live state remained through GW9, the candidate state was written separately,
+and all 1,015 protected existing data/model/forecast/job files retained their
+hashes. Desktop and mobile browser checks confirmed the new v2 result and the
+disabled state-save button until explicit application confirmation.
 
 ## Implementation files
 
@@ -230,8 +265,8 @@ excluded from Git. Reproduction commands require those matching inputs.
 - `fplmodel/manager_forecasts.py`: individual-fixture forecasts and provenance.
 - `fplmodel/manager_backtest.py`: deadline-safe historical competition.
 - `fplmodel/season_manager.py`: additive version configuration and dispatch.
-- `fplmodel/manager_jobs.py`: trial guards and continuation isolation.
-- `fplmodel/manager_dashboard.py`: opt-in controls and comparison results.
+- `fplmodel/manager_jobs.py`: explicit read-only guards, candidate states and live continuation.
+- `fplmodel/manager_dashboard.py`: default live-v2 controls and comparison results.
 - `scripts/manager_v2.py`: forecast, trial, audit and backtest commands.
 - `tests/test_manager_v2*.py`, `tests/test_manager_forecasts.py` and
   `tests/test_manager_backtest.py`: new regression and integration coverage.

@@ -239,7 +239,7 @@ class ManagerJobTests(unittest.TestCase):
                     random_seed=77,
                     output_dir="old-predictions",
                     manager_state_path=str(state_path),
-                    manager_config={"transfer_horizon": 6, "enable_chips": False},
+                    manager_config={"manager_version": "legacy", "transfer_horizon": 6, "enable_chips": False},
                     rules={"max_free_transfers": 4},
                 )
             )

@@ -1,3 +1,9 @@
+> Live engine update, 2026-11-03: **Improved manager · v2** is now the default.
+> Existing squad and financial state carry forward unchanged. Leave **Read-only
+> comparison** unchecked for live recommendations, apply only the first week's
+> decision in FPL, then explicitly confirm its state save. Old trial runs remain
+> read-only. See the [v2 guide](manager-v2.md) for migration and sampling settings.
+
 # AI Manager Season Runbook
 
 This is the operating guide for preseason planning, selecting the GW1 squad, and running the same stateful manager every gameweek.

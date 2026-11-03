@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-03
+
+- Activate improved v2 as the default UI and weekly-continuation engine. Migrate
+  historical legacy settings for future jobs without changing committed squads
+  or historical results; retain explicit legacy fallback.
+- Add an explicit `read_only` job flag. New live-v2 jobs write a candidate state
+  and allow the existing confirmed save action. Historical v2 trials remain
+  read-only and cannot configure continuation.
+- Use 128 scenarios when migrating from legacy sampling counts; retain saved
+  horizons, transfer limits, season rules and live-v2 strategy settings.
+- Regenerate GW10–15 from saved GW9 state. The GW10 v2 action uses one free
+  transfer and no hit; the paid second move fails its net-gain threshold.
+- Verify 302 tests and preserve existing runtime files. State stays through GW9
+  until the owner applies and saves the new recommendation.
+
 ## 2026-10-31
 
 - Introduce Orbital's responsive dark dashboard, tactical pitch, jersey markers,

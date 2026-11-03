@@ -4,7 +4,9 @@ The selected Orbital design is implemented in the existing Streamlit dashboard: 
 
 Completed results open on the saved gameweek squad before simulation analysis. Active runs still open in the run view. The run/results/state controls and page navigation remain available. Player tables and season analysis sit in expandable sections. The recommendation column displays recorded transfers, chip choice, captain/vice projections and actual hit costs; missing projections say unavailable. It does not fabricate a strategic reason, probability or performance history.
 
-No engine, prediction, state-save, job-start or automatic-update logic was changed. Legacy remains the engine default and v2 remains a read-only trial. The existing explicit legacy save confirmation remains required.
+No engine, prediction, state-save, job-start or automatic-update logic was changed. That UI-only release initially retained the legacy default. The 2026-11-03
+live-v2 activation now makes the improved engine the default while retaining
+explicit save confirmation and historical trial isolation; see [Manager v2](manager-v2.md).
 
 ## Files
 

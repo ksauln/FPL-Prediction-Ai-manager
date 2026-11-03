@@ -33,7 +33,7 @@ allows devices to communicate; guest-network isolation or a firewall can prevent
 access. The address may change after reconnecting to Wi-Fi.
 
 The app currently has no login. A LAN listener exposes its data refresh,
-simulation and legacy state-save controls to devices that can reach that
+simulation and state-save controls to devices that can reach that
 address. Enable this only on a trusted network with the owner's approval.
 Do not forward the port through the router for public access. Normal dashboard
 refreshes can start background manager jobs; state still advances only after the

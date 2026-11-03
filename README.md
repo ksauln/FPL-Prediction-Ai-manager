@@ -4,7 +4,7 @@ Automated Fantasy Premier League analytics pipeline that ingests raw data, engin
 
 ![Orbital AI Manager squad and recommendation](docs/screenshots/orbital-desktop.png)
 
-Start with the [season runbook](docs/ai-manager-season.md), [v2 trial guide](docs/manager-v2.md), [transfer-hit fix and results](docs/manager-hit-discipline.md), or [Orbital UI guide](docs/orbital-ui.md). Setup, phone access and hosting boundaries are covered in [access and hosting](docs/access-and-hosting.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
+Start with the [season runbook](docs/ai-manager-season.md), [improved manager guide](docs/manager-v2.md), [transfer-hit fix and results](docs/manager-hit-discipline.md), or [Orbital UI guide](docs/orbital-ui.md). Setup, phone access and hosting boundaries are covered in [access and hosting](docs/access-and-hosting.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -25,9 +25,11 @@ The pipeline is structured so each stage feeds the next while persisting interme
 
 ### 1.1 AI Manager
 
-An opt-in **Upgraded manager · read-only trial** adds week-by-week transfer/chip
-planning and shared future scenarios while preserving the current live manager.
-See the [v2 trial guide](docs/manager-v2.md) for use and historical evaluation.
+**Improved manager · v2** is the default for new UI runs and automatic weekly
+continuation. It adds week-by-week transfer/chip planning, shared future scenarios
+and stricter paid-transfer checks while carrying forward the saved squad and
+finances. **Read-only comparison** is optional; legacy remains an explicit
+fallback. See the [improved manager guide](docs/manager-v2.md).
 
 The **AI Manager** runs through the main Streamlit app and manages a full FPL season. It uses repeated simulations to choose the squad, transfers, lineup, bench, captain, vice-captain, and chip timing while tracking bank, purchase prices, free transfers, and saved live state.
 
@@ -51,8 +53,9 @@ update action is disabled because there is no upcoming Gameweek.
 
 The upgraded manager's transfer-hit fix improved the reconstructed GW1–8 replay
 from 398 to 412 net points and reduced hit deductions from 40 to 4. The original
-next-week-only control still trails legacy (401 versus 446), so v2 remains an
-opt-in trial. These are observed-period checks with reconstructed horizons,
+next-week-only control still trails legacy (401 versus 446), so these results do
+not establish overall superiority. V2 was enabled for live use at the owner's
+request on 2026-11-03. These are observed-period checks with reconstructed horizons,
 not independent proof of full-season superiority. See the
 [evaluation and limitations](docs/manager-hit-discipline.md).
 
@@ -94,7 +97,7 @@ FPL-Prediction/
 │   ├── season_manager.py       # stateful full-season manager simulation
 │   ├── manager_jobs.py         # persistent background simulation workers
 │   ├── manager_dashboard.py    # Orbital AI Manager page
-│   ├── manager_v2.py           # opt-in weekly search and paid-transfer guards
+│   ├── manager_v2.py           # improved weekly search and paid-transfer guards
 │   ├── manager_scenarios.py    # shared, batched future-outcome scenarios
 │   ├── manager_forecasts.py    # fixture forecasts and provenance
 │   ├── manager_backtest.py     # actual-outcome manager evaluation
@@ -372,8 +375,9 @@ The **AI Manager** tab runs long simulations in a separate process. Progress, ET
 Completed runs initially open **Review results**; an active run keeps **Run
 simulations** as the initial view. The selected gameweek shows a responsive pitch,
 jersey markers, captain/vice pairing, transfers and hit cost. Player tables and
-season analysis remain available in expandable sections. The legacy engine is
-still the default, and v2 trials cannot save or advance live state.
+season analysis remain available in expandable sections. V2 is the default
+engine; only explicitly live-enabled jobs can offer the confirmed state-save
+action. Historical v2 trials remain read-only.
 
 ### 5.1 Screenshots
 

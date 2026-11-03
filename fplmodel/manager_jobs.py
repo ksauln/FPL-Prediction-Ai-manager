@@ -149,12 +149,15 @@ def validate_job_request(request: dict[str, object]) -> dict[str, object]:
     version = manager_config.get("manager_version", "legacy")
     if version not in {"legacy", "v2"}:
         raise ValueError("manager_version must be 'legacy' or 'v2'")
+    read_only = request.get("read_only", version == "v2")
+    if not isinstance(read_only, bool):
+        raise ValueError("read_only must be a boolean")
     if version == "v2":
         from .manager_v2 import validate_config
 
         validate_config(SeasonManagerConfig(**manager_config))
         if simulations > 10000:
-            raise ValueError("V2 trial simulations must be <= 10000")
+            raise ValueError("V2 simulations must be <= 10000")
     rules = _normalise_dataclass_options(
         request.get("rules", {}),
         option_type=SeasonRules,
@@ -186,6 +189,7 @@ def validate_job_request(request: dict[str, object]) -> dict[str, object]:
         "policy_refresh_interval": policy_refresh_interval,
         "random_seed": random_seed,
         "manager_config": manager_config,
+        "read_only": read_only,
         "rules": rules,
         "output_dir": output_dir,
         "manager_state_path": state_path,
@@ -302,6 +306,12 @@ def list_manager_jobs(
     return sorted(jobs, key=lambda item: str(item.get("created_at", "")), reverse=True)
 
 
+def is_read_only_request(request: dict[str, object]) -> bool:
+    """Old v2 jobs remain trials; live v2 requires explicit read_only=False."""
+    version = dict(request.get("manager_config", {})).get("manager_version", "legacy")
+    return request.get("read_only", version == "v2") is not False
+
+
 def _continuation_template(
     jobs: list[dict[str, object]],
     *,
@@ -312,7 +322,7 @@ def _continuation_template(
         for job in jobs
         if job.get("status") == "completed"
         and str(dict(job.get("request", {})).get("season_name")) == season_name
-        and dict(dict(job.get("request", {})).get("manager_config", {})).get("manager_version", "legacy") == "legacy"
+        and not is_read_only_request(dict(job.get("request", {})))
     ]
     committed = [job for job in completed if job.get("state_committed_at")]
     candidates = committed or completed
@@ -357,20 +367,30 @@ def build_live_continuation_request(
     jobs = list_manager_jobs(job_root=job_root) if previous_jobs is None else previous_jobs
     template = _continuation_template(jobs, season_name=season_name)
     template_request = dict(template.get("request", {})) if template else {}
+    manager_config = dict(template_request.get("manager_config", {}))
+    # Historical requests predate the explicit live/read-only boundary. Upgrade
+    # their future jobs without rewriting the old job or committed squad.
+    old_legacy = manager_config.get("manager_version", "legacy") == "legacy" and "read_only" not in template_request
+    version = "v2" if old_legacy else manager_config.get("manager_version", "v2")
+    migrating = version == "v2" and (old_legacy or "manager_version" not in manager_config)
+    manager_config["manager_version"] = version
+    simulations = 128 if migrating else int(template_request.get("simulations", 128))
     request = {
         "season_name": season_name,
         "run_mode": "live",
         "start_gw": int(start_gw),
         "end_gw": int(end_gw),
-        "simulations": int(template_request.get("simulations", 50_000)),
-        "simulation_mode": str(
+        "simulations": simulations,
+        "simulation_mode": "periodic_reoptimization" if version == "v2" else str(
             template_request.get("simulation_mode", "periodic_reoptimization")
         ),
         "policy_refresh_interval": int(
-            template_request.get("policy_refresh_interval", 1_000)
+            min(simulations, int(template_request.get("policy_refresh_interval", 1_000)))
+            if version == "v2" else template_request.get("policy_refresh_interval", 1_000)
         ),
         "random_seed": int(template_request.get("random_seed", 90)),
-        "manager_config": dict(template_request.get("manager_config", {})),
+        "manager_config": manager_config,
+        "read_only": False,
         "rules": dict(template_request.get("rules", {})),
         "output_dir": str(output_dir),
         "manager_state_path": str(state_path),
@@ -561,8 +581,8 @@ def commit_recommended_state(
     """Commit a completed job's first recommended decision as live state."""
 
     job = load_manager_job(job_id, job_root=job_root)
-    if dict(job.get("request", {}).get("manager_config", {})).get("manager_version", "legacy") == "v2":
-        raise ValueError("V2 is a read-only trial and cannot commit live manager state")
+    if is_read_only_request(dict(job.get("request", {}))):
+        raise ValueError("A read-only trial cannot commit live manager state")
     if job["status"] != "completed":
         raise RuntimeError("Only a completed manager job can commit state")
     candidate_path = _job_directory(job_id, Path(job_root)) / "recommended_state.json"
@@ -684,6 +704,8 @@ def run_manager_job(job_dir: Path) -> dict[str, object]:
         initial_state=initial_state,
         progress_callback=progress_callback,
     )
+    result["read_only"] = request["read_only"]
+    result.setdefault("manager_version", dict(request.get("manager_config", {})).get("manager_version", "legacy"))
     _update_status(
         job_dir,
         status="running",
@@ -697,7 +719,7 @@ def run_manager_job(job_dir: Path) -> dict[str, object]:
     recommended_state_path: Optional[Path] = None
     if (
         decisions and "manager_state_after" in decisions[0]
-        and dict(request.get("manager_config", {})).get("manager_version", "legacy") == "legacy"
+        and not request["read_only"]
     ):
         recommended_state_path = save_manager_state(
             ManagerState.from_dict(decisions[0]["manager_state_after"]),
@@ -764,6 +786,7 @@ __all__ = [
     "commit_recommended_state",
     "create_manager_job",
     "list_manager_jobs",
+    "is_read_only_request",
     "load_manager_job",
     "load_manager_job_result",
     "run_manager_job",

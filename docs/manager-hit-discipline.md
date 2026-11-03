@@ -4,7 +4,9 @@ The revised v2 scored **412 net points versus 398 before the fix** in the
 GW1–8 reconstructed four-week replay. Hit deductions fell from **40 to 4**.
 The legacy manager also scored 398 on those inputs. The original next-week-only
 control improved from 388 to 401, but remains below the legacy manager's 446.
-The live manager remains unchanged and the revision stays opt-in.
+At evaluation time the live manager was unchanged and the revision was opt-in.
+The owner enabled live v2 on 2026-11-03; see the [current engine guide](manager-v2.md).
+The historical performance limitations below remain applicable.
 
 ## What was wrong
 
